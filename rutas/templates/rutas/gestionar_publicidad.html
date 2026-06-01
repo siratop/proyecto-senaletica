@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 900px; margin: 40px auto; padding: 20px; background: white; border-radius: 12px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <div>
+            <h2 style="color: #b45309; margin-bottom: 5px;"><i class="fa-solid fa-rectangle-ad"></i> Gestión de Publicidad</h2>
+            <p style="color: #64748b; font-size: 14px; margin: 0;">Administre las campañas publicitarias que se muestran en la aplicación ciudadana.</p>
+        </div>
+        <a href="{% url 'crear_campana' %}" style="background: #d97706; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 14px;">
+            + Subir Nuevo Banner
+        </a>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="background-color: #fefce8; border-bottom: 2px solid #fde68a; color: #b45309; font-size: 13px;">
+                    <th style="padding: 12px;">Campaña</th>
+                    <th style="padding: 12px;">Estado</th>
+                    <th style="padding: 12px; text-align: center;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in campanas %}
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 12px; font-weight: bold; color: #334155;">{{ c.nombre }}</td>
+                    <td style="padding: 12px;">
+                        {% if c.activa %}
+                            <span style="background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">Activa</span>
+                        {% else %}
+                            <span style="background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">Inactiva</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 12px; text-align: center;">
+                        <form method="POST" action="{% url 'eliminar_campana' c.id %}" style="display:inline;" onsubmit="return confirm('¿Eliminar esta campaña?');">
+                            {% csrf_token %}
+                            <td style="padding: 12px; text-align: center;">
+    <a href="{% url 'editar_campana' c.id %}" style="background: #3b82f6; color: white; padding: 6px 10px; border-radius: 4px; text-decoration: none; font-size: 12px; margin-right: 5px;">
+        <i class="fa-solid fa-edit"></i> Editar
+    </a>
+
+    <form method="POST" action="{% url 'eliminar_campana' c.id %}" style="display:inline;" onsubmit="return confirm('¿Seguro?');">
+        {% csrf_token %}
+        <button type="submit" style="background: #ef4444; color: white; padding: 6px 10px; border-radius: 4px; border: none; cursor: pointer;">
+            <i class="fa-solid fa-trash"></i> Eliminar
+        </button>
+    </form>
+</td>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" style="padding: 20px; text-align: center; color: #64748b;">No hay campañas registradas.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div style="text-align: center; margin-top: 30px;">
+    <a href="{% url 'panel_admin_amigable' %}" style="color: #475569; text-decoration: none; font-size: 14px; font-weight: bold; padding: 10px; display: inline-flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-arrow-left"></i> Volver al Panel
+    </a>
+</div>
+{% endblock %}

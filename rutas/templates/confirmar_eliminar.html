@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card-mck" style="max-width: 500px; margin: 40px auto; padding: 30px; text-align: center;">
+    <h2 style="color: #ef4444; margin-bottom: 20px;">
+        <i class="fa-solid fa-triangle-exclamation"></i> ¿Confirmar Eliminación?
+    </h2>
+    <p style="color: #475569; margin-bottom: 25px;">
+        Está a punto de borrar de forma permanente al usuario: 
+        <strong style="color: #0f172a;">{{ object.username }}</strong>. 
+        Esta acción no se puede deshacer.
+    </p>
+    
+    <form method="post">
+        {% csrf_token %}
+        <div style="display: flex; gap: 15px; justify-content: center;">
+            <a href="javascript:history.back()" 
+               style="background: #94a3b8; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+               Cancelar
+            </a>
+            
+            <button type="submit" 
+                    style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                <i class="fa-solid fa-trash"></i> Eliminar Definitivamente
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

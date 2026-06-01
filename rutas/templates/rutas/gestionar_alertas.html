@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 900px; margin: 40px auto; padding: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2 style="color: #991b1b; margin: 0;"><i class="fa-solid fa-triangle-exclamation"></i> Panel de Contingencias y Avisos</h2>
+            <p style="color: #64748b; margin: 5px 0 0 0;">Gestione los banners informativos globales y las incidencias marcadas en el radar operativo.</p>
+        </div>
+        <a href="{% url 'panel_admin_amigable' %}" class="btn-admin-manage" style="text-decoration: none;"><i class="fa-solid fa-arrow-left"></i> Volver al Panel</a>
+    </div>
+
+    <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #fecaca; box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.05);">
+        <div style="margin-bottom: 20px;">
+            <a href="{% url 'crear_alerta' %}" class="btn-admin-add" style="background: #ef4444; color: white; border: none; text-decoration: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; display: inline-block;">
+                <i class="fa-solid fa-plus"></i> Redactar Nueva Alerta
+            </a>
+        </div>
+
+       <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 2px solid #f1f5f9; color: #475569; font-size: 14px;">
+                    <th style="padding: 12px;">Tipo de Alerta</th>
+                    <th style="padding: 12px;">Mensaje Público</th>
+                    <th style="padding: 12px;">Estado</th>
+                    <th style="padding: 12px;">Acciones</th> </tr>
+            </thead>
+            <tbody>
+                {% for alerta in alertas %}
+                <tr style="border-bottom: 1px solid #f8fafc; font-size: 14px;">
+                    <td style="padding: 12px; font-weight: bold; color: #334155;">{{ alerta.get_tipo_display }}</td>
+                    <td style="padding: 12px; color: #64748b;">{{ alerta.mensaje }}</td>
+                    <td style="padding: 12px;">
+                        {% if alerta.activa %}
+                            <span style="background: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">Activa</span>
+                        {% else %}
+                            <span style="background: #f1f5f9; color: #94a3b8; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">Resuelta</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 12px; display: flex; gap: 5px;">
+                        <a href="{% url 'editar_alerta' alerta.id %}" style="background: #e2e8f0; color: #475569; padding: 6px 10px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold;"><i class="fa-solid fa-pen"></i></a>
+                        <a href="{% url 'eliminar_alerta' alerta.id %}" onclick="return confirm('¿Seguro que deseas eliminar permanentemente este aviso?')" style="background: #fecaca; color: #dc2626; padding: 6px 10px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold;"><i class="fa-solid fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="padding: 20px; text-align: center; color: #94a3b8;">No hay contingencias registradas en el sistema.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

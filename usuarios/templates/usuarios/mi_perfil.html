@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+
+    <a href="{% url 'inicio_general' %}" style="display: inline-block; margin-bottom: 20px; color: #475569; text-decoration: none; font-weight: bold; font-size: 14px; transition: 0.2s;">
+        <i class="fa-solid fa-arrow-left-long"></i> Volver al Radar Ciudadano
+    </a>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div style="background: #ecfdf5; color: #10b981; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #a7f3d0; font-weight: bold;">
+                <i class="fa-solid fa-circle-check"></i> {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <h2 style="color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 0;"><i class="fa-solid fa-user-gear"></i> Configuración de Cuenta Segura</h2>
+
+    {% if perfil.rol == 'conductor' or perfil.rol == 'flota' %}
+    <div style="background: #fffbeb; border: 2px solid #f59e0b; border-radius: 12px; padding: 20px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.15);">
+        <div style="display: flex; justify-content: space-between; align-items: start; gap: 15px; flex-wrap: wrap;">
+            <div>
+                <h3 style="margin-top: 0; color: #b45309; font-size: 19px;"><i class="fa-solid fa-bus"></i> Área de Trabajo: {{ perfil.get_rol_display }}</h3>
+                <p style="font-size: 14px; color: #92400e; margin: 5px 0 15px 0;">Acceda a sus herramientas de GPS y gestión operativa asignadas por la agencia.</p>
+            </div>
+            <a href="{% url 'dashboard_router' %}" style="background: #f59e0b; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.3); width: 100%; max-width: 250px;">
+                <i class="fa-solid fa-display"></i> Abrir Mi Panel de Trabajo
+            </a>
+        </div>
+    </div>
+    {% endif %}
+{% if perfil.rol == 'flota' %}
+<div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    <h3 style="color: #1e293b; margin-top: 0; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; font-size: 18px; display: flex; align-items: center; gap: 10px;">
+        <i class="fa-solid fa-building-flag" style="color: #f59e0b;"></i> Identidad Pública de la Flota
+    </h3>
+    
+    <p style="font-size: 14px; color: #64748b; margin-bottom: 20px;">
+        Administre los datos públicos de su organización. Por normativas del radar de transporte, <strong>el nombre de la empresa solo puede modificarse una vez cada 30 días</strong>.
+    </p>
+
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="guardar_flota" value="1">
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            
+            <div>
+                <label style="font-weight: bold; font-size: 13px; color: #475569; display: block; margin-bottom: 5px;">Nombre Comercial / Razón Social</label>
+                <input type="text" name="nombre_flota" value="{{ perfil.nombre_flota|default:'' }}" placeholder="Ej: Transporte Los Rápidos C.A." required 
+                       style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; outline: none; transition: 0.2s;
+                       {% if not perfil.puede_cambiar_nombre %}background: #f8fafc; color: #94a3b8; cursor: not-allowed; border-color: #e2e8f0;{% endif %}"
+                       {% if not perfil.puede_cambiar_nombre %}readonly{% endif %}>
+            </div>
+
+            <div>
+                <label style="font-weight: bold; font-size: 13px; color: #475569; display: block; margin-bottom: 5px;">Teléfono de Atención Ciudadana</label>
+                <input type="text" name="telefono_flota" value="{{ perfil.telefono|default:'' }}" placeholder="Ej: 0414-1234567" 
+                       style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; outline: none;">
+                <span style="font-size: 11px; color: #94a3b8; display: block; margin-top: 4px;">Público para reportes de objetos perdidos.</span>
+            </div>
+
+        </div>
+
+        {% if perfil.puede_cambiar_nombre %}
+            <button type="submit" style="background: #10b981; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-floppy-disk"></i> Actualizar Identidad
+            </button>
+        {% else %}
+            <div style="background: #fffbeb; border: 1px solid #fcd34d; color: #b45309; padding: 12px; border-radius: 6px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <span><i class="fa-solid fa-lock" style="margin-right: 5px;"></i> <strong>Nombre bloqueado por medidas anti-fraude.</strong></span>
+                <span style="background: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">
+                    Disponible en {{ dias_restantes_flota }} días
+                </span>
+            </div>
+            
+            <button type="submit" style="background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; margin-top: 15px;">
+                <i class="fa-solid fa-phone"></i> Actualizar solo teléfono
+            </button>
+        {% endif %}
+    </form>
+</div>
+{% endif %}
+    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px;">
+            <h3 style="margin: 0; color: #3b82f6;"><i class="fa-solid fa-address-card"></i> Datos Personales y de Contacto</h3>
+            <span style="font-size: 11px; font-weight: bold; color: #64748b; background: #f1f5f9; padding: 4px 10px; border-radius: 20px;"><i class="fa-solid fa-lock"></i> Seguridad PBKDF2</span>
+        </div>
+        
+        {% if not puede_editar %}
+            <div style="background: #fffbeb; color: #d97706; padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; border: 1px solid #fde68a;">
+                <i class="fa-solid fa-lock"></i> Por medidas de seguridad anti-fraude, sus datos están bloqueados. Podrá volver a modificarlos en <b>{{ dias_restantes }} días</b>.
+            </div>
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_data">
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="font-size: 13px; font-weight: bold; color: #475569;">Nombre</label>
+                    <input type="text" name="nombre" value="{{ user.first_name }}" {% if not puede_editar %}disabled{% endif %} style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; background: {% if not puede_editar %}#f1f5f9{% else %}#fff{% endif %}; color: {% if not puede_editar %}#64748b{% else %}#1e293b{% endif %};">
+                </div>
+                <div>
+                    <label style="font-size: 13px; font-weight: bold; color: #475569;">Apellido</label>
+                    <input type="text" name="apellido" value="{{ user.last_name }}" {% if not puede_editar %}disabled{% endif %} style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; background: {% if not puede_editar %}#f1f5f9{% else %}#fff{% endif %}; color: {% if not puede_editar %}#64748b{% else %}#1e293b{% endif %};">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div>
+                    <label style="font-size: 13px; font-weight: bold; color: #475569;">Correo Electrónico Actualizado</label>
+                    <input type="email" name="email" value="{{ user.email }}" {% if not puede_editar %}disabled{% endif %} style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; background: {% if not puede_editar %}#f1f5f9{% else %}#fff{% endif %}; color: {% if not puede_editar %}#64748b{% else %}#1e293b{% endif %};">
+                </div>
+                <div>
+                    <label style="font-size: 13px; font-weight: bold; color: #475569;">Teléfono</label>
+                    <input type="text" name="telefono" value="{{ perfil.telefono|default:'' }}" {% if not puede_editar %}disabled{% endif %} style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; background: {% if not puede_editar %}#f1f5f9{% else %}#fff{% endif %}; color: {% if not puede_editar %}#64748b{% else %}#1e293b{% endif %};">
+                </div>
+            </div>
+            
+            <button type="submit" 
+                {% if not puede_editar %}disabled style="background: #e2e8f0; color: #94a3b8; border: 1px solid #cbd5e1; cursor: not-allowed; transition: none; transform: none; box-shadow: none;"{% endif %} 
+                style="border: none; padding: 15px 25px; border-radius: 6px; font-weight: bold; font-size: 15px; width: 100%; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s; {% if puede_editar %}background: #3b82f6; color: white; cursor: pointer; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);{% endif %}">
+                {% if puede_editar %}
+                    <i class="fa-solid fa-shield-halved"></i> Guardar y Asegurar Datos
+                {% else %}
+                    <i class="fa-solid fa-check-double" style="color: #10b981;"></i> Datos Actualizados y Asegurados
+                {% endif %}
+            </button>
+        </form>
+    </div>
+
+    {% if perfil.rol == 'ciudadano' %}
+    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+        <h3 style="margin-top: 0; color: #10b981;"><i class="fa-solid fa-briefcase"></i> Trabaja con Nosotros (Postular como Operador)</h3>
+        <p style="font-size: 13px; color: #64748b;">Complete este formulario si desea formar parte de nuestra red de transporte como conductor oficial.</p>
+        
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="solicitud_empleo">
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="font-size: 13px; font-weight: bold; color: #475569;">Teléfono Directo</label>
+                    <input type="text" name="telefono_contacto" required style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                </div>
+                <div>
+                    <label style="font-size: 13px; font-weight: bold; color: #475569;">Años Experiencia</label>
+                    <input type="number" name="experiencia" required min="1" style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                </div>
+                <div>
+                    <label style="font-size: 13px; font-weight: bold; color: #475569;">Tipo de Licencia</label>
+                    <select name="licencia" required style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; background: white;">
+                        <option value="Tercera">Título de 3ra</option>
+                        <option value="Cuarta">Título de 4ta</option>
+                        <option value="Quinta">Título de 5ta (Pesada)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 13px; font-weight: bold; color: #475569;">Breve mensaje o referencias</label>
+                <textarea name="mensaje" rows="3" style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none;"></textarea>
+            </div>
+            <button type="submit" style="background: #10b981; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; box-sizing: border-box;">Enviar Solicitud</button>
+        </form>
+    </div>
+    {% endif %}
+{% if user.is_staff %}
+<details style="background: #1e293b; border-radius: 12px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <summary style="background: #0f172a; padding: 15px 20px; font-weight: bold; color: #10b981; font-size: 15px; cursor: pointer; display: flex; align-items: center; border-bottom: 1px solid #334155; list-style: none; font-family: monospace;">
+        <i class="fa-solid fa-terminal" style="margin-right: 10px;"></i> 
+        [+] Diagnóstico del Sistema (Debug Mode)
+    </summary>
+    <div style="padding: 20px; color: #a7f3d0; font-family: monospace; font-size: 13px; line-height: 1.6;">
+        <strong style="color: #34d399;">DATOS DE SESIÓN ACTUAL:</strong><br>
+        > Usuario Auth: <span style="color: white;">{{ user.username }}</span><br>
+        > ID de Sesión: <span style="color: white;">{{ request.session.session_key|default:"Ninguna" }}</span><br>
+        > Estado Staff: <span style="color: white;">{{ user.is_staff }}</span><br><br>
+
+        <strong style="color: #3b82f6;">PERFIL RELACIONAL (OneToOne):</strong><br>
+        > Perfil Creado: {% if perfil %}<span style="color: #10b981;">[OK] TRUE</span>{% else %}<span style="color: #ef4444;">[FAIL] FALSE</span>{% endif %}<br>
+        > Rol DB Asignado: <span style="color: white;">'{{ perfil.rol }}'</span><br>
+        > Método get_rol_display: <span style="color: white;">{{ perfil.get_rol_display }}</span>
+    </div>
+</details>
+{% endif %}
+    <div style="border: 1px solid #fca5a5; border-radius: 12px; padding: 20px; background: #fef2f2;">
+        <h3 style="margin-top: 0; color: #ef4444;"><i class="fa-solid fa-triangle-exclamation"></i> Zona de Peligro</h3>
+        <p style="font-size: 13px; color: #7f1d1d;">Una vez que elimine su cuenta, no hay vuelta atrás. Perderá el acceso a sus tarjetas NFC vinculadas y saldo.</p>
+        
+        <form method="POST" onsubmit="return confirm('¿Está COMPLETAMENTE seguro de que desea eliminar su cuenta y borrar todos sus datos del sistema? Esta acción no se puede deshacer.');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="eliminar_cuenta">
+            <button type="submit" style="background: #ef4444; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; box-sizing: border-box;">
+                Eliminar Mi Cuenta Definitivamente
+            </button>
+        </form>
+    </div>
+
+</div>
+
+{% endblock %}

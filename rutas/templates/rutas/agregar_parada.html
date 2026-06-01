@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    .formulario-caja {
+        background: #FFFFFF;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        text-align: left;
+    }
+    .input-estilo {
+        width: 100%;
+        padding: 12px;
+        margin-top: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        box-sizing: border-box;
+        font-size: 16px;
+    }
+    .input-estilo:focus {
+        outline: none;
+        border-color: #4FD1C5;
+        box-shadow: 0 0 0 3px rgba(79, 209, 197, 0.2);
+    }
+    .btn-guardar {
+        background-color: #4FD1C5;
+        color: white;
+        border: none;
+        padding: 15px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        width: 100%;
+        cursor: pointer;
+    }
+    .btn-guardar:hover {
+        background-color: #38B2AC;
+    }
+</style>
+
+<div class="formulario-caja">
+    <h2 style="color: #2D3748; margin-top: 0; text-align: center;">📍 Registrar Nueva Parada</h2>
+    <p style="color: #718096; text-align: center; margin-bottom: 25px;">Ingresa los datos para añadirla al sistema de SeñalÉtica+.</p>
+    
+    <form method="POST">
+        {% csrf_token %}
+        
+        <label style="font-weight: bold; color: #4A5568;">Código de la Parada:</label>
+        {{ form.codigo }}
+        
+        <label style="font-weight: bold; color: #4A5568;">Nombre de la Parada:</label>
+        {{ form.nombre }}
+        
+        <button type="submit" class="btn-guardar">✅ Guardar Parada</button>
+    </form>
+</div>
+{% endblock %}

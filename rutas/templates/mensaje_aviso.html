@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card-mck" style="max-width: 500px; margin: 40px auto; text-align: center; border-top: 5px solid #f59e0b;">
+    <div style="color: #f59e0b; font-size: 50px; margin-bottom: 15px;">
+        <i class="fa-solid fa-circle-exclamation"></i>
+    </div>
+    <h2 style="color: var(--primary-dark); margin-top: 0;">{{ titulo }}</h2>
+    <p style="color: var(--text-muted); margin-bottom: 30px; font-size: 16px; line-height: 1.5;">
+        {{ mensaje }}
+    </p>
+    <div style="display: flex; justify-content: center;">
+        <a href="{% url 'inicio_general' %}" class="btn-mck btn-mck-outline" style="width: auto;">
+            <i class="fa-solid fa-arrow-left"></i> Volver al Inicio
+        </a>
+    </div>
+</div>
+{% endblock %}

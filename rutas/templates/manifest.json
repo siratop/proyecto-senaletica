@@ -1,0 +1,16 @@
+{
+  "name": "SeñalEtica+",
+  "short_name": "SeñalEtica",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/static/icono.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    .auth-box {
+        background: #FFFFFF;
+        padding: 30px;
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        max-width: 500px;
+        width: 100%;
+        margin: 0 auto;
+        box-sizing: border-box;
+    }
+    .input-estilo, .input-estilo-select {
+        width: 100%;
+        padding: 14px;
+        margin-top: 6px;
+        margin-bottom: 18px;
+        border: 2px solid #E2E8F0;
+        border-radius: 10px;
+        font-size: 16px;
+        box-sizing: border-box;
+    }
+    .input-estilo:focus, .input-estilo-select:focus {
+        outline: none;
+        border-color: #4FD1C5;
+    }
+    .btn-auth {
+        background-color: #4FD1C5;
+        color: white;
+        border: none;
+        padding: 16px;
+        border-radius: 10px;
+        font-size: 18px;
+        font-weight: bold;
+        width: 100%;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+    .btn-auth:hover { background-color: #38B2AC; }
+    label { font-weight: 700; color: #4A5568; font-size: 15px; }
+</style>
+
+<div class="auth-box">
+    <h2 style="text-align: center; margin-top: 0; color: #2D3748;">🔐 Crear Cuenta Ciudadana</h2>
+    <p style="text-align: center; color: #718096; margin-bottom: 25px;">Regístrate en SeñalÉtica+ para configurar tus herramientas de asistencia vial.</p>
+    
+    <form method="POST">
+        {% csrf_token %}
+        
+        {% for field in form %}
+            <div class="form-group">
+                <label>{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    <p style="color: #FC8181; font-size: 14px; margin-top: -10px;">{{ field.errors.0 }}</p>
+                {% endif %}
+            </div>
+        {% endfor %}
+        
+        <button type="submit" class="btn-auth">Registrarse y Activar Perfil</button>
+    </form>
+    
+    <p style="text-align: center; margin-top: 20px; font-size: 15px;">
+        ¿Ya tienes una cuenta? <a href="{% url 'login' %}" style="color: #4FD1C5; font-weight: bold; text-decoration: none;">Inicia sesión aquí</a>
+    </p>
+</div>
+{% endblock %}

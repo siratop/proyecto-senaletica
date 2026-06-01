@@ -1,0 +1,439 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<style>
+    #mapa { height: 350px !important; width: 100% !important; display: block !important; border-radius: 10px; border: 1px solid #e2e8f0; z-index: 1; margin: 15px 0; }
+    .btn-totem { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 8px; font-weight: bold; text-decoration: none; cursor: pointer; border: none; font-size: 14px; width: 100%; box-sizing: border-box; }
+    .btn-totem-dark { background: #0f172a; color: white; }
+    .btn-totem-danger { background: #ef4444; color: white; }
+    .btn-totem-outline { border: 2px solid #cbd5e1; color: #475569; background: white; }
+    .btn-totem:hover { opacity: 0.9; }
+</style>
+
+<div style="max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; font-family: sans-serif;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0;">
+        <div style="text-align: left;">
+            <h2 style="margin: 0; color: #0f172a; font-size: 24px;">📍 {{ parada.nombre }}</h2>
+            <span style="color: #64748b; font-size: 13px; font-weight: bold;">Estación QR: {{ parada.codigo|default:"QR-101" }}</span>
+        </div>
+        <div style="text-align: right;">
+            <div id="eta-display" style="font-size: 32px; font-weight: 900; color: #0d9488;">
+                {{ tiempo_estimado }} {% if tiempo_estimado != "Llegando" and tiempo_estimado != "--" %}<span style="font-size: 16px;">min</span>{% endif %}
+            </div>
+            <span style="color: #0d9488; font-size: 11px; font-weight: bold; text-transform: uppercase;">E.T.A. Satelital</span>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div style="background: #e0f2fe; padding: 15px; border-radius: 8px; text-align: center;">
+            <span id="clima-temp" style="font-weight: 800; color: #0369a1; font-size: 24px;">28°C</span>
+            <div id="clima-desc" style="font-size: 11px; color: #0c4a6e;">Prob. Lluvia: 15%</div>
+        </div>
+        <div style="background: #f1f5f9; padding: 10px; border-radius: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+            <select id="selector-destino" onchange="calcularCaminata()" style="width: 100%; padding: 4px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 11px; color: #475569; margin-bottom: 5px;">
+                <option value="">Caminata a próxima parada...</option>
+            </select>
+            <span id="tiempo-caminando" style="font-weight: 800; color: #475569; font-size: 24px;">-- <small style="font-size:14px;">min</small></span>
+        </div>
+    </div>
+
+    <div id="mapa"></div>
+<div style="margin-bottom: 10px; display: flex; gap: 10px;">
+    <label style="cursor: pointer; background: #f8fafc; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: bold;">
+        <input type="checkbox" checked onchange="toggleCapaRuta()" style="accent-color: #f59e0b;"> Mostrar Línea de Ruta
+    </label>
+    <label style="cursor: pointer; background: #f8fafc; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: bold;">
+        <input type="checkbox" checked onchange="toggleCapaParadas()" style="accent-color: #3b82f6;"> Mostrar Paradas
+    </label>
+</div>
+    {% if user.is_staff %}
+    <div style="background: #fffbeb; border: 2px dashed #f59e0b; padding: 15px; border-radius: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <span style="color: #b45309; font-weight: bold; font-size: 12px;">🚧 SIMULADOR POR RUTA REAL</span>
+            <button onclick="reiniciarSimulacion()" style="background: none; border: none; color: #b45309; font-weight: bold; cursor: pointer; font-size: 12px;">Reset</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            <select id="ruta-simulacion" onchange="cambiarRutaActiva()" style="padding: 8px; border-radius: 6px; border: 1px solid #f59e0b; font-size: 13px;">
+                <option value="">Cargando rutas...</option>
+            </select>
+            <div style="display: flex; gap: 8px;">
+            <select id="tiempo-simulacion" style="padding: 8px; border-radius: 6px; border: 1px solid #f59e0b; flex-grow: 1;">
+                <option value="15">Demostración Turbo (15 Seg)</option>
+                <option value="30">Rápida (30 Seg)</option>
+                <option value="60">Tránsito Fluido (1 Minuto)</option>
+                <option value="300">Hora Pico (5 Minutos)</option>
+            </select>
+            <button id="btn-test" onclick="activarModoTest()" style="background: #f59e0b; color: white; padding: 8px 15px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer;">▶ Iniciar</button>
+        </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+        <button onclick="reproducirReporteVoz()" style="background: #0f172a; color: white; width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-bottom: 10px;">
+    🔊 Escuchar Reporte de Voz
+</button>
+        <a href="{% url 'alerta_emergencia' parada.id %}" class="btn-totem btn-totem-danger">⚠️ Solicitar Auxilio SOS</a>
+        <a href="{% url 'inicio_general' %}" class="btn-totem btn-totem-outline">← Volver al Menú</a>
+    </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // 1. CONFIGURACIÓN INICIAL DEL MAPA
+    var lat = parseFloat("{{ parada.latitud }}".replace(',', '.')) || 8.29;
+    var lon = parseFloat("{{ parada.longitud }}".replace(',', '.')) || -62.71;
+    var map = L.map('mapa', { zoomControl: false }).setView([lat, lon], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    
+    // CAPAS INDEPENDIENTES PARA LOS BOTONES
+    var layerRuta = L.featureGroup().addTo(map);
+    var layerParadas = L.featureGroup().addTo(map);
+
+    var markerPrincipal = L.marker([lat, lon]).addTo(map).bindPopup('<b>Tótem: {{ parada.nombre }}</b>').openPopup();
+    setTimeout(() => { map.invalidateSize(); }, 500);
+
+    // ==========================================
+    // 2. CLIMA DINÁMICO EN TIEMPO REAL
+    // ==========================================
+    async function cargarClima() {
+        let tempDiv = document.getElementById('clima-temp');
+        let descDiv = document.getElementById('clima-desc');
+        
+        try {
+            // Hacemos la consulta a la API usando las coordenadas exactas de este Tótem
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation_probability,weather_code&timezone=America/Caracas`;
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            const temp = Math.round(data.current.temperature_2m);
+            const probLluvia = data.current.precipitation_probability;
+            const cod = data.current.weather_code;
+
+            if(tempDiv) {
+                tempDiv.innerHTML = `${temp}°C`; 
+            }
+            
+            if(descDiv) {
+                // Cambiamos el texto y el icono dependiendo del código del clima
+                if (probLluvia > 40 || cod >= 50) {
+                    descDiv.innerHTML = `Lluvia: ${probLluvia}% <i class="fa-solid fa-cloud-showers-heavy" style="color: #3b82f6;"></i>`;
+                } else if (cod >= 1 && cod <= 3) {
+                    descDiv.innerHTML = `Nublado <i class="fa-solid fa-cloud" style="color: #94a3b8;"></i>`;
+                } else {
+                    descDiv.innerHTML = `Despejado <i class="fa-solid fa-sun" style="color: #f59e0b;"></i>`;
+                }
+            }
+        } catch (error) {
+            // Si no hay internet o falla la API, mostramos un estado Offline
+            if(tempDiv) tempDiv.innerHTML = `<i class="fa-solid fa-satellite" style="font-size:16px;"></i>`; 
+            if(descDiv) descDiv.innerText = "Satélite Offline";
+        }
+    }
+    
+    // Cargamos el clima al iniciar
+    cargarClima();
+    
+    // Opcional: Actualizar el clima automáticamente cada 15 minutos (900000 milisegundos)
+    setInterval(cargarClima, 900000);
+
+    // 3. VARIABLES GLOBALES Y DATOS
+    const rutasData = JSON.parse('{{ rutas_data_json|safe }}'.replace(/&quot;/g, '"') || '{}');
+    const todasParadas = JSON.parse('{{ todas_paradas_json|safe }}'.replace(/&quot;/g, '"') || '[]');
+    
+    // ¡IMPORTANTE! Agregar el propio Tótem actual a la lista global para que el bus frene aquí
+    todasParadas.push({lat: lat, lon: lon, nombre: "{{ parada.nombre }}"});
+
+    let rutaCalles = [], busMarker = null;
+    let marcadorDestino = null;
+    let simulacionCancelada = false;
+
+    // Llenar selectores
+    const selRuta = document.getElementById('ruta-simulacion');
+    const selDestino = document.getElementById('selector-destino');
+    
+    if (selRuta) {
+        selRuta.innerHTML = '<option value="">Selecciona una ruta...</option>'; 
+        Object.entries(rutasData).forEach(([id, info]) => {
+            selRuta.innerHTML += `<option value="${id}">${info.nombre} (ID: ${id})</option>`;
+        });
+    }
+
+    if (selDestino) {
+        todasParadas.forEach(p => {
+            // Evitar que el usuario busque caminar hacia el mismo tótem donde está parado
+            if(p.nombre !== "{{ parada.nombre }}") {
+                selDestino.innerHTML += `<option value='{"lat": ${p.lat}, "lon": ${p.lon}, "nombre": "${p.nombre}"}'>${p.nombre}</option>`;
+            }
+        });
+    }
+
+    // ==========================================
+    // FUNCIONES DE LOS BOTONES (MOSTRAR/OCULTAR)
+    // ==========================================
+    function toggleCapaRuta() {
+        if(map.hasLayer(layerRuta)) map.removeLayer(layerRuta);
+        else map.addLayer(layerRuta);
+    }
+
+    function toggleCapaParadas() {
+        if(map.hasLayer(layerParadas)) map.removeLayer(layerParadas);
+        else map.addLayer(layerParadas);
+    }
+
+    // 4. CÁLCULO DE CAMINATA
+    function calcularCaminata() {
+        let val = selDestino.value;
+        if(!val) {
+            document.getElementById('tiempo-caminando').innerHTML = `-- <small style="font-size:14px;">min</small>`;
+            if(marcadorDestino) map.removeLayer(marcadorDestino);
+            map.setView([lat, lon], 15);
+            return;
+        }
+        
+        let dest = JSON.parse(val);
+        let d = Math.acos(Math.sin(lat*Math.PI/180)*Math.sin(dest.lat*Math.PI/180) + Math.cos(lat*Math.PI/180)*Math.cos(dest.lat*Math.PI/180)*Math.cos((dest.lon-lon)*Math.PI/180)) * 6371;
+        document.getElementById('tiempo-caminando').innerHTML = Math.ceil(d * 12) + " <small style='font-size:14px;'>min</small>";
+
+        if(marcadorDestino) map.removeLayer(marcadorDestino);
+        marcadorDestino = L.circleMarker([dest.lat, dest.lon], {color: '#10b981', radius: 8, fillOpacity: 0.9, weight: 3}).addTo(map).bindPopup('<b>Destino:</b> ' + dest.nombre).openPopup();
+
+        let grupo = new L.featureGroup([markerPrincipal, marcadorDestino]);
+        map.fitBounds(grupo.getBounds(), {padding: [30, 30]});
+    }
+
+    // 5. CAMBIO DE RUTA (Limpieza Total y E.T.A.)
+    function cambiarRutaActiva() {
+        if (!selRuta || !rutasData[selRuta.value]) return;
+        let info = rutasData[selRuta.value];
+        
+        rutaCalles = (info.trazado && info.trazado.length > 0) ? info.trazado : info.paradas;
+
+        // --- ACTUALIZAR E.T.A. SATELITAL ---
+        let displayEta = document.getElementById('eta-display');
+        if (displayEta) {
+            if (info.eta === "--") {
+                displayEta.innerHTML = `<span style="font-size: 18px;">Sin Bus</span>`;
+            } else if (info.eta === "Llegando" || info.eta === "+2h") {
+                displayEta.innerHTML = info.eta;
+            } else {
+                displayEta.innerHTML = `${info.eta} <span style="font-size: 16px;">min</span>`;
+            }
+        }
+
+        // --- LIMPIEZA DE CAPAS ---
+        layerRuta.clearLayers();
+        layerParadas.clearLayers();
+        if(busMarker) { map.removeLayer(busMarker); busMarker = null; }
+
+        // Pintar ruta nueva en su capa
+        if(rutaCalles.length > 1) {
+            let linea = L.polyline(rutaCalles.map(p => [parseFloat(p.lat ?? p[0]), parseFloat(p.lon ?? p.lng ?? p[1])]), {color: '#f59e0b', weight: 4}).addTo(layerRuta);
+            map.fitBounds(linea.getBounds(), {padding: [20, 20]});
+        }
+        
+        // Pintar TODAS LAS PARADAS en su capa
+        todasParadas.forEach(p => {
+            L.circleMarker([p.lat, p.lon], {color: '#3b82f6', radius: 6, fillOpacity: 0.8})
+             .bindPopup(`<b>🚏 ${p.nombre}</b>`)
+             .addTo(layerParadas);
+        });
+    }
+
+    if (selRuta && selRuta.options.length > 1) {
+        selRuta.selectedIndex = 1;
+        cambiarRutaActiva();
+    }
+
+    // ==========================================
+    // FUNCIÓN MATEMÁTICA PARA EVITAR SALTOS
+    // ==========================================
+    function densificarRuta(puntosOriginales) {
+        if (!puntosOriginales || puntosOriginales.length < 2) return puntosOriginales;
+        
+        let puntosDensos = [];
+        const maxDist = 0.00015; 
+        
+        for (let i = 0; i < puntosOriginales.length - 1; i++) {
+            let p1 = puntosOriginales[i]; 
+            let p2 = puntosOriginales[i + 1];
+            
+            let lat1 = parseFloat(p1.lat ?? p1[0]);
+            let lon1 = parseFloat(p1.lon ?? p1.lng ?? p1[1]);
+            let lat2 = parseFloat(p2.lat ?? p2[0]);
+            let lon2 = parseFloat(p2.lon ?? p2.lng ?? p2[1]);
+            
+            if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) continue;
+
+            let dist = Math.sqrt(Math.pow(lat2 - lat1, 2) + Math.pow(lon2 - lon1, 2));
+            let numSegmentos = Math.ceil(dist / maxDist);
+            
+            if (numSegmentos === 0) numSegmentos = 1;
+
+            for (let j = 0; j < numSegmentos; j++) {
+                puntosDensos.push({ 
+                    lat: lat1 + (lat2 - lat1) * (j / numSegmentos), 
+                    lon: lon1 + (lon2 - lon1) * (j / numSegmentos) 
+                });
+            }
+        }
+        
+        let ultimo = puntosOriginales[puntosOriginales.length - 1];
+        let latUlt = parseFloat(ultimo.lat ?? ultimo[0]);
+        let lonUlt = parseFloat(ultimo.lon ?? ultimo.lng ?? ultimo[1]);
+        if (!isNaN(latUlt) && !isNaN(lonUlt)) {
+            puntosDensos.push({lat: latUlt, lon: lonUlt});
+        }
+        
+        return puntosDensos;
+    }
+
+    // ==========================================
+    // 1. SIMULADOR CON PAUSA INTELIGENTE Y "SNAP"
+    // ==========================================
+    async function activarModoTest() {
+        if (!rutaCalles || rutaCalles.length === 0) return;
+        simulacionCancelada = false;
+        
+        const btn = document.querySelector('button[onclick="activarModoTest()"]') || document.getElementById('btn-test');
+        if(btn) { btn.disabled = true; btn.innerText = "Simulando..."; }
+        
+        if (busMarker) map.removeLayer(busMarker);
+        
+        let rutaFina = densificarRuta(rutaCalles);
+
+        if (rutaFina.length === 0) {
+            alert("Error: El trazado de la ruta tiene coordenadas inválidas en la base de datos.");
+            if(btn) { btn.disabled = false; btn.innerText = "▶ Iniciar"; }
+            return;
+        }
+
+        busMarker = L.circleMarker([rutaFina[0].lat, rutaFina[0].lon], {
+            radius: 8, color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: 1, weight: 2
+        }).addTo(map);
+        
+        let selectorTiempo = document.getElementById('tiempo-simulacion');
+        const tiempoTotal = selectorTiempo ? parseInt(selectorTiempo.value) * 1000 : 15000; 
+        const paso = Math.max(10, tiempoTotal / rutaFina.length);
+
+        let paradasVisitadas = new Set();
+        let displayEta = document.getElementById('eta-display');
+
+        let idRutaSimulada = document.getElementById('ruta-simulacion').value;
+        let infoActual = rutasData[idRutaSimulada];
+        let etaOriginal = infoActual ? (parseInt(infoActual.eta) || 30) : 30; 
+
+        // INICIA EL MOVIMIENTO
+        for (let i = 0; i < rutaFina.length; i++) {
+            if (simulacionCancelada) break;
+
+            let cLat = rutaFina[i].lat;
+            let cLon = rutaFina[i].lon;
+            busMarker.setLatLng([cLat, cLon]);
+            
+            if (displayEta && i % 10 === 0) {
+                let porcentajeRestante = (rutaFina.length - 1 - i) / (rutaFina.length - 1);
+                let etaSimulado = Math.ceil(porcentajeRestante * etaOriginal);
+                if (i === rutaFina.length - 1) displayEta.innerHTML = "Llegó";
+                else displayEta.innerHTML = `${etaSimulado} <span style="font-size: 16px;">min</span>`;
+            }
+
+            // DETECCIÓN DE FRENO (Radio amplio para no fallar)
+            let paradaCercana = todasParadas.find(p => {
+                let distancia = Math.sqrt(Math.pow(p.lat - cLat, 2) + Math.pow(p.lon - cLon, 2));
+                return distancia < 0.0020; 
+            });
+
+            if (paradaCercana && !paradasVisitadas.has(paradaCercana.nombre)) {
+                paradasVisitadas.add(paradaCercana.nombre);
+                
+                // 1. "SNAP" AL PUNTO EXACTO: El bus se mueve visualmente al centro exacto de la parada
+                busMarker.setLatLng([paradaCercana.lat, paradaCercana.lon]);
+                
+                // 2. Abordaje de Pasajeros (Freno y cambio a color verde)
+                busMarker.setStyle({color: '#10b981', fillColor: '#10b981'});
+                busMarker.setRadius(13);
+                
+                // 3. TIEMPO ALEATORIO DE PARADA
+                // Está configurado de 3 a 8 segundos. Si deseas que espere hasta 1 minuto,
+                // cambia el 8000 de abajo por 60000.
+                let pausaAleatoria = Math.floor(Math.random() * (8000 - 3000 + 1)) + 3000;
+                await new Promise(r => setTimeout(r, pausaAleatoria)); 
+                
+                // 4. Cierra puertas y retoma la ruta exacta donde la dejó
+                busMarker.setLatLng([cLat, cLon]);
+                busMarker.setStyle({color: '#f59e0b', fillColor: '#f59e0b'});
+                busMarker.setRadius(8);
+            } else {
+                await new Promise(r => setTimeout(r, paso)); 
+            }
+        }
+        
+        // FIN DE LA SIMULACIÓN
+        if (!simulacionCancelada && btn) {
+            btn.disabled = false;
+            btn.innerHTML = "▶ Iniciar";
+            setTimeout(() => { if(busMarker) map.removeLayer(busMarker); }, 3000); 
+        }
+    }
+
+    // ==========================================
+    // 2. SÍNTESIS DE VOZ ARTIFICIAL 
+    // ==========================================
+    function reproducirReporteVoz() {
+        if ('speechSynthesis' in window) {
+            let btn = document.querySelector('button[onclick="reproducirReporteVoz()"]');
+            
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+                if(btn) btn.innerHTML = "🔊 Escuchar Reporte de Voz";
+                return; 
+            }
+
+            if(btn) btn.innerHTML = "🔇 Detener Reporte"; 
+
+            let selectorRuta = document.getElementById('ruta-simulacion');
+            let nombreRuta = selectorRuta ? selectorRuta.options[selectorRuta.selectedIndex].text : '';
+            let displayEta = document.getElementById('eta-display');
+            let tiempoEta = displayEta ? displayEta.innerText.replace('min', 'minutos') : 'desconocido';
+            
+            let mensaje = `Atención usuarios. Bienvenidos al Tótem de la estación {{ parada.nombre }}. `;
+            if (selectorRuta && selectorRuta.value !== "") {
+                mensaje += `Están consultando la línea ${nombreRuta}. El tiempo estimado de llegada de la próxima unidad es de ${tiempoEta}. `;
+            } else {
+                mensaje += `Por favor, seleccione una ruta en el panel para conocer los tiempos de llegada. `;
+            }
+            mensaje += `Gracias por utilizar la red inteligente Señalética Plus.`;
+
+            let utterance = new SpeechSynthesisUtterance(mensaje);
+            utterance.lang = 'es-VE'; 
+            utterance.rate = 0.95;    
+            utterance.pitch = 1.0;    
+            
+            utterance.onend = function() {
+                if(btn) btn.innerHTML = "🔊 Escuchar Reporte de Voz";
+            };
+
+            window.speechSynthesis.speak(utterance);
+        } else {
+            alert("⚠️ Lo sentimos, su navegador actual no soporta la función de voz.");
+        }
+    }
+
+    function reiniciarSimulacion() {
+        simulacionCancelada = true;
+        let btn = document.getElementById('btn-test');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "▶ Iniciar";
+        }
+        if (busMarker) map.removeLayer(busMarker);
+        cambiarRutaActiva();
+    }
+</script>
+{% endblock %}

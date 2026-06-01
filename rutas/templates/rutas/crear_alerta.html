@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 600px; margin: 40px auto; padding: 20px; background: white; border-radius: 12px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    <h2 style="color: #991b1b; margin-bottom: 10px;"><i class="fa-solid fa-bullhorn"></i> Publicar Nueva Alerta</h2>
+    <p style="color: #64748b; font-size: 14px; margin-bottom: 25px;">Defina el tipo de contingencia. Si ingresa coordenadas, se marcará automáticamente un punto en el mapa interactivo.</p>
+    
+    <form method="post" style="display: flex; flex-direction: column; gap: 15px;">
+        {% csrf_token %}
+        <div>
+            <label style="font-size: 13px; font-weight: bold; color: #334155;">Tipo de Alerta:</label>
+            <select name="tipo" required style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; background: white; font-size: 14px;">
+                <option value="general">📢 Aviso General (Banner en la parte superior)</option>
+                <option value="trafico">🚗 Congestión / Retraso Vehicular (Punto en Mapa)</option>
+                <option value="incidente">⚠️ Accidente / Vía Cerrada (Punto en Mapa)</option>
+            </select>
+        </div>
+        
+        <div>
+            <label style="font-size: 13px; font-weight: bold; color: #334155;">Mensaje Informativo:</label>
+            <textarea name="mensaje" required placeholder="Ej: Retraso generalizado por falla de unidades o día feriado bancario..." rows="3" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; font-size: 14px; resize: vertical;"></textarea>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #334155;">Latitud (Opcional):</label>
+                <input type="text" name="latitud" placeholder="Ej: 8.2962" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; font-size: 14px;">
+            </div>
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #334155;">Longitud (Opcional):</label>
+                <input type="text" name="longitud" placeholder="Ej: -62.7115" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; font-size: 14px;">
+            </div>
+        </div>
+
+        <div style="margin-top: 15px; display: flex; gap: 10px;">
+            <button type="submit" class="btn-admin-add" style="background: #ef4444; color: white; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;">
+                <i class="fa-solid fa-paper-plane"></i> Publicar Ahora
+            </button>
+            <a href="{% url 'gestionar_alertas' %}" class="btn-admin-manage" style="padding: 12px 20px; text-decoration: none; font-size: 14px;">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

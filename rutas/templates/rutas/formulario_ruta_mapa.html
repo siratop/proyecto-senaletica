@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<div class="card-mck" style="max-width: 1100px; margin: 40px auto; padding: 30px;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 25px;">
+        <div>
+            <h2 style="margin: 0; color: var(--primary-dark); font-family: 'Urbanist', sans-serif;"><i class="fa-solid fa-route" style="color: #3b82f6;"></i> Trazador de Recorrido Vial</h2>
+            <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 15px;">Dibuja la ruta haciendo clic secuencialmente en las calles del mapa.</p>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 380px; gap: 30px;">
+        
+        <div style="position: relative;">
+            <div id="mapa-trazador" style="height: 500px; border-radius: 12px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.05);"></div>
+            
+            <div style="position: absolute; top: 15px; right: 15px; z-index: 1000; display: flex; flex-direction: column; gap: 8px;">
+                <button type="button" onclick="borrarUltimoPunto()" class="btn-mck" style="background: white; padding: 8px 12px; font-size: 13px; width: auto; color: #475569; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <i class="fa-solid fa-undo"></i> Deshacer último
+                </button>
+                <button type="button" onclick="limpiarRuta()" class="btn-mck" style="background: white; padding: 8px 12px; font-size: 13px; width: auto; color: var(--danger); border: 1px solid #fca5a5; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <i class="fa-solid fa-trash"></i> Borrar Todo
+                </button>
+            </div>
+        </div>
+
+        <form method="POST" id="form-ruta" style="display: flex; flex-direction: column; gap: 20px; background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0;">
+    {% csrf_token %}
+    
+    <div>
+        <label style="display: block; font-weight: bold; font-size: 13px; color: #334155; margin-bottom: 8px;">Nombre de la Ruta / Línea:</label>
+        <input type="text" name="nombre" value="{{ form.nombre.value|default:'' }}" class="form-control-inclusivo" placeholder="Ej: Ruta 1 - Directo Unare" required style="width: 100%;">
+    </div>
+    
+    <input type="hidden" name="trazado" id="trazado-input" value="{{ form.trazado.value|default:'[]' }}">
+
+    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1;">
+        <span style="display: block; font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 10px;">Estadísticas del Trazado</span>
+        <div style="font-size: 15px; color: #0f172a; display: flex; justify-content: space-between;">
+            <span>Puntos anclados:</span>
+            <strong id="puntos-count" style="color: #3b82f6;">0</strong>
+        </div>
+    </div>
+
+    <div style="font-size: 12px; color: #64748b; line-height: 1.5;">
+        <p><i class="fa-solid fa-lightbulb" style="color: #f59e0b;"></i> <strong>Tip:</strong> Acerca el mapa para clics precisos.</p>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+        <button type="submit" class="btn-mck btn-mck-primary" style="border: none; padding: 12px; font-size: 15px;">💾 Guardar Recorrido</button>
+        <a href="{% url 'listar_rutas' %}" class="btn-mck btn-mck-outline" style="text-align: center; padding: 12px; color: #475569; border-color: #cbd5e1;">Cancelar</a>
+    </div>
+</form>
+
+<script>
+    // Este script asegura que al guardar, el input oculto tenga los datos del mapa
+    document.getElementById('form-ruta').addEventListener('submit', function(e) {
+        // Asegúrate de que 'puntosRuta' sea el array donde guardas tus lat/lng en tu mapa Leaflet
+        if (typeof puntosRuta !== 'undefined') {
+            document.getElementById('trazado-input').value = JSON.stringify(puntosRuta);
+        }
+        
+        // Verificación rápida
+        if (document.getElementById('trazado-input').value === '[]') {
+            e.preventDefault();
+            alert("¡Error! Debes dibujar al menos un punto en el mapa antes de guardar.");
+        }
+    });
+</script>
+
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    var map = L.map('mapa-trazador').setView([8.2962, -62.7115], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    // Leer los puntos existentes desde la base de datos (o arreglo vacío)
+    var inputTrazado = document.getElementById('trazado-input').value;
+    var puntos = [];
+    try { puntos = JSON.parse(inputTrazado || "[]"); } catch(e) { puntos = []; }
+    
+    // Crear la línea visual
+    var polyline = L.polyline(puntos, {color: '#3b82f6', weight: 5, opacity: 0.8}).addTo(map);
+    var markers = [];
+
+    // Si ya existen puntos (modo edición), dibujar los marcadores
+    puntos.forEach(p => {
+        let m = L.circleMarker(p, {radius: 4, color: '#1e3a8a', fillColor: 'white', fillOpacity: 1}).addTo(map);
+        markers.push(m);
+    });
+
+    // Si hay una ruta previa, centramos el mapa en ella
+    if (puntos.length > 0) {
+        map.fitBounds(polyline.getBounds());
+    }
+
+    // Evento Click: Añadir punto a la línea
+    map.on('click', function(e) {
+        var latlng = [e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6)];
+        puntos.push(latlng);
+        
+        let m = L.circleMarker(e.latlng, {radius: 4, color: '#1e3a8a', fillColor: 'white', fillOpacity: 1}).addTo(map);
+        markers.push(m);
+        
+        polyline.setLatLngs(puntos);
+        actualizarInput();
+    });
+
+    // Funciones de control
+    function borrarUltimoPunto() {
+        if(puntos.length === 0) return;
+        puntos.pop();
+        let m = markers.pop();
+        if(m) map.removeLayer(m);
+        polyline.setLatLngs(puntos);
+        actualizarInput();
+    }
+
+    function limpiarRuta() {
+        if(!confirm("¿Seguro que deseas borrar toda la ruta trazada?")) return;
+        puntos = [];
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+        polyline.setLatLngs(puntos);
+        actualizarInput();
+    }
+
+    // Actualizar el valor oculto para enviarlo a Django
+    function actualizarInput() {
+        document.getElementById('trazado-input').value = JSON.stringify(puntos);
+        document.getElementById('puntos-count').innerText = puntos.length;
+    }
+    
+    actualizarInput(); // Inicializar el contador al cargar
+</script>
+{% endblock %}

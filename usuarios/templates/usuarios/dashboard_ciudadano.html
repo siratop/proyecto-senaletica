@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+    
+    <h2 style="color: #0f172a; margin-top: 0;">Mi Núcleo Familiar NFC</h2>
+    <p style="color: #64748b; font-size: 15px; margin-bottom: 25px;">
+        Gestiona aquí los perfiles asociados a tus pulseras de seguridad.
+    </p>
+
+    <div style="display: grid; gap: 15px; margin-bottom: 30px;">
+        {% for dep in dependientes %}
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <strong style="display: block; color: #0f172a; font-size: 16px;">{{ dep.nombre_completo }}</strong>
+                <span style="font-size: 13px; color: #64748b;">Relación: {{ dep.get_relacion_display }}</span>
+            </div>
+            <a href="{% url 'ficha_sos_publica' dep.token_nfc %}" style="background: white; border: 1px solid #0d9488; color: #0d9488; padding: 8px 15px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold;">
+                <i class="fa-solid fa-link"></i> Ver Ficha SOS
+            </a>
+        </div>
+        {% empty %}
+        <div style="text-align: center; padding: 20px; color: #64748b; border: 2px dashed #e2e8f0; border-radius: 8px;">
+            No tienes dependientes registrados aún.
+        </div>
+        {% endfor %}
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+        <a href="{% url 'crear_dependiente' %}" style="background: #0d9488; color: white; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px;">
+            + Añadir Familiar / Pulsera
+        </a>
+        
+        <a href="{% url 'inicio_general' %}" style="background: #f1f5f9; color: #475569; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px;">
+            <i class="fa-solid fa-arrow-left"></i> Volver al inicio
+        </a>
+    </div>
+</div>
+{% endblock %}

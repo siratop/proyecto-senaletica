@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 900px; margin: 40px auto; padding: 20px;">
+    
+    <h2 style="color: var(--primary-dark); margin-bottom: 20px;">
+        <i class="fa-solid fa-users-gear"></i> Control de Usuarios
+    </h2>
+    
+    <div style="background: white; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+        
+        <div style="position: relative; margin-bottom: 20px;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 15px; top: 14px; color: #94a3b8;"></i>
+            <input type="text" id="buscador-usuarios" placeholder="Buscar usuario por nombre o correo..." style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; box-sizing: border-box; font-family: inherit; font-size: 14px; transition: 0.2s;">
+        </div>
+        
+        <div style="display: grid; gap: 10px;" id="lista-usuarios">
+            {% for u in usuarios %}
+            <div class="fila-usuario" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #f1f5f9; border-radius: 8px; background: #f8fafc; transition: 0.2s;">
+                <span>
+                    <strong style="color: #1e293b; font-size: 15px;">{{ u.username }}</strong> 
+                    <span style="color: #64748b; font-size: 13px;">- {{ u.email|default:"Sin correo" }}</span>
+                </span>
+                <div style="display: flex; gap: 10px;">
+                    <a href="{% url 'editar_usuario' u.id %}" style="background: #0d9488; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; transition: 0.2s; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-pen"></i> Editar
+                    </a>
+                </div>
+            </div>
+            {% empty %}
+            <div style="padding: 20px; text-align: center; color: #64748b; font-style: italic;">
+                No hay usuarios registrados en el sistema.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div style="margin-top: 25px;">
+        <a href="{% url 'panel_admin_amigable' %}" style="color: #64748b; text-decoration: none; font-weight: bold; font-size: 14px; transition: 0.2s;">
+            <i class="fa-solid fa-arrow-left"></i> Volver al Centro de Control
+        </a>
+    </div>
+
+</div>
+
+<script>
+    document.getElementById('buscador-usuarios').addEventListener('keyup', function() {
+        let filtro = this.value.toLowerCase();
+        let filas = document.getElementsByClassName('fila-usuario');
+        
+        for (let i = 0; i < filas.length; i++) {
+            let texto = filas[i].innerText.toLowerCase();
+            if (texto.includes(filtro)) {
+                filas[i].style.display = "flex";
+            } else {
+                filas[i].style.display = "none";
+            }
+        }
+    });
+</script>
+{% endblock %}

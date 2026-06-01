@@ -1,0 +1,479 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<div style="max-width: 1200px; margin: 40px auto; padding: 20px;">
+    
+    <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 25px; border-radius: 12px; margin-bottom: 25px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div>
+            <span style="background: #3b82f6; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">Licencia de Operador Múltiple</span>
+            <h2 style="margin: 10px 0 5px 0; font-size: 24px;">
+                <i class="fa-solid fa-building-user" style="color: #60a5fa;"></i> 
+                {% if user.perfil.nombre_flota %}
+                    {{ user.perfil.nombre_flota }}
+                {% else %}
+                    Flota Operativa de {{ user.first_name|default:user.username }}
+                {% endif %}
+            </h2>
+            <p style="margin: 0; color: #94a3b8; font-size: 14px;">Panel de control y auditoría en tiempo real.</p>
+        </div>
+        <div style="text-align: right; display: flex; align-items: center; gap: 20px;">
+            <button onclick="document.getElementById('modal-conductor').style.display='flex'" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; cursor: pointer; border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; font-size: 14px; transition: 0.2s; border: 1px solid #3b82f6; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-user-plus"></i> Añadir Conductor
+            </button>
+            <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 20px;">
+                <div style="font-size: 32px; font-weight: 900; color: #10b981;" id="contador-unidades">{{ flota.count }}</div>
+                <div style="font-size: 12px; color: #94a3b8; text-transform: uppercase;">Unidades</div>
+            </div>
+        </div>
+    </div>
+
+    <div style="background: white; padding: 15px 20px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 5px rgba(0,0,0,0.02); margin-bottom: 25px; display: flex; gap: 15px; flex-wrap: wrap;">
+        <div style="flex: 1; position: relative; min-width: 250px;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 15px; top: 12px; color: #94a3b8;"></i>
+            <input type="text" id="buscador-flota" onkeyup="aplicarFiltrosFlota()" placeholder="Buscar unidad o chofer para enfocar en el mapa..." style="width: 100%; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 14px; box-sizing: border-box; transition: 0.3s;">
+        </div>
+        <div style="min-width: 200px;">
+            <select id="filtro-ruta-flota" onchange="aplicarFiltrosFlota()" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; background: #f8fafc; cursor: pointer;">
+                <option value="todas">Todas las Rutas (Mostrar Todo)</option>
+                {% for ruta in rutas %}
+                    <option value="{{ ruta.id }}">{{ ruta.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 340px; gap: 20px; margin-bottom: 30px; min-height: 480px; flex-wrap: wrap;">
+        
+        <div style="background: white; border-radius: 12px; padding: 10px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative;">
+            <div id="mapa-flota" style="height: 480px; width: 100%; border-radius: 8px; z-index: 1;"></div>
+        </div>
+
+        <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; overflow: hidden;">
+            
+            <div style="display: flex; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                <button onclick="alternarFiltroLateral('tab-rutas')" id="btn-lateral-rutas" style="flex: 1; padding: 10px 5px; border: none; background: white; font-weight: bold; color: #3b82f6; border-bottom: 2px solid #3b82f6; cursor: pointer; font-size: 12px;">
+                    <i class="fa-solid fa-route"></i> Rutas
+                </button>
+                <button onclick="alternarFiltroLateral('tab-paradas')" id="btn-lateral-paradas" style="flex: 1; padding: 10px 5px; border: none; background: transparent; font-weight: bold; color: #64748b; cursor: pointer; font-size: 12px;">
+                    <i class="fa-solid fa-location-dot"></i> Paradas
+                </button>
+                <button onclick="alternarFiltroLateral('tab-estadisticas')" id="btn-lateral-estadisticas" style="flex: 1; padding: 10px 5px; border: none; background: transparent; font-weight: bold; color: #64748b; cursor: pointer; font-size: 12px;">
+                    <i class="fa-solid fa-chart-simple"></i> Métricas
+                </button>
+            </div>
+            
+            <div id="panel-tab-rutas" style="padding: 15px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+                <p style="margin: 0 0 5px 0; font-size: 12px; color: #64748b;">Marque las rutas a dibujar en el mapa:</p>
+                <div id="contenedor-checklist-rutas"></div>
+            </div>
+
+            <div id="panel-tab-paradas" style="padding: 15px; flex: 1; overflow-y: auto; display: none; flex-direction: column; gap: 10px;">
+                <p style="margin: 0 0 5px 0; font-size: 12px; color: #64748b;">Marque las paradas fijas registradas:</p>
+                <div id="contenedor-checklist-paradas"></div>
+            </div>
+
+            <div id="panel-tab-estadisticas" style="padding: 15px; flex: 1; overflow-y: auto; display: none; flex-direction: column; gap: 10px;">
+                <p style="margin: 0 0 10px 0; font-size: 12px; color: #64748b;">Métricas de operación en tiempo real:</p>
+                
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center;">
+                    <i class="fa-solid fa-stopwatch" style="font-size: 24px; color: #10b981; margin-bottom: 5px;"></i>
+                    <div style="font-size: 20px; font-weight: bold; color: #0f172a;" id="stat-buses-activos">0</div>
+                    <div style="font-size: 11px; color: #64748b; text-transform: uppercase;">Buses Activos Ahora</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 style="color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px;">
+        <i class="fa-solid fa-clipboard-list"></i> Detalle Operativo y Comunicaciones
+    </h3>
+    <div id="contenedor-tarjetas" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+        {% for bus in flota %}
+        <div class="tarjeta-bus" data-id="{{ bus.id }}" data-unidad="{{ bus.numero_unidad|lower }}" data-chofer="{{ bus.conductor.first_name|lower }} {{ bus.conductor.last_name|lower }} {{ bus.conductor.username|lower }}" data-ruta="{{ bus.ruta_asignada.id|default:'sin-ruta' }}" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: 0.2s;">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <h4 style="margin: 0 0 10px 0; color: #0f172a; font-size: 18px;">Unidad {{ bus.numero_unidad }}</h4>
+                <span id="estado-bus-{{ bus.id }}" style="font-size: 11px; font-weight: bold;">
+                    <span style="background: #f1f5f9; color: #64748b; padding: 4px 8px; border-radius: 4px;">Esperando señal...</span>
+                </span>
+            </div>
+            <div style="font-size: 13px; color: #475569; display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
+                <span><i class="fa-solid fa-id-card" style="color: #94a3b8; width: 20px;"></i> <strong>Chofer:</strong> {{ bus.conductor.first_name|default:bus.conductor.username|default:"No asignado" }}</span>
+                <span><i class="fa-solid fa-route" style="color: #94a3b8; width: 20px;"></i> <strong>Ruta:</strong> {{ bus.ruta_asignada.nombre|default:"Sin ruta" }}</span>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 10px 0;">
+            <div style="display: flex; justify-content: space-between; gap: 10px;">
+                <button onclick="abrirModalMensaje({{ bus.id }}, '{{ bus.numero_unidad }}')" style="flex: 1; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; padding: 8px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s;">
+                    <i class="fa-regular fa-comment-dots"></i> Enviar Alerta
+                </button>
+                
+                <form method="POST" action="{% url 'eliminar_conductor_flota' bus.id %}" onsubmit="return confirm('¿Eliminar conductor de la flota?');" style="margin:0;">
+                    {% csrf_token %}
+                    <button type="submit" style="background: white; color: #ef4444; border: 1px solid #fca5a5; padding: 8px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer;">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; color: #64748b;">
+            No tiene autobuses registrados en su flota. Haga clic en "Añadir Conductor" arriba.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div id="modal-conductor" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+    <div style="background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <h3 style="margin-top: 0; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">
+            <i class="fa-solid fa-steering-wheel" style="color: #3b82f6;"></i> Gestión de Operadores
+        </h3>
+        
+        <div style="display: flex; gap: 10px; margin-top: 15px; margin-bottom: 10px;">
+            <button onclick="cambiarTabModal('nuevo')" id="btn-tab-nuevo" style="flex: 1; padding: 10px; border: none; background: #3b82f6; color: white; border-radius: 6px; font-weight: bold; cursor: pointer;">Crear Nuevo</button>
+            <button onclick="cambiarTabModal('existente')" id="btn-tab-existente" style="flex: 1; padding: 10px; border: none; background: #f1f5f9; color: #475569; border-radius: 6px; font-weight: bold; cursor: pointer;">Vincular Existente</button>
+        </div>
+
+        <form id="form-conductor-nuevo" method="POST" action="{% url 'agregar_conductor_flota' %}" style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+            {% csrf_token %}
+            <input type="hidden" name="tipo_registro" value="nuevo">
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #475569;">Número de Unidad:</label>
+                <input type="text" name="numero_unidad" required placeholder="Ej: 045" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+            </div>
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #475569;">Nombre Real del Chofer:</label>
+                <input type="text" name="nombre" required placeholder="Ej: Juan Pérez" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+            </div>
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #475569;">Crear Usuario:</label>
+                <input type="text" name="username" required placeholder="Ej: juanperez123" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+            </div>
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #475569;">Contraseña:</label>
+                <input type="password" name="password" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="document.getElementById('modal-conductor').style.display='none'" style="flex: 1; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Cancelar</button>
+                <button type="submit" style="flex: 1; background: #3b82f6; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Guardar</button>
+            </div>
+        </form>
+
+        <form id="form-conductor-existente" method="POST" action="{% url 'agregar_conductor_flota' %}" style="display: none; flex-direction: column; gap: 15px; margin-top: 15px;">
+            {% csrf_token %}
+            <input type="hidden" name="tipo_registro" value="existente">
+            <div style="background: #e0f2fe; color: #0369a1; padding: 10px; border-radius: 6px; font-size: 12px; border: 1px solid #bae6fd;">
+                <i class="fa-solid fa-circle-info"></i> Usa esta opción si el conductor ya tiene una cuenta en el sistema.
+            </div>
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #475569;">Número de Unidad:</label>
+                <input type="text" name="numero_unidad" required placeholder="Ej: 045" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+            </div>
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #475569;">Usuario Exacto del Chofer:</label>
+                <input type="text" name="username_existente" required placeholder="Ej: pedro99" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="document.getElementById('modal-conductor').style.display='none'" style="flex: 1; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Cancelar</button>
+                <button type="submit" style="flex: 1; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Vincular</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="modal-mensaje" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+    <div style="background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <h3 style="margin-top: 0; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">
+            <i class="fa-solid fa-satellite-dish" style="color: #f59e0b;"></i> Alerta a Operador
+        </h3>
+        <p style="font-size: 13px; color: #64748b;">Enviando mensaje a la unidad: <strong id="lbl-unidad-mensaje" style="color: #0f172a;">--</strong></p>
+        
+        <input type="hidden" id="input-id-unidad-mensaje">
+        <textarea id="texto-mensaje" rows="4" placeholder="Ej: Vía cerrada en Alta Vista, toma ruta alterna..." style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; resize: none; font-family: inherit; margin-bottom: 15px; box-sizing: border-box;"></textarea>
+        
+        <div style="display: flex; gap: 10px;">
+            <button type="button" onclick="document.getElementById('modal-mensaje').style.display='none'" style="flex: 1; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Cancelar</button>
+            <button type="button" onclick="enviarMensajeAPI()" style="flex: 1; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Enviar Alerta</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const csrfToken = '{{ csrf_token }}';
+    
+    // ==========================================
+    // 1. INICIALIZACIÓN DEL MAPA
+    // ==========================================
+    var map = L.map('mapa-flota').setView([8.2962, -62.7115], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    var capaBuses = L.layerGroup().addTo(map);
+    var capaRutas = L.layerGroup().addTo(map);
+    var capaParadas = L.layerGroup().addTo(map);
+
+    var controlesCapas = {
+        "🚌 Mostrar Autobuses": capaBuses,
+        "🗺️ Mostrar Rutas": capaRutas,
+        "🚏 Mostrar Paradas": capaParadas
+    };
+    L.control.layers(null, controlesCapas, {collapsed: false}).addTo(map);
+
+    var lineasRutasCargadas = {};   
+    var marcadoresParadasCargados = {}; 
+
+    const rutasData = {{ rutas_json|default:"[]"|safe }};
+    const paradasData = {{ paradas_json|default:"[]"|safe }};
+
+    const busIcon = L.divIcon({
+        className: 'custom-bus-icon',
+        html: '<div style="background:#3b82f6; color:white; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border:2px solid white; box-shadow:0 3px 6px rgba(0,0,0,0.3); font-size:14px;"><i class="fa-solid fa-bus"></i></div>',
+        iconSize: [32, 32], iconAnchor: [16, 16]
+    });
+
+    const paradaIcon = L.divIcon({
+        className: 'custom-parada-icon',
+        html: '<div style="background:#f59e0b; color:white; border-radius:4px; width:14px; height:14px; display:flex; align-items:center; justify-content:center; border:1px solid white; box-shadow:0 1px 4px rgba(0,0,0,0.2); font-size:8px;"><i class="fa-solid fa-circle"></i></div>',
+        iconSize: [16, 16], iconAnchor: [8, 8]
+    });
+
+    // ==========================================
+    // 2. CONSTRUCCIÓN DE LA BOTONERA LATERAL
+    // ==========================================
+    document.addEventListener("DOMContentLoaded", function() {
+        let divRutas = document.getElementById('contenedor-checklist-rutas');
+        if (rutasData.length === 0) {
+            divRutas.innerHTML = '<span style="color:#ef4444; font-size:13px;"><i class="fa-solid fa-triangle-exclamation"></i> No hay rutas registradas.</span>';
+        } else {
+            rutasData.forEach(r => {
+                divRutas.innerHTML += `
+                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#1e293b; cursor:pointer; background:#f8fafc; padding:8px 10px; border-radius:6px; border:1px solid #e2e8f0;">
+                        <input type="checkbox" class="chk-ruta-item" data-id="${r.id}" checked onchange="redibujarRutasSeleccionadas()">
+                        <span style="width:12px; height:12px; border-radius:50%; background:${r.color}; display:inline-block;"></span>
+                        ${r.nombre}
+                    </label>`;
+            });
+        }
+
+        let divParadas = document.getElementById('contenedor-checklist-paradas');
+        if (paradasData.length === 0) {
+            divParadas.innerHTML = '<span style="color:#ef4444; font-size:13px;"><i class="fa-solid fa-triangle-exclamation"></i> No hay paradas registradas.</span>';
+        } else {
+            paradasData.forEach(p => {
+                divParadas.innerHTML += `
+                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#1e293b; cursor:pointer; background:#f8fafc; padding:8px 10px; border-radius:6px; border:1px solid #e2e8f0;">
+                        <input type="checkbox" class="chk-parada-item" data-id="${p.id}" checked onchange="redibujarParadasSeleccionadas()">
+                        <i class="fa-solid fa-location-dot" style="color:#f59e0b;"></i>
+                        ${p.nombre}
+                    </label>`;
+            });
+        }
+
+        redibujarRutasSeleccionadas();
+        redibujarParadasSeleccionadas();
+        buscarBusesEnVivo(); 
+    });
+
+    // ==========================================
+    // 3. BUSCADOR INTELIGENTE (FILTRO Y AUTO-ENFOQUE)
+    // ==========================================
+    let timeoutBusqueda = null;
+
+    function aplicarFiltrosFlota() {
+        let textoBusqueda = document.getElementById('buscador-flota').value.toLowerCase();
+        let filtroRutaId = document.getElementById('filtro-ruta-flota').value;
+
+        // 1. Filtrar tarjetas visualmente
+        let tarjetas = document.querySelectorAll('.tarjeta-bus');
+        tarjetas.forEach(tarjeta => {
+            let matchRuta = (filtroRutaId === 'todas' || tarjeta.getAttribute('data-ruta') === filtroRutaId);
+            let matchTexto = (tarjeta.getAttribute('data-unidad').includes(textoBusqueda) || tarjeta.getAttribute('data-chofer').includes(textoBusqueda));
+            tarjeta.style.display = (matchRuta && matchTexto) ? "block" : "none";
+        });
+
+        // 2. Retrasar el mapa un poco para que el usuario termine de escribir y luego hacer el Vuelo Suave
+        clearTimeout(timeoutBusqueda);
+        timeoutBusqueda = setTimeout(() => {
+            let esBusquedaDirecta = (textoBusqueda.length > 0 || filtroRutaId !== 'todas');
+            buscarBusesEnVivo(esBusquedaDirecta);
+        }, 600);
+    }
+
+    // ==========================================
+    // 4. RADAR AUTOMÁTICO DE BUSES
+    // ==========================================
+    function buscarBusesEnVivo(forzarResalte = false) {
+        let filtroRutaId = document.getElementById('filtro-ruta-flota').value;
+        let textoBusqueda = document.getElementById('buscador-flota').value.toLowerCase();
+
+        fetch('/flota/api/flota/buses-activos/')
+        .then(response => response.json())
+        .then(buses => {
+            capaBuses.clearLayers(); 
+            let busesActivosCount = 0;
+            let marcadoresVisibles = []; // Guardamos los pines para el auto-enfoque
+
+            buses.forEach(bus => {
+                let etiquetaEstado = document.getElementById(`estado-bus-${bus.id}`);
+                let estaOperativo = (bus.estado.toLowerCase() === 'operativa' || bus.estado.toLowerCase() === 'activo');
+                
+                if(etiquetaEstado) {
+                    if(estaOperativo) {
+                        etiquetaEstado.innerHTML = '<span style="background:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-signal" style="font-size:10px;"></i> Operativa</span>';
+                    } else {
+                        etiquetaEstado.innerHTML = '<span style="background:#f1f5f9; color:#64748b; padding:4px 8px; border-radius:4px;">Inactiva / Apagado</span>';
+                    }
+                }
+
+                if (!estaOperativo || bus.lat === 0 || bus.lon === 0) return;
+
+                let coincideRuta = (filtroRutaId === 'todas' || bus.ruta_id == filtroRutaId);
+                let coincideTexto = (bus.conductor_display.toLowerCase().includes(textoBusqueda) || bus.unidad.includes(textoBusqueda));
+
+                if (coincideRuta && coincideTexto) {
+                    busesActivosCount++;
+                    let popupContent = `
+                        <div style="text-align:center;">
+                            <strong style="color:#1e293b;">Unidad ${bus.unidad.toUpperCase()}</strong><br>
+                            <span style="color:#64748b; font-size:12px;">Ruta: ${bus.ruta}</span><br>
+                            <hr style="margin:5px 0;">
+                            <span style="font-size:12px;">Chofer: <b>${bus.conductor_display}</b></span><br>
+                            <span style="font-size:10px; color:#10b981;">Actualizado: ${bus.actualizado}</span>
+                        </div>`;
+
+                    let marker = L.marker([bus.lat, bus.lon], {icon: busIcon}).bindPopup(popupContent);
+                    marker.addTo(capaBuses);
+                    marcadoresVisibles.push(marker);
+                }
+            });
+
+            document.getElementById('stat-buses-activos').innerText = busesActivosCount;
+
+            // LA MAGIA DEL EFECTO UBER (Zoom Automático)
+            if (forzarResalte && marcadoresVisibles.length > 0) {
+                let grupo = new L.featureGroup(marcadoresVisibles);
+                // Vuelo suave hacia los autobuses filtrados
+                map.flyToBounds(grupo.getBounds(), {padding: [50, 50], maxZoom: 16, duration: 1.2});
+                
+                // Si el usuario buscó exactamente un autobús, le abrimos el cartelito automáticamente
+                if (marcadoresVisibles.length === 1) {
+                    setTimeout(() => { marcadoresVisibles[0].openPopup(); }, 1200);
+                }
+            }
+        })
+        .catch(err => console.error("Error buscando buses en vivo:", err));
+    }
+
+    setInterval(() => buscarBusesEnVivo(false), 3000);
+
+    // ==========================================
+    // 5. FUNCIONES DE DIBUJO Y MODALES
+    // ==========================================
+    function redibujarRutasSeleccionadas() {
+        let checks = document.querySelectorAll('.chk-ruta-item');
+        checks.forEach(chk => {
+            let id = chk.getAttribute('data-id');
+            let data = rutasData.find(r => r.id == id);
+            if (chk.checked) {
+                if (!lineasRutasCargadas[id] && data && data.coordenadas) {
+                    let puntos = typeof data.coordenadas === 'string' ? JSON.parse(data.coordenadas) : data.coordenadas;
+                    if (Array.isArray(puntos) && puntos.length > 0) {
+                        lineasRutasCargadas[id] = L.polyline(puntos, {
+                            color: data.color || '#3b82f6', weight: 4, opacity: 0.8
+                        }).bindPopup(`<b>Ruta: ${data.nombre}</b>`);
+                    }
+                }
+                if (lineasRutasCargadas[id]) capaRutas.addLayer(lineasRutasCargadas[id]);
+            } else {
+                if (lineasRutasCargadas[id]) capaRutas.removeLayer(lineasRutasCargadas[id]);
+            }
+        });
+    }
+
+    function redibujarParadasSeleccionadas() {
+        let checks = document.querySelectorAll('.chk-parada-item');
+        checks.forEach(chk => {
+            let id = chk.getAttribute('data-id');
+            let data = paradasData.find(p => p.id == id);
+            if (chk.checked) {
+                if (!marcadoresParadasCargados[id] && data) {
+                    marcadoresParadasCargados[id] = L.marker([data.lat, data.lon], {icon: paradaIcon})
+                                                     .bindPopup(`<b>🚏 ${data.nombre}</b><br><small>${data.referencia}</small>`);
+                }
+                if (marcadoresParadasCargados[id]) capaParadas.addLayer(marcadoresParadasCargados[id]);
+            } else {
+                if (marcadoresParadasCargados[id]) capaParadas.removeLayer(marcadoresParadasCargados[id]);
+            }
+        });
+    }
+
+    function cambiarTabModal(pestana) {
+        if(pestana === 'nuevo') {
+            document.getElementById('form-conductor-nuevo').style.display = 'flex';
+            document.getElementById('form-conductor-existente').style.display = 'none';
+            document.getElementById('btn-tab-nuevo').style.background = '#3b82f6';
+            document.getElementById('btn-tab-nuevo').style.color = 'white';
+            document.getElementById('btn-tab-existente').style.background = '#f1f5f9';
+            document.getElementById('btn-tab-existente').style.color = '#475569';
+        } else {
+            document.getElementById('form-conductor-nuevo').style.display = 'none';
+            document.getElementById('form-conductor-existente').style.display = 'flex';
+            document.getElementById('btn-tab-existente').style.background = '#10b981';
+            document.getElementById('btn-tab-existente').style.color = 'white';
+            document.getElementById('btn-tab-nuevo').style.background = '#f1f5f9';
+            document.getElementById('btn-tab-nuevo').style.color = '#475569';
+        }
+    }
+
+    function alternarFiltroLateral(tab) {
+        let tabs = ['rutas', 'paradas', 'estadisticas'];
+        tabs.forEach(t => {
+            let btn = document.getElementById('btn-lateral-' + t);
+            let panel = document.getElementById('panel-tab-' + t);
+            if(t === tab.replace('tab-', '')) {
+                panel.style.display = 'flex';
+                btn.style.color = (t === 'rutas') ? '#3b82f6' : (t === 'paradas') ? '#f59e0b' : '#10b981';
+                btn.style.borderBottom = `2px solid ${btn.style.color}`;
+            } else {
+                panel.style.display = 'none';
+                btn.style.color = '#64748b';
+                btn.style.borderBottom = 'none';
+            }
+        });
+    }
+
+    // ==========================================
+    // 6. SISTEMA DE ALERTAS (API)
+    // ==========================================
+    function abrirModalMensaje(id, unidad) {
+        document.getElementById('input-id-unidad-mensaje').value = id;
+        document.getElementById('lbl-unidad-mensaje').innerText = unidad;
+        document.getElementById('texto-mensaje').value = '';
+        document.getElementById('modal-mensaje').style.display = 'flex';
+    }
+
+    function enviarMensajeAPI() {
+        let id = document.getElementById('input-id-unidad-mensaje').value;
+        let texto = document.getElementById('texto-mensaje').value;
+        if(texto.trim() === '') {
+            alert("El mensaje no puede estar vacío."); return;
+        }
+        fetch(`/flota/api/enviar-mensaje/${id}/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ mensaje: texto })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'ok') {
+                alert("¡Alerta enviada correctamente al operador!");
+                document.getElementById('modal-mensaje').style.display = 'none';
+            } else {
+                alert("Hubo un error al enviar el mensaje.");
+            }
+        })
+        .catch(err => console.error(err));
+    }
+</script>
+{% endblock %}

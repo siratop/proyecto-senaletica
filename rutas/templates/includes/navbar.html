@@ -1,0 +1,53 @@
+<nav style="background: white; padding: 12px 30px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+    
+    <div style="display: flex; align-items: center; gap: 20px;">
+        <a href="{% url 'inicio_general' %}" style="color: #64748b; text-decoration: none; font-size: 16px;">
+            <i class="fa-solid fa-house"></i>
+        </a>
+        
+    </div>
+
+    <div style="display: flex; gap: 20px; align-items: center;">
+        
+        <div id="nav-info" style="font-size: 12px; font-weight: bold; color: #475569; background: #f8fafc; padding: 6px 12px; border-radius: 20px; border: 1px solid #e2e8f0;">
+            <i class="fa-solid fa-clock"></i> <span id="clock">00:00</span> | 
+            <span id="weather-display"><i class="fa-solid fa-spinner fa-spin"></i> Clima...</span>
+        </div>
+
+        {% if user.is_authenticated %}
+            <span style="color: #64748b; font-size: 13px;">{{ user.username }}</span>
+            <form action="{% url 'logout' %}" method="post" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit" style="background: #fee2e2; color: #991b1b; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">
+                    Salir
+                </button>
+            </form>
+        {% else %}
+            <a href="{% url 'login' %}" style="background: #0d9488; color: white; padding: 6px 15px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px;">
+                Ingresar
+            </a>
+        {% endif %}
+    </div>
+</nav>
+
+<script>
+    // Reloj en tiempo real
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    setInterval(updateClock, 60000); // Actualiza cada minuto
+    updateClock();
+
+    // Clima sencillo
+    async function fetchWeather() {
+        try {
+            const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=8.2962&longitude=-62.7115&current=temperature_2m');
+            const data = await res.json();
+            document.getElementById('weather-display').innerHTML = ` <i class="fa-solid fa-sun"></i> ${Math.round(data.current.temperature_2m)}°C`;
+        } catch (e) {
+            document.getElementById('weather-display').innerText = "Clima offline";
+        }
+    }
+    fetchWeather();
+</script>

@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 500px; margin: 40px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(220, 38, 38, 0.15); border: 1px solid #fca5a5;">
+    
+    <div style="background: var(--danger); color: white; padding: 25px 20px; text-align: center;">
+        <i class="fa-solid fa-truck-medical" style="font-size: 45px; margin-bottom: 10px;"></i>
+        <h1 style="margin: 0; font-family: 'Urbanist', sans-serif; font-size: 24px;">ALERTA DE ASISTENCIA</h1>
+        <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Usted ha escaneado un dispositivo de seguridad SeñalEtica+</p>
+    </div>
+
+    <div style="padding: 25px;">
+        
+        <div style="text-align: center; margin-bottom: 25px;">
+            <span style="font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Identidad del Portador</span>
+            <h2 style="margin: 5px 0; color: #0f172a; font-size: 28px;">{{ dependiente.nombre_completo }}</h2>
+        </div>
+
+        <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;">
+
+        <div style="background: #fff5f5; border-left: 4px solid var(--danger); padding: 15px; border-radius: 4px; margin-bottom: 25px;">
+            <span style="display: block; font-size: 12px; font-weight: bold; color: var(--danger); text-transform: uppercase; margin-bottom: 5px;"><i class="fa-solid fa-notes-medical"></i> Condición Médica / Alergias</span>
+            <p style="margin: 0; color: #450a0a; font-size: 15px; line-height: 1.5;">
+                {% if dependiente.condicion_medica %}
+                    {{ dependiente.condicion_medica }}
+                {% else %}
+                    Sin condiciones médicas registradas.
+                {% endif %}
+            </p>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 30px;">
+            <span style="font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase;">Tutor Legal Registrado</span>
+            <p style="margin: 5px 0 0 0; color: #334155; font-size: 16px;">
+                <strong>{{ dependiente.tutor.get_full_name|default:dependiente.tutor.username }}</strong> 
+                <br>
+                <span style="font-size: 13px; color: #64748b;">(Relación: {{ dependiente.get_relacion_display }})</span>
+            </p>
+        </div>
+
+        <a href="tel:{{ dependiente.telefono_emergencia }}" class="btn-mck btn-mck-danger" style="display: flex; justify-content: center; align-items: center; gap: 10px; font-size: 18px; padding: 15px;">
+            <i class="fa-solid fa-phone-volume" style="animation: pulse 2s infinite;"></i> 
+            Llamar a Emergencias ({{ dependiente.telefono_emergencia }})
+        </a>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <span style="font-size: 10px; color: #94a3b8; word-break: break-all;">
+                <i class="fa-solid fa-fingerprint"></i> Token Seguro: {{ dependiente.token_nfc }}
+            </span>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+</style>
+{% endblock %}

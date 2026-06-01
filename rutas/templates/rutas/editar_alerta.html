@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 600px; margin: 40px auto; padding: 20px; background: white; border-radius: 12px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    <h2 style="color: #3b82f6; margin-bottom: 10px;"><i class="fa-solid fa-pen-to-square"></i> Editar Alerta Operativa</h2>
+    
+    <form method="post" style="display: flex; flex-direction: column; gap: 15px;">
+        {% csrf_token %}
+        <div>
+            <label style="font-size: 13px; font-weight: bold; color: #334155;">Tipo de Alerta:</label>
+            <select name="tipo" required style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; background: white; font-size: 14px;">
+                <option value="general" {% if alerta.tipo == 'general' %}selected{% endif %}>📢 Aviso General</option>
+                <option value="trafico" {% if alerta.tipo == 'trafico' %}selected{% endif %}>🚗 Congestión / Retraso Vehicular</option>
+                <option value="incidente" {% if alerta.tipo == 'incidente' %}selected{% endif %}>⚠️ Accidente / Vía Cerrada</option>
+            </select>
+        </div>
+        
+        <div>
+            <label style="font-size: 13px; font-weight: bold; color: #334155;">Mensaje Informativo:</label>
+            <textarea name="mensaje" required rows="3" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; font-size: 14px; resize: vertical;">{{ alerta.mensaje }}</textarea>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #334155;">Latitud:</label>
+                <input type="text" name="latitud" value="{{ alerta.latitud|default_if_none:'' }}" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; font-size: 14px;">
+            </div>
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #334155;">Longitud:</label>
+                <input type="text" name="longitud" value="{{ alerta.longitud|default_if_none:'' }}" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; font-size: 14px;">
+            </div>
+        </div>
+
+        <div style="background: #f8fafc; padding: 15px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 10px;">
+            <label style="display: flex; align-items: center; gap: 10px; font-weight: bold; color: #334155; cursor: pointer;">
+                <input type="checkbox" name="activa" {% if alerta.activa %}checked{% endif %} style="width: 18px; height: 18px;">
+                La alerta se encuentra ACTIVA (visible para todos)
+            </label>
+        </div>
+
+        <div style="margin-top: 15px; display: flex; gap: 10px;">
+            <button type="submit" class="btn-admin-add" style="background: #3b82f6; color: white; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;">
+                <i class="fa-solid fa-save"></i> Guardar Cambios
+            </button>
+            <a href="{% url 'gestionar_alertas' %}" class="btn-admin-manage" style="padding: 12px 20px; text-decoration: none; font-size: 14px;">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

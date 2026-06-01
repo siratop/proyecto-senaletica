@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<div style="max-width: 900px; margin: 0 auto; padding: 20px;">
+    
+    <a href="{% url 'inicio_general' %}" style="display: inline-block; margin-bottom: 20px; color: #475569; text-decoration: none; font-weight: bold; font-size: 14px; transition: 0.2s;">
+        <i class="fa-solid fa-arrow-left-long"></i> Volver al Radar Principal
+    </a>
+
+    <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 25px; margin-bottom: 25px; color: white; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="background: #3b82f6; padding: 12px; border-radius: 50%; box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);">
+                <i class="fa-solid fa-satellite-dish" style="font-size: 24px; color: white;"></i>
+            </div>
+            <div>
+                <h1 style="margin: 0; font-size: 22px; font-family: 'Urbanist', sans-serif;">Consola de Operador</h1>
+                <p style="margin: 2px 0 0 0; color: #94a3b8; font-size: 14px;">Piloto: {{ user.first_name|default:user.username }}</p>
+                <p style="margin: 2px 0 0 0; color: #10b981; font-size: 12px; font-weight: bold;">Unidad: {{ unidad.numero_unidad|default:"No asignada" }}</p>
+            </div>
+        </div>
+        
+        <div style="background: rgba(255,255,255,0.1); padding: 12px 20px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; gap: 15px;">
+            <div id="status-indicador" style="display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 14px; color: #fca5a5;">
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444;" id="status-dot"></div>
+                <span id="status-text">OFFLINE</span>
+            </div>
+            
+            <button id="btn-transmitir" onclick="toggleGPS()" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3); display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-play"></i> Iniciar Ruta
+            </button>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
+        {% if unidad %}
+        <form method="POST" action="{% url 'reportar_averia' unidad.id %}" style="margin: 0; flex: 1;">
+            {% csrf_token %}
+            <button type="submit" onclick="return confirm('¿Confirmar avería? La unidad saldrá del mapa automáticamente.')" style="width: 100%; background: white; color: #ef4444; border: 2px solid #fca5a5; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s;">
+                <i class="fa-solid fa-triangle-exclamation"></i> Reportar Avería
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 300px; gap: 20px;">
+        
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <div style="padding: 15px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between;">
+                <strong style="color: #334155;"><i class="fa-solid fa-crosshairs"></i> Posición Satelital</strong>
+                <span id="gps-precision" style="font-size: 12px; color: #64748b;">Precisión: Esperando...</span>
+            </div>
+            <div id="mapa-chofer" style="height: 400px; width: 100%; z-index: 1;"></div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                <h3 style="margin: 0 0 15px 0; font-size: 14px; color: #64748b; text-transform: uppercase;"><i class="fa-solid fa-gauge"></i> Velocidad</h3>
+                <div style="font-size: 36px; font-weight: 900; color: #0f172a; font-family: monospace;">
+                    <span id="vel-numero">0</span> <span style="font-size: 16px; color: #94a3b8;">Km/h</span>
+                </div>
+            </div>
+
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                <h3 style="margin: 0 0 15px 0; font-size: 14px; color: #64748b; text-transform: uppercase;"><i class="fa-solid fa-tower-broadcast"></i> Último Ping</h3>
+                <div id="ultimo-ping" style="font-size: 14px; font-weight: bold; color: #3b82f6;">
+                    -- : -- : --
+                </div>
+                <p style="margin: 10px 0 0 0; font-size: 11px; color: #94a3b8;">
+                    Las coordenadas se envían automáticamente al servidor mientras la ruta está activa.
+                </p>
+            </div>
+            
+            <div id="debug-log" style="background: #1e293b; color: #10b981; font-family: monospace; font-size: 11px; padding: 10px; border-radius: 8px; height: 80px; overflow-y: auto;">
+                > Sistema Iniciado. Esperando comandos...
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes pulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+</style>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Variables Globales
+    let mapChofer;
+    let marcadorChofer;
+    let watchId = null;
+    let transmitiendo = false;
+    let wakeLock = null;
+    const csrfToken = '{{ csrf_token }}';
+
+    // 1. UTILIDADES Y WAKELOCK (Mantiene la pantalla encendida)
+    function logDebug(mensaje) {
+        let log = document.getElementById('debug-log');
+        log.innerHTML += `<br>> ${mensaje}`;
+        log.scrollTop = log.scrollHeight;
+    }
+
+    async function solicitarWakeLock() {
+        try {
+            if ('wakeLock' in navigator) {
+                wakeLock = await navigator.wakeLock.request('screen');
+                logDebug('Wake Lock: Pantalla Activa.');
+            }
+        } catch (err) {
+            logDebug(`Aviso: Pantalla podría apagarse. (${err.message})`);
+        }
+    }
+
+    function liberarWakeLock() {
+        if (wakeLock !== null) {
+            wakeLock.release().then(() => {
+                wakeLock = null;
+                logDebug('Wake Lock: Liberado.');
+            });
+        }
+    }
+
+    // 2. INICIALIZACIÓN DEL MAPA LEAFLET
+    document.addEventListener("DOMContentLoaded", function() {
+        // Coordenadas de Ciudad Guayana por defecto
+        mapChofer = L.map('mapa-chofer').setView([8.2962, -62.7115], 14); 
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapChofer);
+        
+        let iconoBus = L.divIcon({
+            className: 'bus-icon',
+            html: '<div style="background: #3b82f6; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.4);"><i class="fa-solid fa-bus"></i></div>',
+            iconSize: [34, 34],
+            iconAnchor: [17, 17]
+        });
+
+        marcadorChofer = L.marker([8.2962, -62.7115], {icon: iconoBus}).addTo(mapChofer);
+    });
+
+    // 3. SISTEMA DE RASTREO GPS
+    function toggleGPS() {
+        let btn = document.getElementById('btn-transmitir');
+        let text = document.getElementById('status-text');
+        let dot = document.getElementById('status-dot');
+
+        if (!transmitiendo) {
+            // ENCENDER
+            if ("geolocation" in navigator) {
+                transmitiendo = true;
+                btn.innerHTML = '<i class="fa-solid fa-stop"></i> Finalizar Ruta';
+                btn.style.background = '#ef4444';
+                btn.style.boxShadow = '0 4px 6px rgba(239, 68, 68, 0.3)';
+                
+                text.innerText = 'TRANSMITIENDO...';
+                text.style.color = '#6ee7b7';
+                dot.style.background = '#10b981';
+                dot.style.animation = 'pulse 1.5s infinite';
+
+                solicitarWakeLock();
+                logDebug('Buscando satélites...');
+
+                watchId = navigator.geolocation.watchPosition(actualizarPosicion, errorGPS, {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 5000
+                });
+            } else {
+                alert("El GPS no es compatible con este dispositivo.");
+            }
+        } else {
+            // APAGAR
+            transmitiendo = false;
+            navigator.geolocation.clearWatch(watchId);
+            liberarWakeLock();
+            
+            btn.innerHTML = '<i class="fa-solid fa-play"></i> Iniciar Ruta';
+            btn.style.background = '#10b981';
+            btn.style.boxShadow = '0 4px 6px rgba(16, 185, 129, 0.3)';
+            
+            text.innerText = 'OFFLINE';
+            text.style.color = '#fca5a5';
+            dot.style.background = '#ef4444';
+            dot.style.animation = 'none';
+            document.getElementById('vel-numero').innerText = "0";
+            
+            logDebug('Transmisión detenida por el chofer.');
+            // Enviar señal al servidor de que se apagó el bus
+            enviarBackend(0, 0, false);
+        }
+    }
+
+    function actualizarPosicion(position) {
+        let lat = position.coords.latitude;
+        let lng = position.coords.longitude;
+        let accuracy = position.coords.accuracy;
+        let speedMetersPerSecond = position.coords.speed;
+
+        let nuevaPos = new L.LatLng(lat, lng);
+        marcadorChofer.setLatLng(nuevaPos);
+        mapChofer.setView(nuevaPos, 16);
+        
+        document.getElementById('gps-precision').innerText = `Precisión: ±${Math.round(accuracy)}m`;
+        
+        if (speedMetersPerSecond !== null && speedMetersPerSecond > 0) {
+            let kmh = Math.round(speedMetersPerSecond * 3.6);
+            document.getElementById('vel-numero').innerText = kmh;
+        } else {
+            document.getElementById('vel-numero').innerText = "0";
+        }
+
+        let ahora = new Date();
+        document.getElementById('ultimo-ping').innerText = ahora.toLocaleTimeString();
+
+        // Enviar a la base de datos
+        enviarBackend(lat, lng, true);
+    }
+
+    function errorGPS(err) {
+        logDebug(`Error GPS (${err.code}): ${err.message}`);
+        document.getElementById('gps-precision').innerText = "Señal perdida. Buscando...";
+    }
+
+    // 4. COMUNICACIÓN CON EL SERVIDOR (Backend y Alertas)
+    function enviarBackend(lat, lng, activo) {
+        // Apuntamos a la ruta oficial registrada en urls.py
+        fetch("{% url 'actualizar_gps_bus' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                latitud: lat,
+                longitud: lng,
+                en_servicio: activo
+            })
+        }).catch(error => logDebug('Error de conexión con Central.'));
+    }
+
+    function verificarAlertas() {
+        if (!transmitiendo) return; 
+        
+        // Verifica si la ruta leer_alertas está registrada. Si usaste otro nombre en urls.py, cámbialo aquí.
+        fetch('/flota/api/leer-alertas/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.hay_alerta) {
+                logDebug('Nueva Alerta recibida.');
+                alert("📢 MENSAJE DE CENTRAL:\n\n" + data.mensaje);
+            }
+        })
+        .catch(err => console.error("Error buscando alertas:", err));
+    }
+
+    // Escanear alertas cada 15 segundos
+    setInterval(verificarAlertas, 15000);
+</script>
+{% endblock %}

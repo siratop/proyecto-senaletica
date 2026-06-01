@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="text-align: center; margin-bottom: 40px;">
+    <h2 style="font-size: 32px; color: var(--primary-dark); margin-bottom: 10px;">Centro de Mando Ciudadano</h2>
+    <p style="color: var(--text-muted); font-size: 18px;">Seleccione el entorno operativo para comenzar.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+    
+    <div class="card-mck">
+        <div style="color: var(--primary); font-size: 40px; margin-bottom: 15px;"><i class="fa-solid fa-qrcode"></i></div>
+        <h3 style="margin-top: 0;">Entorno Peatón</h3>
+        <p style="color: var(--text-muted); min-height: 60px;">Consulta de paradas, mapas en vivo y solicitud de auxilio inclusivo.</p>
+        <a href="{% url 'parada_especifica' 1 %}" class="btn-mck btn-mck-primary">Escanear Parada</a>
+    </div>
+
+    <div class="card-mck">
+        <div style="color: var(--primary-dark); font-size: 40px; margin-bottom: 15px;"><i class="fa-solid fa-gears"></i></div>
+        <h3 style="margin-top: 0;">Centro de Control</h3>
+        <p style="color: var(--text-muted); min-height: 60px;">Gestión de infraestructura vial, usuarios y reporte de estadísticas.</p>
+        <a href="{% url 'panel_admin_amigable' %}" class="btn-mck btn-mck-dark">Panel Administrativo</a>
+    </div>
+
+    <div class="card-mck">
+        <div style="color: var(--primary); font-size: 40px; margin-bottom: 15px;"><i class="fa-solid fa-bus"></i></div>
+        <h3 style="margin-top: 0;">Consola Chofer</h3>
+        <p style="color: var(--text-muted); min-height: 60px;">Telemetría GPS activa para operadores de transporte público.</p>
+        <a href="{% url 'panel_chofer' %}" class="btn-mck btn-mck-outline">Panel Operadores</a>
+    </div>
+
+</div>
+{% endblock %}

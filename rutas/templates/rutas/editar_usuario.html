@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div style="max-width: 600px; margin: 40px auto; background: white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); overflow: hidden;">
+
+    <div style="background: #0d9488; height: 6px; width: 100%;"></div>
+
+    <div style="padding: 30px;">
+        <h2 style="margin-top: 0; margin-bottom: 25px; color: #1e293b; font-size: 22px; display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-pen" style="color: #f97316;"></i> Editar Cuenta de Usuario
+        </h2>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; margin-bottom: 25px; font-size: 13px; color: #475569;">
+                <h4 style="margin: 0 0 10px 0; color: #0f172a;"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Sesión</h4>
+                <p style="margin: 4px 0;"><strong>Fecha de registro:</strong> {{ usuario_edit.date_joined|date:"d/m/Y g:i A" }}</p>
+                <p style="margin: 4px 0;"><strong>Último acceso:</strong> 
+                    {% if usuario_edit.last_login %}
+                        {{ usuario_edit.last_login|date:"d/m/Y g:i A" }}
+                    {% else %}
+                        <span style="color: #ef4444; font-weight: bold;">Nunca</span>
+                    {% endif %}
+                </p>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; font-size: 14px; color: #1e293b; display: block; margin-bottom: 5px;">Nombre de usuario:</label>
+                <input type="text" name="username" value="{{ usuario_edit.username }}" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; outline: none;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; font-size: 14px; color: #1e293b; display: block; margin-bottom: 5px;">Dirección de correo electrónico:</label>
+                <input type="email" name="email" value="{{ usuario_edit.email }}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; outline: none;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; font-size: 14px; color: #1e293b; display: block; margin-bottom: 5px;">Nombre:</label>
+                <input type="text" name="first_name" value="{{ usuario_edit.first_name }}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; outline: none;">
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <label style="font-weight: bold; font-size: 14px; color: #1e293b; display: block; margin-bottom: 5px;">Apellidos:</label>
+                <input type="text" name="last_name" value="{{ usuario_edit.last_name }}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; outline: none;">
+            </div>
+
+            <div style="margin-bottom: 25px; border: 1px solid #fcd34d; padding: 15px; border-radius: 6px; background: #fffbeb;">
+                <label style="font-weight: bold; font-size: 14px; color: #92400e; display: block; margin-bottom: 8px;">
+                    <i class="fa-solid fa-id-badge"></i> Rol y Nivel de Acceso:
+                </label>
+                <select name="rol" style="width: 100%; padding: 10px; border: 1px solid #f59e0b; border-radius: 6px; outline: none; background: white;">
+                    <option value="ciudadano" {% if perfil_edit.rol == 'ciudadano' %}selected{% endif %}>Ciudadano Normal</option>
+                    <option value="conductor" {% if perfil_edit.rol == 'conductor' %}selected{% endif %}>Dueño de Unidad / Conductor</option>
+                    <option value="flota" {% if perfil_edit.rol == 'flota' %}selected{% endif %}>Dueño de Flota (Múltiples Unidades)</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 30px; text-align: center;">
+                <label style="font-weight: bold; font-size: 14px; color: #1e293b; cursor: pointer;">
+                    <input type="checkbox" name="is_staff" {% if usuario_edit.is_staff %}checked{% endif %}> Es personal administrativo (Staff)
+                </label>
+            </div>
+
+            <div style="display: flex; gap: 15px;">
+                <a href="{% url 'gestionar_usuarios' %}" style="background: #94a3b8; color: white; text-decoration: none; padding: 12px; border-radius: 6px; font-weight: bold; text-align: center; flex: 1;">
+                    <i class="fa-solid fa-arrow-left"></i> Cancelar
+                </a>
+                <button type="submit" style="background: #0d9488; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 2; font-size: 15px;">
+                    <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

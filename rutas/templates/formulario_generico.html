@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    .form-container {
+        background: var(--white);
+        padding: 35px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        max-width: 550px;
+        margin: 0 auto;
+        border-top: 5px solid var(--primary);
+    }
+    
+    /* Estilos mágicos que aplican a cualquier formulario de Django */
+    .form-container input, 
+    .form-container select, 
+    .form-container textarea {
+        width: 100%;
+        padding: 14px;
+        margin-top: 8px;
+        margin-bottom: 20px;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 16px;
+        font-family: 'Inter', sans-serif;
+        box-sizing: border-box;
+        transition: border-color 0.2s;
+    }
+
+    .form-container input:focus, 
+    .form-container select:focus {
+        outline: none;
+        border-color: var(--primary);
+    }
+
+    .form-container label {
+        font-weight: 700;
+        color: var(--primary-dark);
+        font-size: 15px;
+    }
+
+    .helptext {
+        font-size: 12px;
+        color: var(--text-muted);
+        display: block;
+        margin-top: -15px;
+        margin-bottom: 20px;
+    }
+</style>
+
+<div class="form-container">
+    <h2 style="color: var(--primary-dark); margin-top: 0; font-family: 'Urbanist', sans-serif; font-size: 26px;">
+        {{ titulo }}
+    </h2>
+    <p style="color: var(--text-muted); margin-bottom: 25px;">{{ subtitulo }}</p>
+    
+  <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    
+    {{ form.as_p }}
+    
+    <div class="btn-group">
+        <a href="javascript:history.back()" style="background: #94a3b8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; text-align: center;">
+            <i class="fa-solid fa-arrow-left"></i> Cancelar
+        </a>
+        
+        <button type="submit" class="btn-base btn-primary">
+            <i class="fa-solid fa-save"></i> Guardar Cambios
+        </button>
+    </div>
+</form>
+</div>
+{% endblock %}

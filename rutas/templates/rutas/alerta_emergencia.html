@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 500px; margin: 40px auto; text-align: center; font-family: sans-serif; padding: 20px;">
+    
+    <div style="background: #fee2e2; border: 4px solid #ef4444; border-radius: 15px; padding: 30px; box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.2);">
+        <i class="fa-solid fa-triangle-exclamation" style="font-size: 64px; color: #ef4444; margin-bottom: 15px;"></i>
+        <h1 style="color: #991b1b; font-size: 32px; margin: 0 0 10px 0;">ALERTA S.O.S</h1>
+        <h3 style="color: #0f172a; margin-top: 0;">{{ parada.nombre }}</h3>
+        
+        <p style="color: #475569; font-size: 15px; line-height: 1.5; margin-bottom: 25px;">
+            Al confirmar, enviaremos tus coordenadas GPS exactas y el identificador de este tótem a las autoridades de seguridad y paramédicos.
+        </p>
+
+        <button onclick="enviarEmergencia()" style="background: #ef4444; color: white; border: none; padding: 15px 20px; font-size: 18px; font-weight: 900; border-radius: 8px; cursor: pointer; width: 100%; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-satellite-dish"></i> TRANSMITIR ALERTA AHORA
+        </button>
+
+        <a href="{% url 'inicio_peaton' parada.id %}" style="color: #64748b; text-decoration: none; font-weight: bold; font-size: 14px;">← Falsa alarma, regresar al mapa</a>
+    </div>
+
+</div>
+
+<script>
+    function enviarEmergencia() {
+        // Aquí en el futuro iría un fetch() a tu API para guardar la emergencia en la BD
+        alert("📡 ¡ALERTA ENVIADA EXITOSAMENTE!\n\nLas autoridades han recibido su ubicación. Mantenga la calma y espere en el sitio.");
+        // Redirigir de vuelta al tótem
+        window.location.href = "{% url 'inicio_peaton' parada.id %}";
+    }
+</script>
+{% endblock %}

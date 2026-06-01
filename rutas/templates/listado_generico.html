@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    .list-container {
+        background: var(--white);
+        padding: 30px;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+    }
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        margin-top: 20px;
+    }
+    .mck-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+    .mck-table th {
+        background-color: var(--primary-light);
+        color: var(--primary-dark);
+        padding: 15px;
+        font-weight: 700;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .mck-table td {
+        padding: 15px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 15px;
+    }
+    .badge-tipo {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    .badge-oficial { background: #e6fffa; color: #2c7a7b; }
+    .badge-informal { background: #fef3c7; color: #d97706; }
+    
+    .btn-sm-mck {
+        padding: 6px 12px;
+        font-size: 13px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: bold;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+</style>
+
+<div class="list-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div>
+            <h2 style="margin: 0; color: var(--primary-dark); font-family: 'Urbanist', sans-serif;">{{ titulo }}</h2>
+            <p style="margin: 5px 0 0 0; color: var(--text-muted);">{{ subtitulo }}</p>
+        </div>
+        <a href="{{ url_crear }}" class="btn-mck btn-mck-primary" style="width: auto; padding: 10px 20px;">
+            <i class="fa-solid fa-plus"></i> Añadir Nuevo
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="mck-table">
+            <thead>
+                <tr>
+                    <th>Código/ID</th>
+                    <th>Nombre de la Parada</th>
+                    <th>Ubicación (Lat, Lon)</th>
+                    <th>Tipo de Punto</th>
+                    <th style="text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for objeto in object_list %}
+                <tr>
+                    <td style="font-weight: bold; color: var(--text-muted);">{{ objeto.codigo }}</td>
+                    <td style="font-weight: 600;">{{ objeto.nombre }}</td>
+                    <td style="font-size: 13px; color: var(--text-muted);">{{ objeto.latitud|stringformat:".4f" }}, {{ objeto.longitud|stringformat:".4f" }}</td>
+                    <td>
+                        {% if objeto.tipo == "OFICIAL" %}
+                            <span class="badge-tipo badge-oficial">Oficial</span>
+                        {% else %}
+                            <span class="badge-tipo badge-informal">Informal</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 8px;">
+                            <a href="{% url 'editar_parada' objeto.id %}" class="btn-sm-mck" style="background: #edf2f7; color: #4a5568;">
+                                <i class="fa-solid fa-pen-to-square"></i> Editar
+                            </a>
+                            <a href="{% url 'eliminar_parada' objeto.id %}" class="btn-sm-mck" style="background: #fed7d7; color: #c53030;">
+                                <i class="fa-solid fa-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                        No hay registros guardados en esta sección.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div style="margin-top: 25px;">
+        <a href="{% url 'panel_admin_amigable' %}" class="btn-mck btn-mck-outline" style="width: auto;">
+            <i class="fa-solid fa-arrow-left"></i> Volver al Centro de Control
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 600px; margin: 40px auto; padding: 20px; background: white; border-radius: 12px; border: 1px solid #fde68a; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    
+    <div style="text-align: center; margin-bottom: 25px;">
+        <i class="fa-solid fa-pen-to-square" style="font-size: 30px; color: #d97706; margin-bottom: 10px;"></i>
+        <h2 style="color: #b45309; margin-bottom: 5px;">Editar Campaña</h2>
+        <p style="color: #64748b; font-size: 14px; margin: 0;">Actualice la información o reemplace el banner.</p>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 15px;">
+        {% csrf_token %}
+        
+        <div>
+            <label style="font-size: 13px; font-weight: bold; color: #334155;">Nombre de la Campaña</label>
+            <input type="text" name="nombre" value="{{ campana.nombre }}" required style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; font-size: 14px;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #334155;">Fecha Inicio</label>
+                <input type="date" name="fecha_inicio" value="{{ campana.fecha_inicio|date:'Y-m-d' }}" required style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; font-size: 14px;">
+            </div>
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #334155;">Fecha Fin</label>
+                <input type="date" name="fecha_fin" value="{{ campana.fecha_fin|date:'Y-m-d' }}" required style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; font-size: 14px;">
+            </div>
+        </div>
+
+        <div>
+            <label style="font-size: 13px; font-weight: bold; color: #334155;">Patrocinador / Empresa (Opcional):</label>
+            <select name="patrocinador" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; background: white; font-size: 14px;">
+                <option value="">-- Sin patrocinador asociado --</option>
+                {% for pat in patrocinadores %}
+                    <option value="{{ pat.id }}" {% if campana.patrocinador and campana.patrocinador.id == pat.id %}selected{% endif %}>
+                        {{ pat.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="background: #fefce8; padding: 15px; border-radius: 6px; border: 1px dashed #fde68a; margin-top: 5px; text-align: center;">
+            <label style="font-size: 13px; font-weight: bold; color: #d97706; cursor: pointer; display: block; margin-bottom: 5px;">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Cambiar Imagen del Banner
+            </label>
+            <input type="file" name="imagen_banner" accept="image/*" style="font-size: 12px; color: #64748b;">
+            {% if campana.imagen_banner %}
+            <p style="font-size: 11px; color: #047857; margin-top: 8px;">
+                <i class="fa-solid fa-check-circle"></i> Actualmente tiene una imagen subida. Seleccione un archivo solo si desea cambiarla.
+            </p>
+            {% endif %}
+        </div>
+
+        <div style="background: #ecfdf5; padding: 15px; border-radius: 6px; border: 1px solid #a7f3d0; margin-top: 5px;">
+            <label style="display: flex; align-items: center; gap: 10px; font-weight: bold; color: #047857; cursor: pointer;">
+                <input type="checkbox" name="activa" {% if campana.activa %}checked{% endif %} style="width: 18px; height: 18px; accent-color: #10b981;">
+                Campaña Activa (Visible)
+            </label>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+            <button type="submit" style="background: #d97706; color: white; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; width: 100%;">
+                <i class="fa-solid fa-save"></i> Guardar Cambios
+            </button>
+        </div>
+    </form>
+</div>
+
+<div style="text-align: center; margin-top: 20px;">
+    <a href="{% url 'gestionar_publicidad' %}" style="background: white; color: #475569; border: 1px solid #cbd5e1; padding: 12px 25px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-arrow-left"></i> Cancelar y Volver
+    </a>
+</div>
+{% endblock %}

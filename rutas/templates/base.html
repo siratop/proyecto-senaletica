@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeñalÉtica+ | Movilidad Inclusiva</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Urbanist:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="manifest" href="{% url 'manifest' %}">
+    <meta name="theme-color" content="#2563eb">
+    <style>
+        :root { --primary: #0d9488; --primary-dark: #0f172a; --bg: #f8fafc; --text-main: #1e293b; --text-muted: #64748b; --white: #ffffff; --danger: #ef4444; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
+        .main-wrapper { width: 100%; max-width: 1100px; margin: 0 auto; padding: 20px; box-sizing: border-box; flex-grow: 1; }
+        .global-header { background-color: var(--white); border-bottom: 1px solid #e2e8f0; padding: 15px 0; text-align: center; }
+        .logo-text { font-family: 'Urbanist', sans-serif; font-size: 24px; color: var(--primary-dark); margin: 0; }
+        .logo-text span { color: var(--primary); }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+
+.btn-base {
+    flex: 1;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    text-align: center;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.btn-primary { background: #0d9488; color: white; }
+.btn-primary:hover { background: #0f766e; }
+
+.btn-cancel { background: #94a3b8; color: white; }
+.btn-cancel:hover { background: #64748b; }
+
+.btn-danger { background: #ef4444; color: white; }
+.btn-danger:hover { background: #dc2626; }
+    </style>
+</head>
+<body>
+    <header class="global-header">
+        <h1 class="logo-text">Señal<span>Ética+</span></h1>
+    </header>
+
+    {% include 'includes/navbar.html' %}
+
+    {% if messages %}
+        <div style="margin: 20px auto; max-width: 800px;">
+            {% for message in messages %}
+                <div style="padding: 15px; border-radius: 8px; border: 1px solid #f87171; background: #fee2e2; color: #991b1b; text-align: center; font-weight: bold;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <main class="main-wrapper">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">
+        SeñalÉtica+ © 2026 | Guayana | UNEG
+    </footer>
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('¡Service Worker registrado con éxito!', reg.scope))
+                .catch(err => console.error('Error al registrar el Service Worker:', err));
+        });
+    }
+</script>
+</body>
+</html>

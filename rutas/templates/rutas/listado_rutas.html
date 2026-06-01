@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="background: var(--white); padding: 30px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>🛣️ Gestión de Rutas y Líneas</h2>
+        <a href="{% url 'crear_ruta' %}" class="btn-mck btn-mck-primary" style="width: auto;"><i class="fa-solid fa-plus"></i> Añadir Ruta</a>
+    </div>
+    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <tr style="background: var(--primary-light); color: var(--primary-dark); border-bottom: 2px solid #e2e8f0;">
+            <th style="padding: 15px;">Nombre de la Línea</th>
+            <th style="padding: 15px;">Cantidad de Paradas</th>
+            <th style="padding: 15px; text-align: right;">Acciones</th>
+        </tr>
+        {% for ruta in object_list %}
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 15px; font-weight: bold;">{{ ruta.nombre }}</td>
+            <td style="padding: 15px;">{{ ruta.paradas.count }} estaciones asignadas</td>
+            <td style="padding: 15px; text-align: right;">
+                <a href="{% url 'editar_ruta' ruta.id %}" class="btn-mck" style="background: #edf2f7; color: #4a5568; padding: 6px 12px; width: auto;"><i class="fa-solid fa-pen-to-square"></i></a>
+                <a href="{% url 'eliminar_ruta' ruta.id %}" class="btn-mck" style="background: #fed7d7; color: #c53030; padding: 6px 12px; width: auto;"><i class="fa-solid fa-trash"></i></a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <a href="{% url 'panel_admin_amigable' %}" class="btn-mck btn-mck-outline" style="width: auto; margin-top: 20px;"><i class="fa-solid fa-arrow-left"></i> Volver</a>
+</div>
+{% endblock %}

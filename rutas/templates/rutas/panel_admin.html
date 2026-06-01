@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    .admin-dashboard {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 20px;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    .admin-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    }
+    .admin-card-header {
+        background: #f8fafc;
+        padding: 15px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        color: var(--primary-dark);
+        font-weight: 800;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .admin-card-header.alerta {
+        background: #fff5f5;
+        color: #991b1b;
+        border-bottom: 1px solid #fecaca;
+    }
+    .admin-module {
+        padding: 20px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .admin-module:last-child {
+        border-bottom: none;
+    }
+    .module-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    .module-title {
+        font-weight: 700;
+        color: #334155;
+        font-size: 15px;
+    }
+    .module-badge {
+        background: #f1f5f9;
+        color: #64748b;
+        font-size: 11px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-weight: bold;
+    }
+    .module-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    .module-actions.una-columna {
+        grid-template-columns: 1fr;
+    }
+    .btn-admin-add {
+        background: var(--primary);
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 6px;
+        font-weight: bold;
+        text-align: center;
+        text-decoration: none;
+        font-size: 13px;
+        display: block;
+    }
+    .btn-admin-manage {
+        background: white;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+        padding: 10px;
+        border-radius: 6px;
+        font-weight: bold;
+        text-align: center;
+        text-decoration: none;
+        font-size: 13px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 5px;
+    }
+    .btn-admin-danger {
+        background: #ef4444;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 6px;
+        font-weight: bold;
+        text-align: center;
+        text-decoration: none;
+        font-size: 13px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+    }
+    .module-disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+</style>
+
+<div style="max-width: 1000px; margin: 0 auto 20px auto;">
+    <h1 style="color: var(--primary-dark); font-family: 'Urbanist', sans-serif;">Centro de Control Administrativo</h1>
+    <p style="color: var(--text-muted);">Gestión de infraestructura, flota satelital, alertas viales y configuración de usuarios.</p>
+</div>
+
+<div class="admin-dashboard">
+    
+    <div class="admin-card" style="border: 1px solid #fecaca;">
+        <div class="admin-card-header alerta">
+            <i class="fa-solid fa-triangle-exclamation"></i> Contingencias y Avisos
+        </div>
+        <div class="admin-module" style="background: #fffbeb;">
+            <div class="module-header">
+                <span class="module-title">Avisos Operativos (Banners)</span>
+                <span class="module-badge" style="background: #fef3c7; color: #b45309;">Global</span>
+            </div>
+            <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Redacte alertas de feriados, paros o fallas para toda la ciudad.</p>
+            <div class="module-actions una-columna">
+                <a href="{% url 'gestionar_alertas' %}" class="btn-admin-danger">
+                    <i class="fa-solid fa-bullhorn"></i> Redactar / Ver Avisos
+                </a>
+            </div>
+        </div>
+        <div class="admin-module">
+            <div class="module-header">
+                <span class="module-title">Buzón de Reportes</span>
+                <span class="module-badge">Auditoría</span>
+            </div>
+            <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Revise las sugerencias de rutas y reportes de trancas del público.</p>
+            <div class="module-actions una-columna">
+                <a href="{% url 'ver_sugerencias' %}" class="btn-admin-manage">
+                    <i class="fa-solid fa-inbox"></i> Abrir Buzón de Entrada
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <i class="fa-solid fa-map-location-dot" style="color: var(--primary);"></i> Infraestructura Vial
+        </div>
+        <div class="admin-module">
+            <div class="module-header">
+                <span class="module-title">Paradas Virtuales</span>
+                <span class="module-badge">Puntos QR</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'crear_parada' %}" class="btn-admin-add">+ Añadir</a>
+                <a href="{% url 'listar_paradas' %}" class="btn-admin-manage"><i class="fa-solid fa-pen-to-square"></i> Gestionar</a>
+            </div>
+        </div>
+        <div class="admin-module">
+            <div class="module-header">
+                <span class="module-title">Rutas y Trazados</span>
+                <span class="module-badge">Líneas</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'crear_ruta' %}" class="btn-admin-add">+ Añadir</a>
+                <a href="{% url 'listar_rutas' %}" class="btn-admin-manage"><i class="fa-solid fa-pen-to-square"></i> Gestionar</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <i class="fa-solid fa-bus-simple" style="color: var(--primary);"></i> Gestión de Flota
+        </div>
+        <div class="admin-module">
+            <div class="module-header">
+                <span class="module-title">Unidades Activas</span>
+                <span class="module-badge">Autobuses</span>
+            </div>
+            <div class="module-actions">
+                <a href="{% url 'crear_unidad' %}" class="btn-admin-add">+ Añadir</a>
+                <a href="{% url 'listar_unidades' %}" class="btn-admin-manage"><i class="fa-solid fa-list"></i> Gestionar</a>
+            </div>
+        </div>
+        
+    </div>
+
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <i class="fa-solid fa-users-gear" style="color: var(--primary);"></i> Gestión de Usuarios
+        </div>
+        <div class="admin-module">
+            <div class="module-header">
+                <span class="module-title">Cuentas Ciudadanas</span>
+                <span class="module-badge">Plataforma</span>
+            </div>
+            <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Administre accesos, edite datos personales o asigne permisos.</p>
+            <div class="module-actions">
+                <a href="{% url 'crear_perfil' %}" class="btn-admin-add">+ Registrar</a>
+                <a href="{% url 'gestionar_usuarios' %}" class="btn-admin-manage">
+                    <i class="fa-solid fa-user-pen"></i> Edición Avanzada
+                </a>
+            </div>
+        </div>
+        <div class="admin-module">
+            <div class="module-header">
+                <span class="module-title">Tarjetas Inteligentes (NFC)</span>
+                <span class="module-badge" style="background: #e0e7ff; color: #4338ca;">Hardware</span>
+            </div>
+            <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Vincule, recargue o suspenda tarjetas de pasaje electrónico.</p>
+            <div class="module-actions">
+                <a href="{% url 'asignar_nfc' %}" class="btn-admin-add">
+                    + Asignar NFC
+                </a>
+                <a href="{% url 'auditoria_nfc' %}" class="btn-admin-manage">
+                    <i class="fa-solid fa-file-invoice"></i> Auditoría
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-card" style="border: 1px solid #fde68a;">
+        <div class="admin-card-header" style="background: #fffbeb; color: #b45309; border-bottom: 1px solid #fde68a;">
+            <i class="fa-solid fa-rectangle-ad"></i> Publicidad y Financiamiento
+        </div>
+        <div class="admin-module" style="background: #fefce8;">
+            <div class="module-header">
+                <span class="module-title">Campañas y Anuncios (Ads)</span>
+                <span class="module-badge" style="background: #fef3c7; color: #d97706;">Monetización</span>
+            </div>
+            <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Suba banners e imágenes publicitarias que se mostrarán en la app.</p>
+            <div class="module-actions">
+                <a href="{% url 'crear_campana' %}" class="btn-admin-add" style="background: #d97706;">+ Nueva Campaña</a>
+                <a href="{% url 'gestionar_publicidad' %}" class="btn-admin-manage">Administrar Banners</a>
+            </div>
+        </div>
+        <div class="admin-module">
+            <div class="module-header">
+                <span class="module-title">Patrocinadores del Sistema</span>
+                <span class="module-badge">Convenios</span>
+            </div>
+            <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Gestione las empresas aliadas que sustentan la red de transporte.</p>
+            <div class="module-actions">
+                <a href="{% url 'crear_patrocinador' %}" class="btn-admin-add" style="background: #10b981;">+ Añadir Aliado</a>
+                <a href="{% url 'listar_patrocinadores' %}" class="btn-admin-manage"><i class="fa-solid fa-building"></i> Directorio</a>
+            </div>
+        </div>
+    </div>
+
+</div> 
+
+<div style="text-align: center; margin-top: 30px;">
+    <a href="{% url 'inicio_general' %}" class="btn-mck btn-mck-outline" style="width: auto;">
+        <i class="fa-solid fa-arrow-left"></i> Volver a la pantalla principal
+    </a>
+</div>
+{% endblock %}

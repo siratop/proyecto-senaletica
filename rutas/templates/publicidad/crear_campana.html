@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 600px; margin: 40px auto; padding: 20px; background: white; border-radius: 12px; border: 1px solid #fde68a; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    
+    <div style="text-align: center; margin-bottom: 25px;">
+        <i class="fa-solid fa-rectangle-ad" style="font-size: 30px; color: #d97706; margin-bottom: 10px;"></i>
+        <h2 style="color: #b45309; margin-bottom: 5px;">Crear Nueva Campaña</h2>
+        <p style="color: #64748b; font-size: 14px; margin: 0;">Configure un nuevo anuncio publicitario para la aplicación.</p>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 15px;">
+        {% csrf_token %}
+        
+        <div>
+            <label style="font-size: 13px; font-weight: bold; color: #334155;">Nombre de la Campaña:</label>
+            <input type="text" name="nombre" placeholder="Ej: Promoción Verano 2026" required style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; font-size: 14px;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #334155;">Fecha de Inicio:</label>
+                <input type="date" name="fecha_inicio" required style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; font-size: 14px;">
+            </div>
+            <div>
+                <label style="font-size: 13px; font-weight: bold; color: #334155;">Fecha de Fin:</label>
+                <input type="date" name="fecha_fin" required style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; font-size: 14px;">
+            </div>
+        </div>
+
+        <div>
+            <label style="font-size: 13px; font-weight: bold; color: #334155;">Patrocinador / Empresa (Opcional):</label>
+            <select name="patrocinador" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; outline: none; background: white; font-size: 14px;">
+    <option value="">-- Sin patrocinador asociado --</option>
+    {% for pat in patrocinadores %}
+        <option value="{{ pat.id }}">{{ pat.nombre }}</option>
+    {% endfor %}
+</select>
+        </div>
+        
+        <div style="background: #fefce8; padding: 15px; border-radius: 6px; border: 1px dashed #fde68a; margin-top: 5px; text-align: center;">
+            <label style="font-size: 13px; font-weight: bold; color: #d97706; cursor: pointer; display: block; margin-bottom: 5px;">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Subir Imagen del Banner
+            </label>
+            <input type="file" name="imagen_banner" accept="image/*" style="font-size: 12px; color: #64748b;">
+        </div>
+
+        <div style="background: #ecfdf5; padding: 15px; border-radius: 6px; border: 1px solid #a7f3d0; margin-top: 5px;">
+            <label style="display: flex; align-items: center; gap: 10px; font-weight: bold; color: #047857; cursor: pointer;">
+                <input type="checkbox" name="activa" checked style="width: 18px; height: 18px; accent-color: #10b981;">
+                Publicar e iniciar campaña inmediatamente
+            </label>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+            <button type="submit" style="background: #d97706; color: white; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; width: 100%;">
+                <i class="fa-solid fa-save"></i> Guardar Campaña
+            </button>
+        </div>
+    </form>
+</div>
+
+<div style="text-align: center; margin-top: 20px;">
+    <a href="javascript:history.back()" style="background: white; color: #475569; border: 1px solid #cbd5e1; padding: 12px 25px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-arrow-left"></i> Cancelar y Volver
+    </a>
+</div>
+{% endblock %}

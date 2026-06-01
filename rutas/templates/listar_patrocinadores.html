@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 900px; margin: 40px auto; padding: 20px; background: white; border-radius: 12px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <div>
+            <h2 style="color: #047857; margin-bottom: 5px;"><i class="fa-solid fa-building"></i> Directorio de Patrocinadores</h2>
+            <p style="color: #64748b; font-size: 14px; margin: 0;">Gestione las empresas aliadas y sus convenios.</p>
+        </div>
+        <a href="{% url 'crear_patrocinador' %}" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 14px;">
+            + Añadir Aliado
+        </a>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="background-color: #ecfdf5; border-bottom: 2px solid #a7f3d0; color: #047857; font-size: 13px;">
+                    <th style="padding: 12px;">Empresa / Aliado</th>
+                    <th style="padding: 12px;">Tipo de Convenio</th>
+                    <th style="padding: 12px; text-align: center;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for aliado in patrocinadores %}
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 12px; font-weight: bold; color: #334155;">{{ aliado.nombre }}</td>
+                    <td style="padding: 12px; color: #64748b;">{{ aliado.convenio|default:"General" }}</td>
+                    <td style="padding: 12px; text-align: center; display: flex; justify-content: center; gap: 8px;">
+                        <a href="#" style="background: #e2e8f0; color: #475569; padding: 6px 10px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold;"><i class="fa-solid fa-pen"></i> Editar</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" style="padding: 30px; text-align: center; color: #94a3b8;">
+                        <i class="fa-solid fa-handshake" style="font-size: 24px; margin-bottom: 10px; display: block;"></i>
+                        Aún no hay patrocinadores registrados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div style="text-align: center; margin-top: 30px;">
+    <a href="javascript:history.back()" style="background: white; color: #475569; border: 1px solid #cbd5e1; padding: 12px 25px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-arrow-left"></i> Volver al Panel de Control
+    </a>
+</div>
+{% endblock %}
