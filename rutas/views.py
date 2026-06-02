@@ -70,7 +70,7 @@ def inicio_general(request):
 
     
     buses_activos = []
-    for u in Unidad.objects.filter(en_servicio=True): 
+    for u in Unidad.objects.filter(estado__in=['operativa', 'activo']):
         if u.latitud_actual and u.longitud_actual:
             buses_activos.append({
                 'id': u.id,
@@ -168,7 +168,7 @@ def api_telemetria(request, parada_id):
     rutas_de_parada = parada.rutas.all()
     
     
-    autobus = Unidad.objects.filter(en_servicio=True, ruta_asignada__in=rutas_de_parada).first()
+    autobus = Unidad.objects.filter(estado__in=['operativa', 'activo'], ruta_asignada__in=rutas_de_parada).first()
     
     tiempo_estimado = "--"
     bus_lat, bus_lon = None, None
