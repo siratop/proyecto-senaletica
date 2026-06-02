@@ -55,7 +55,7 @@ def inicio_general(request):
     incidentes_mapa = AlertaOperativa.objects.filter(activa=True).exclude(tipo='general')
     campanas_activas = Campana.objects.filter(activa=True)
     
-    #  Traemos todos los patrocinadores de la base de datos
+    
     lista_patrocinadores = Patrocinador.objects.all()
     
     todas_paradas = []
@@ -68,10 +68,22 @@ def inicio_general(request):
             'rutas_asociadas': list(p.rutas.values_list('id', flat=True))
         })
 
+    
+    buses_activos = []
+    for u in Unidad.objects.filter(en_servicio=True): 
+        if u.latitud_actual and u.longitud_actual:
+            buses_activos.append({
+                'id': u.id,
+                'lat': float(str(u.latitud_actual).replace(',', '.')),
+                'lon': float(str(u.longitud_actual).replace(',', '.')),
+                'ruta': u.ruta_asignada.nombre if u.ruta_asignada else 'Desconocida'
+            })
+
     return render(request, 'rutas/inicio_general.html', {
         'perfil': perfil,
         'paradas': Parada.objects.all(),
         'paradas_json': json.dumps(todas_paradas),
+        'buses_json': json.dumps(buses_activos), 
         'rutas': rutas,
         'avisos_generales': avisos_generales,
         'incidentes_mapa': incidentes_mapa,
@@ -154,43 +166,32 @@ def inicio_peaton(request, parada_id):
 def api_telemetria(request, parada_id):
     parada = get_object_or_404(Parada, id=parada_id)
     rutas_de_parada = parada.rutas.all()
-    autobus = Unidad.objects.filter(estado='operativa', ruta_asignada__in=rutas_de_parada).first()
+    
+    
+    autobus = Unidad.objects.filter(en_servicio=True, ruta_asignada__in=rutas_de_parada).first()
     
     tiempo_estimado = "--"
     bus_lat, bus_lon = None, None
-    TOLERANCIA_KM = 0.120 
     
     if autobus and autobus.latitud_actual and autobus.longitud_actual:
         try:
-            temp_lat = float(str(autobus.latitud_actual).replace(',','.'))
-            temp_lon = float(str(autobus.longitud_actual).replace(',','.'))
-            esta_en_perimetro = False
             
-            if autobus.ruta_asignada and autobus.ruta_asignada.trazado:
-                puntos_ruta = json.loads(autobus.ruta_asignada.trazado.strip().replace("'", '"'))
-                for i in range(len(puntos_ruta) - 1):
-                    p1 = puntos_ruta[i]
-                    p2 = puntos_ruta[i+1]
-                    lat1 = float(p1.get('lat', p1[0] if isinstance(p1, list) else 0))
-                    lon1 = float(p1.get('lng', p1.get('lon', p1[1] if isinstance(p1, list) else 0)))
-                    lat2 = float(p2.get('lat', p2[0] if isinstance(p2, list) else 0))
-                    lon2 = float(p2.get('lng', p2.get('lon', p2[1] if isinstance(p2, list) else 0)))
-                    
-                    dist_km = calcular_distancia_segmento_km(temp_lat, temp_lon, lat1, lon1, lat2, lon2)
-                    
-                    if dist_km <= TOLERANCIA_KM:
-                        esta_en_perimetro = True
-                        break
-                        
-            if esta_en_perimetro:
-                bus_lat, bus_lon = temp_lat, temp_lon
-                distancia_a_parada = calcular_distancia_haversine(parada.latitud, parada.longitud, bus_lat, bus_lon)
-                tiempo_minutos = math.ceil((distancia_a_parada / 25.0) * 60)
-                
-                if tiempo_minutos < 1: tiempo_estimado = "Llegando"
-                elif tiempo_minutos > 120: tiempo_estimado = "+2h"
-                else: tiempo_estimado = str(tiempo_minutos)
-        except:
+            bus_lat = float(str(autobus.latitud_actual).replace(',','.'))
+            bus_lon = float(str(autobus.longitud_actual).replace(',','.'))
+            
+            
+            distancia_a_parada = calcular_distancia_haversine(parada.latitud, parada.longitud, bus_lat, bus_lon)
+            tiempo_minutos = math.ceil((distancia_a_parada / 25.0) * 60)
+            
+            if tiempo_minutos < 1: 
+                tiempo_estimado = "Llegando"
+            elif tiempo_minutos > 120: 
+                tiempo_estimado = "+2h"
+            else: 
+                tiempo_estimado = str(tiempo_minutos)
+        except Exception as e:
+            
+            print(f"Error calculando telemetría: {e}")
             pass
 
     return JsonResponse({
