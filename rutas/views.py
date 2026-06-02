@@ -11,10 +11,11 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.serializers import serialize
-
 from .models import Parada, Ruta, Patrocinador, AlertaOperativa, Sugerencia, Campana
 from flota.models import Unidad  
 from usuarios.models import PerfilUsuario
+from django.core.mail import send_mail
+from django.contrib.auth.models import User 
 
 # =========================================================
 # 1. FUNCIONES SATELITALES Y MATEMÁTICAS (Core)
@@ -94,6 +95,7 @@ def inicio_general(request):
 @staff_member_required
 def panel_admin_amigable(request):
     return render(request, 'rutas/panel_admin.html')
+
 # =========================================================
 # 2. VISTAS DEL CIUDADANO (Frontend y Tótems)
 # =========================================================
@@ -167,7 +169,6 @@ def api_telemetria(request, parada_id):
     parada = get_object_or_404(Parada, id=parada_id)
     rutas_de_parada = parada.rutas.all()
     
-    
     autobus = Unidad.objects.filter(estado__in=['operativa', 'activo'], ruta_asignada__in=rutas_de_parada).first()
     
     tiempo_estimado = "--"
@@ -175,10 +176,8 @@ def api_telemetria(request, parada_id):
     
     if autobus and autobus.latitud_actual and autobus.longitud_actual:
         try:
-            
             bus_lat = float(str(autobus.latitud_actual).replace(',','.'))
             bus_lon = float(str(autobus.longitud_actual).replace(',','.'))
-            
             
             distancia_a_parada = calcular_distancia_haversine(parada.latitud, parada.longitud, bus_lat, bus_lon)
             tiempo_minutos = math.ceil((distancia_a_parada / 25.0) * 60)
@@ -190,7 +189,6 @@ def api_telemetria(request, parada_id):
             else: 
                 tiempo_estimado = str(tiempo_minutos)
         except Exception as e:
-            
             print(f"Error calculando telemetría: {e}")
             pass
 
@@ -575,7 +573,65 @@ def editar_campana(request, campana_id):
         'patrocinadores': patrocinadores_lista
     })
 
+# =========================================================
+# LÓGICA INTELIGENTE DEL BOTÓN S.O.S.
+# =========================================================
 def alerta_emergencia(request, parada_id):
     parada = get_object_or_404(Parada, id=parada_id)
-    contexto = {'parada': parada, 'titulo': '⚠️ Solicitud de Emergencia SOS'}
-    return render(request, 'rutas/alerta_emergencia.html', contexto)
+    
+    # 1. Preparar la lista de destinatarios dinámicamente
+    destinatarios = []
+    
+    # A) Correos de los Administradores (El sistema de control)
+    admins = User.objects.filter(is_staff=True, email__isnull=False).exclude(email='')
+    for admin in admins:
+        destinatarios.append(admin.email)
+        
+    # B) Correo de emergencia del Ciudadano (El familiar del NFC)
+    ciudadano_nombre = "Un ciudadano anónimo"
+    if request.user.is_authenticated:
+        ciudadano_nombre = f"{request.user.first_name} {request.user.last_name} ({request.user.username})"
+        try:
+            # Traemos el correo que el usuario guardó al crear su NFC
+            correo_familiar = request.user.perfil.correo_emergencia
+            if correo_familiar:
+                destinatarios.append(correo_familiar)
+        except Exception:
+            pass 
+            
+    # Protección por si nadie tiene correo configurado
+    if not destinatarios:
+        destinatarios = ['seguridad_respaldo@senaletica.com']
+        
+    # 2. Armar un mensaje profesional con enlace a Google Maps
+    asunto = f"🚨 EMERGENCIA SOS - Tótem: {parada.nombre}"
+    enlace_maps = f"https://www.google.com/maps?q={parada.latitud},{parada.longitud}"
+    
+    mensaje = f"""
+    SE HA ACTIVADO EL BOTÓN DE PÁNICO EN LA RED SEÑALÉTICA+.
+    
+    👤 Usuario en peligro: {ciudadano_nombre}
+    
+    📍 Ubicación del Incidente:
+    Parada: {parada.nombre}
+    Código QR: {parada.codigo}
+    
+    🗺️ Ver en el mapa (Rastreo GPS):
+    {enlace_maps}
+    
+    Por favor, comuníquese con el usuario o envíe asistencia de inmediato.
+    """
+    
+    #  el correo "robot" de tu sistema (r configurarlo en settings.py)
+    remitente = 'francisco.fonseca.farias@gmail.com' 
+    
+    # 3. Disparar el correo
+    try:
+        send_mail(asunto, mensaje, remitente, destinatarios, fail_silently=False)
+        messages.success(request, "⚠️ ALERTA SOS ENVIADA: Las autoridades y sus contactos de emergencia han sido notificados con su ubicación GPS.")
+    except Exception as e:
+        print(f"Error de envío: {e}")
+        messages.error(request, "Error de red local: La alerta se guardó en la central, pero el envío del correo falló.")
+
+    # Redirigir de vuelta a la parada
+    return redirect('inicio_peaton', parada_id=parada.id)

@@ -135,3 +135,15 @@ LOGIN_URL = 'login'
 import os
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# ==========================================
+# CONFIGURACIÓN DE CORREO S.O.S (GMAIL)
+# ==========================================
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+#  correo de Gmail  para el proyecto
+EMAIL_HOST_USER = 'francisco.fonseca.farias@gmail.com' 
+# OJO: No es tu contraseña normal. Es una "Contraseña de Aplicación" de 16 letras.
+EMAIL_HOST_PASSWORD = 'mtfu ffoh zpdz djpa'

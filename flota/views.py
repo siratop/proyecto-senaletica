@@ -267,7 +267,7 @@ def api_buses_flota(request):
 
 def api_buses_activos(request):
     """API Pública para el mapa: Filtra usando el campo estado"""
-    TOLERANCIA_METROS = 120  
+    TOLERANCIA_METROS = 800  
     
     es_admin = request.user.is_authenticated and request.user.is_staff
     peticion_admin = request.GET.get('modo_admin') == 'true'

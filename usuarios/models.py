@@ -54,7 +54,12 @@ class PerfilUsuario(models.Model):
     # El correo ya viene por defecto en el User de Django (usuario.email)
     rol = models.CharField(max_length=20, choices=ROLES, default='ciudadano')
     ultima_modificacion = models.DateTimeField(null=True, blank=True)
-    
+    correo_emergencia = models.EmailField(
+        max_length=255, 
+        blank=True, 
+        null=True, 
+        help_text="Correo del familiar que recibirá la alerta SOS"
+    )
   
     nombre_flota = models.CharField(max_length=100, blank=True, null=True, help_text="Nombre público de la empresa/flota")
     fecha_cambio_nombre = models.DateTimeField(blank=True, null=True, help_text="Fecha del último cambio de nombre")

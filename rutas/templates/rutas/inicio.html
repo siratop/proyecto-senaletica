@@ -181,11 +181,15 @@
         else map.addLayer(layerRuta);
     }
 
-    function toggleCapaParadas() {
-        if(map.hasLayer(layerParadas)) map.removeLayer(layerParadas);
-        else map.addLayer(layerParadas);
+ function toggleCapaParadas() {
+        if(map.hasLayer(layerParadas)) {
+            map.removeLayer(layerParadas);
+            // Re-dibujamos SOLO la parada actual para no perderla
+            markerPrincipal.addTo(map);
+        } else {
+            map.addLayer(layerParadas);
+        }
     }
-
     // 4. CÁLCULO DE CAMINATA
     function calcularCaminata() {
         let val = selDestino.value;
@@ -435,5 +439,57 @@
         if (busMarker) map.removeLayer(busMarker);
         cambiarRutaActiva();
     }
+
+  // ==========================================
+    // RASTREO SATELITAL REAL (EN LA PARADA)
+    // ==========================================
+    let capaFlotaParada = L.layerGroup().addTo(map);
+    let marcadoresBusesReal = {};
+
+    async function rastrearBusReal() {
+        try {
+            // Usamos la API pública de buses activos
+            let response = await fetch(`/flota/api/buses-activos/`);
+            if (!response.ok) return;
+            
+            let data = await response.json();
+            let idsActivos = [];
+
+            data.buses.forEach(bus => {
+                idsActivos.push(bus.id);
+                
+                // Creamos o movemos el bus
+                if (marcadoresBusesReal[bus.id]) {
+                    marcadoresBusesReal[bus.id].setLatLng([bus.lat, bus.lon]);
+                } else {
+                    let busIcon = L.divIcon({
+                        className: 'bus-icon',
+                        html: '<div style="background: #10b981; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fa-solid fa-bus"></i></div>',
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
+                    });
+
+                    marcadoresBusesReal[bus.id] = L.marker([bus.lat, bus.lon], {icon: busIcon})
+                        .bindPopup(`<b>🚌 ${bus.ruta_nombre}</b><br>Unidad: ${bus.unidad}`)
+                        .addTo(capaFlotaParada);
+                }
+            });
+
+            // Limpiar buses que ya no transmiten
+            Object.keys(marcadoresBusesReal).forEach(id => {
+                if (!idsActivos.includes(parseInt(id))) {
+                    capaFlotaParada.removeLayer(marcadoresBusesReal[id]);
+                    delete marcadoresBusesReal[id];
+                }
+            });
+
+        } catch (error) {
+            console.log("Esperando conexión con flota...");
+        }
+    }
+
+    setInterval(rastrearBusReal, 4000);
+    rastrearBusReal();
+
 </script>
 {% endblock %}

@@ -65,6 +65,12 @@
             <a href="{% url 'panel_admin_amigable' %}"><i class="fa-solid fa-server" style="color: #8b5cf6;"></i> Centro de Control Admin</a>
             {% endif %}
             
+            <a href="/flota/" style="background: #fffbeb; font-weight: bold; color: #d97706;">
+                <i class="fa-solid fa-bus-simple" style="color: #f59e0b;"></i> Portal Chofer / Flota
+            </a>
+            
+        
+            
             <form action="{% url 'logout' %}" method="post" style="margin: 0;">
                 {% csrf_token %}
                 <button type="submit" style="width: 100%; text-align: left; background: none; border: none; color: #ef4444; padding: 12px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.2s;">
@@ -515,81 +521,93 @@
     // CONTROLADOR DE FLOTA
     // ==========================================
     async function actualizarFlotaEnMapa() {
-        let checkboxFlota = document.getElementById('filtro-flota');
-        if(!checkboxFlota || !checkboxFlota.checked) return;
+    let checkboxFlota = document.getElementById('filtro-flota');
+    if(!checkboxFlota || !checkboxFlota.checked) return;
 
-        try {
-            // NOTA: Verifica que esta URL sea la correcta en tu urls.py
-            let urlAPI = '/flota/api/buses-tiempo-real/';
+    try {
+        // NOTA: Verifica que esta URL sea la correcta en tu urls.py
+        let urlAPI = '/flota/api/buses-tiempo-real/';
+        
+        let params = new URLSearchParams();
+        // 1. Evita que el navegador guarde memoria vieja (Rompe la caché)
+        params.append('t', new Date().getTime()); 
+        
+        let btnAdmin = document.getElementById('filtro-admin-flota');
+        if (btnAdmin && btnAdmin.checked) {
+            params.append('modo_admin', 'true');
+        }
+
+        let urlFinal = `${urlAPI}?${params.toString()}`;
+        
+        // 2. OBLIGA al navegador a enviar la cookie de sesión del administrador
+        let response = await fetch(urlFinal, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin' 
+        }); 
+        
+        if (!response.ok) return;
+        let data = await response.json();
+
+        // --- INICIO DE LOS FILTROS ---
+        let selectorBus = document.getElementById('filtro-bus-especifico');
+        let busSeleccionado = selectorBus ? selectorBus.value : "todos";
+        
+       
+        let selectorRuta = document.getElementById('selector-ruta-unica');
+        let rutaSeleccionada = selectorRuta ? selectorRuta.value : "todas";
+
+        let idsActivos = [];
+
+        data.buses.forEach(bus => {
+            idsActivos.push(bus.id);
             
-            let params = new URLSearchParams();
-            // 1. Evita que el navegador guarde memoria vieja (Rompe la caché)
-            params.append('t', new Date().getTime()); 
-            
-            let btnAdmin = document.getElementById('filtro-admin-flota');
-            if (btnAdmin && btnAdmin.checked) {
-                params.append('modo_admin', 'true');
-            }
+            // Calculamos si el bus debe ser visible cumpliendo las dos reglas:
+            let visiblePorBus = (busSeleccionado === "todos" || busSeleccionado == bus.id);
+            let visiblePorRuta = (rutaSeleccionada === "todas" || bus.ruta_id == rutaSeleccionada);
+            let visible = visiblePorBus && visiblePorRuta;
 
-            let urlFinal = `${urlAPI}?${params.toString()}`;
-            
-            // 2. OBLIGA al navegador a enviar la cookie de sesión del administrador
-            let response = await fetch(urlFinal, {
-                method: 'GET',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'same-origin' 
-            }); 
-            
-            if (!response.ok) return;
-            let data = await response.json();
-
-            let selectorBus = document.getElementById('filtro-bus-especifico');
-            let busSeleccionado = selectorBus ? selectorBus.value : "todos";
-            let idsActivos = [];
-
-            data.buses.forEach(bus => {
-                idsActivos.push(bus.id);
-                let visible = (busSeleccionado === "todos" || busSeleccionado == bus.id);
-
-                if (marcadoresBuses[bus.id]) {
-                    if(visible) {
-                        marcadoresBuses[bus.id].setLatLng([bus.lat, bus.lon]);
-                        if(!layerFlota.hasLayer(marcadoresBuses[bus.id])) {
-                            marcadoresBuses[bus.id].addTo(layerFlota);
-                        }
-                    } else {
-                        layerFlota.removeLayer(marcadoresBuses[bus.id]);
+            if (marcadoresBuses[bus.id]) {
+                if(visible) {
+                    // Si cumple los filtros, actualiza su posición
+                    marcadoresBuses[bus.id].setLatLng([bus.lat, bus.lon]);
+                    if(!layerFlota.hasLayer(marcadoresBuses[bus.id])) {
+                        marcadoresBuses[bus.id].addTo(layerFlota);
                     }
                 } else {
-                    if(visible) {
-                        let busIcon = L.divIcon({
-                            className: 'bus-icon',
-                            html: '<div style="background: #d97706; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fa-solid fa-bus"></i></div>',
-                            iconSize: [28, 28],
-                            iconAnchor: [14, 14]
-                        });
-
-                        let nuevoMarcador = L.marker([bus.lat, bus.lon], {icon: busIcon})
-                                             .bindPopup(`<b>🚌 Unidad ${bus.unidad}</b><br>Ruta: ${bus.ruta_nombre}<br>Chofer: ${bus.conductor}`);
-                        
-                        marcadoresBuses[bus.id] = nuevoMarcador;
-                        nuevoMarcador.addTo(layerFlota);
-                    }
+                    // Si no cumple los filtros (ej. es de otra ruta), se oculta
+                    layerFlota.removeLayer(marcadoresBuses[bus.id]);
                 }
-            });
+            } else {
+                if(visible) {
+                    // Si el bus no existía en el mapa y cumple el filtro, se dibuja
+                    let busIcon = L.divIcon({
+                        className: 'bus-icon',
+                        html: '<div style="background: #d97706; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fa-solid fa-bus"></i></div>',
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
+                    });
 
-            // Limpieza y purga
-            Object.keys(marcadoresBuses).forEach(id => {
-                if (!idsActivos.includes(parseInt(id))) {
-                    layerFlota.removeLayer(marcadoresBuses[id]);
-                    delete marcadoresBuses[id];
+                    let nuevoMarcador = L.marker([bus.lat, bus.lon], {icon: busIcon})
+                                         .bindPopup(`<b>🚌 Unidad ${bus.unidad}</b><br>Ruta: ${bus.ruta_nombre}<br>Chofer: ${bus.conductor}`);
+                    
+                    marcadoresBuses[bus.id] = nuevoMarcador;
+                    nuevoMarcador.addTo(layerFlota);
                 }
-            });
-        } catch(e) {
-            console.log("Sincronizando coordenadas con el satélite urbano...");
-        }
+            }
+        });
+
+        // Limpieza y purga de autobuses que dejaron de transmitir
+        Object.keys(marcadoresBuses).forEach(id => {
+            if (!idsActivos.includes(parseInt(id))) {
+                layerFlota.removeLayer(marcadoresBuses[id]);
+                delete marcadoresBuses[id];
+            }
+        });
+    } catch(e) {
+        console.log("Sincronizando coordenadas con el satélite urbano...");
     }
-
+}
     // ==========================================
     // 2. INICIALIZACIÓN AL CARGAR LA PÁGINA
     // ==========================================
