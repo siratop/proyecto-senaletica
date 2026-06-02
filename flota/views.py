@@ -223,21 +223,20 @@ def actualizar_ubicacion(request):
 
 @login_required
 def api_buses_flota(request):
-    """API Privada sin restricciones (El dueño de la flota ve TODO)"""
+    """API Privada para el dueño de la flota: Ve todos sus buses"""
+   
     unidades = Unidad.objects.filter(propietario_flota=request.user)
     data = []
-    ahora = timezone.now() # Hora actual del servidor
+    ahora = timezone.now()
     
     for u in unidades:
-        # --- LÓGICA DE AUTO-APAGADO ---
+        # Lógica de auto-apagado basada en el campo estado
         estado_real = u.estado
         if u.ultima_actualizacion and estado_real.lower() in ['operativa', 'activo']:
-            tiempo_sin_reportar = ahora - u.ultima_actualizacion
-            if tiempo_sin_reportar > timedelta(minutes=2):
+            if ahora - u.ultima_actualizacion > timedelta(minutes=2):
                 estado_real = 'inactiva'
                 u.estado = 'inactiva'
                 u.save()
-        # ------------------------------------
 
         nombre_empresa = "Independiente"
         if u.propietario_flota and hasattr(u.propietario_flota, 'perfil'):
@@ -245,7 +244,6 @@ def api_buses_flota(request):
                 nombre_empresa = u.propietario_flota.perfil.nombre_flota
 
         conductor_nombre = f"{u.conductor.first_name} {u.conductor.last_name}".strip() if u.conductor else "No asignado"
-        if not conductor_nombre and u.conductor: conductor_nombre = u.conductor.username
 
         try:
             lat = float(str(u.latitud_actual).replace(',', '.')) if u.latitud_actual else 0.0
@@ -265,16 +263,23 @@ def api_buses_flota(request):
             'flota': nombre_empresa
         })
         
-    return JsonResponse(data, safe=False)
-
+    return JsonResponse({'buses': data}, safe=False)
 
 def api_buses_activos(request):
-    """API Pública: Filtra los buses usando una GEOCERCA estricta de 80 metros"""
-    buses = Unidad.objects.filter(estado='operativa', latitud_actual__isnull=False, longitud_actual__isnull=False)
-    data = []
+    """API Pública para el mapa: Filtra usando el campo estado"""
+    TOLERANCIA_METROS = 120  
     
-    # 🔒 RESTRICCIÓN: Solo 80 metros de tolerancia (1 cuadra)
-    TOLERANCIA_METROS = 80  
+    es_admin = request.user.is_authenticated and request.user.is_staff
+    peticion_admin = request.GET.get('modo_admin') == 'true'
+    modo_radar_global = es_admin and peticion_admin
+
+    
+    if modo_radar_global:
+        buses = Unidad.objects.filter(latitud_actual__isnull=False, longitud_actual__isnull=False)
+    else:
+        buses = Unidad.objects.filter(estado='operativa', latitud_actual__isnull=False, longitud_actual__isnull=False)
+
+    data = []
 
     for bus in buses:
         try:
@@ -285,30 +290,31 @@ def api_buses_activos(request):
 
         esta_en_perimetro = False
 
-        if bus.ruta_asignada and bus.ruta_asignada.trazado:
-            try:
-                trazado_limpio = bus.ruta_asignada.trazado.strip().replace("'", '"')
-                puntos_ruta = json.loads(trazado_limpio)
-                
-                for punto in puntos_ruta:
-                    if isinstance(punto, dict):
-                        lat_ruta = float(punto.get('lat', punto.get('latitud', 0)))
-                        lon_ruta = float(punto.get('lng', punto.get('lon', punto.get('longitud', 0))))
-                    elif isinstance(punto, (list, tuple)) and len(punto) >= 2:
-                        lat_ruta = float(punto[0])
-                        lon_ruta = float(punto[1])
-                    else:
-                        continue
+        if modo_radar_global:
+            esta_en_perimetro = True
+        else:
+            if bus.ruta_asignada and bus.ruta_asignada.trazado:
+                try:
+                    trazado_limpio = bus.ruta_asignada.trazado.strip().replace("'", '"')
+                    puntos_ruta = json.loads(trazado_limpio)
                     
-                    distancia = calcular_distancia_metros(lat_bus, lon_bus, lat_ruta, lon_ruta)
-                    
-                    if distancia <= TOLERANCIA_METROS:
-                        esta_en_perimetro = True
-                        break
-            except Exception as e:
-                esta_en_perimetro = False 
+                    for i in range(len(puntos_ruta) - 1):
+                        p1 = puntos_ruta[i]
+                        p2 = puntos_ruta[i+1]
+                        
+                        lat1 = float(p1.get('lat', p1.get('latitud', p1[0] if isinstance(p1, list) else 0)))
+                        lon1 = float(p1.get('lng', p1.get('lon', p1[1] if isinstance(p1, list) else 0)))
+                        lat2 = float(p2.get('lat', p2.get('latitud', p2[0] if isinstance(p2, list) else 0)))
+                        lon2 = float(p2.get('lng', p2.get('lon', p2[1] if isinstance(p2, list) else 0)))
+                        
+                        dist_min = calcular_distancia_segmento(lat_bus, lon_bus, lat1, lon1, lat2, lon2)
+                        
+                        if dist_min <= TOLERANCIA_METROS:
+                            esta_en_perimetro = True
+                            break 
+                except Exception:
+                    pass 
         
-        # Si no pasó la prueba matemática estricta, NO se envía
         if esta_en_perimetro:
             data.append({
                 'id': bus.id,
