@@ -301,24 +301,28 @@
     }
 
     // ==========================================
-    // 4. RADAR AUTOMÁTICO DE BUSES (CORREGIDO)
+    // 4. RADAR AUTOMÁTICO DE BUSES 
     // ==========================================
     function buscarBusesEnVivo(forzarResalte = false) {
         let filtroRutaId = document.getElementById('filtro-ruta-flota').value;
         let textoBusqueda = document.getElementById('buscador-flota').value.toLowerCase();
 
-        // 1. Usamos la API PRIVADA de la flota (según tu urls.py)
-        let tiempoReal = new Date().getTime();
-        fetch(`/flota/api/buses-tiempo-real/?t=${tiempoReal}`)
+        
+        let urlSinCache = '/flota/api/buses-tiempo-real/?t=' + new Date().getTime();
+
+        fetch(urlSinCache)
         .then(response => response.json())
-        .then(data => {  
+        .then(data => {
+            
+            console.log("Recibiendo datos frescos del servidor:", data);
+
             capaBuses.clearLayers(); 
             let busesActivosCount = 0;
             let marcadoresVisibles = []; 
 
-            // 3. Iteramos sobre data.buses (La lista real)
             data.buses.forEach(bus => {
-                let etiquetaEstado = document.getElementById(`estado-bus-${bus.id}`);
+               
+                let etiquetaEstado = document.getElementById('estado-bus-' + bus.id);
                 let estaOperativo = (bus.estado.toLowerCase() === 'operativa' || bus.estado.toLowerCase() === 'activo');
                 
                 if(etiquetaEstado) {
@@ -329,11 +333,13 @@
                     }
                 }
 
+                
                 if (!estaOperativo || bus.lat === 0 || bus.lon === 0) return;
 
                 let coincideRuta = (filtroRutaId === 'todas' || bus.ruta_id == filtroRutaId);
                 let coincideTexto = (bus.conductor_display.toLowerCase().includes(textoBusqueda) || bus.unidad.includes(textoBusqueda));
 
+                // Solo dibujamos los que están operativos y cumplen el filtro
                 if (coincideRuta && coincideTexto) {
                     busesActivosCount++;
                     let popupContent = `
@@ -351,16 +357,16 @@
                 }
             });
 
-            document.getElementById('stat-buses-activos').innerText = busesActivosCount;
+            // Actualizamos el contador de buses en el recuadro superior
+            let statElement = document.getElementById('stat-buses-activos');
+            if (statElement) {
+                statElement.innerText = busesActivosCount;
+            }
 
-            
+           
             if (forzarResalte && marcadoresVisibles.length > 0) {
                 let grupo = new L.featureGroup(marcadoresVisibles);
                 map.flyToBounds(grupo.getBounds(), {padding: [50, 50], maxZoom: 16, duration: 1.2});
-                
-                if (marcadoresVisibles.length === 1) {
-                    setTimeout(() => { marcadoresVisibles[0].openPopup(); }, 1200);
-                }
             }
         })
         .catch(err => console.error("Error buscando buses en vivo:", err));
