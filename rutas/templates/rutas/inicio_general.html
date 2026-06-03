@@ -33,6 +33,11 @@
 </div>
 {% endif %}
 
+{% if user.is_staff or user.perfil.rol == 'conductor' or user.perfil.rol == 'flota' %}
+<a href="{% url 'dashboard_router' %}" style="background: #fffbeb; font-weight: bold; color: #d97706;">
+    <i class="fa-solid fa-bus-simple" style="color: #f59e0b;"></i> Portal Chofer / Flota
+</a>
+{% endif %}
 <nav style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; background: white; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
     
     <div style="font-weight: 900; color: var(--primary-dark); font-size: 22px;">
@@ -65,11 +70,7 @@
             <a href="{% url 'panel_admin_amigable' %}"><i class="fa-solid fa-server" style="color: #8b5cf6;"></i> Centro de Control Admin</a>
             {% endif %}
             
-            {% if user.is_staff or user.perfil.rol == 'conductor' or user.perfil.rol == 'flota' %}
-            <a href="/flota/" style="background: #fffbeb; font-weight: bold; color: #d97706;">
-                <i class="fa-solid fa-bus-simple" style="color: #f59e0b;"></i> Portal Chofer / Flota
-            </a>
-            {% endif %}
+           
             
         
             
