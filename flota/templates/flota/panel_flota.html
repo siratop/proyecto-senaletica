@@ -308,9 +308,10 @@
         let textoBusqueda = document.getElementById('buscador-flota').value.toLowerCase();
 
         // 1. Usamos la API PRIVADA de la flota (según tu urls.py)
-        fetch('/flota/api/buses-tiempo-real/')
+        let tiempoReal = new Date().getTime();
+        fetch(`/flota/api/buses-tiempo-real/?t=${tiempoReal}`)
         .then(response => response.json())
-        .then(data => {  // 2. RECIBIMOS 'data' (El diccionario completo)
+        .then(data => {  
             capaBuses.clearLayers(); 
             let busesActivosCount = 0;
             let marcadoresVisibles = []; 
@@ -352,7 +353,7 @@
 
             document.getElementById('stat-buses-activos').innerText = busesActivosCount;
 
-            // LA MAGIA DEL EFECTO UBER (Zoom Automático)
+            
             if (forzarResalte && marcadoresVisibles.length > 0) {
                 let grupo = new L.featureGroup(marcadoresVisibles);
                 map.flyToBounds(grupo.getBounds(), {padding: [50, 50], maxZoom: 16, duration: 1.2});
