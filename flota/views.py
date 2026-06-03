@@ -265,68 +265,7 @@ def api_buses_flota(request):
         
     return JsonResponse({'buses': data}, safe=False)
 
-def api_buses_activos(request):
-    """API Pública para el mapa: Filtra usando el campo estado"""
-    TOLERANCIA_METROS = 800  
-    
-    es_admin = request.user.is_authenticated and request.user.is_staff
-    peticion_admin = request.GET.get('modo_admin') == 'true'
-    modo_radar_global = es_admin and peticion_admin
 
-    
-    if modo_radar_global:
-        buses = Unidad.objects.filter(latitud_actual__isnull=False, longitud_actual__isnull=False)
-    else:
-        buses = Unidad.objects.filter(estado='operativa', latitud_actual__isnull=False, longitud_actual__isnull=False)
-
-    data = []
-
-    for bus in buses:
-        try:
-            lat_bus = float(str(bus.latitud_actual).replace(',', '.'))
-            lon_bus = float(str(bus.longitud_actual).replace(',', '.'))
-        except (ValueError, TypeError):
-            continue
-
-        esta_en_perimetro = False
-
-        if modo_radar_global:
-            esta_en_perimetro = True
-        else:
-            if bus.ruta_asignada and bus.ruta_asignada.trazado:
-                try:
-                    trazado_limpio = bus.ruta_asignada.trazado.strip().replace("'", '"')
-                    puntos_ruta = json.loads(trazado_limpio)
-                    
-                    for i in range(len(puntos_ruta) - 1):
-                        p1 = puntos_ruta[i]
-                        p2 = puntos_ruta[i+1]
-                        
-                        lat1 = float(p1.get('lat', p1.get('latitud', p1[0] if isinstance(p1, list) else 0)))
-                        lon1 = float(p1.get('lng', p1.get('lon', p1[1] if isinstance(p1, list) else 0)))
-                        lat2 = float(p2.get('lat', p2.get('latitud', p2[0] if isinstance(p2, list) else 0)))
-                        lon2 = float(p2.get('lng', p2.get('lon', p2[1] if isinstance(p2, list) else 0)))
-                        
-                        dist_min = calcular_distancia_segmento(lat_bus, lon_bus, lat1, lon1, lat2, lon2)
-                        
-                        if dist_min <= TOLERANCIA_METROS:
-                            esta_en_perimetro = True
-                            break 
-                except Exception:
-                    pass 
-        
-        if esta_en_perimetro:
-            data.append({
-                'id': bus.id,
-                'unidad': bus.numero_unidad,
-                'lat': lat_bus,
-                'lon': lon_bus,
-                'conductor': bus.conductor.username if bus.conductor else "Desconocido",
-                'ruta_nombre': bus.ruta_asignada.nombre if bus.ruta_asignada else "General",
-                'ruta_id': bus.ruta_asignada.id if bus.ruta_asignada else "todas"
-            })
-            
-    return JsonResponse({'buses': data})
 
 
 # =========================================================
@@ -547,21 +486,17 @@ def calcular_distancia_segmento(lat_bus, lon_bus, lat1, lon1, lat2, lon2):
 
 
 def api_buses_activos(request):
-    """API Pública: Filtra los buses, pero el Admin ve TODO (incluso los inactivos con GPS)"""
-    TOLERANCIA_METROS = 120  
-    
-    # 1. VERIFICAMOS SESIÓN ADMIN Y EL BOTÓN VIP
+    """API Pública: Envía los buses al mapa ciudadano de forma 100% segura"""
     es_admin = request.user.is_authenticated and request.user.is_staff
     peticion_admin = request.GET.get('modo_admin') == 'true'
     modo_radar_global = es_admin and peticion_admin
 
-    # 2. EL PASE VIP ROMPE LA REGLA DEL ESTADO "OPERATIVA"
+    # Si es el administrador con el botón VIP activo, ve todos los buses (incluso apagados)
     if modo_radar_global:
-        # El admin ve todos los buses que tengan GPS, sin importar si apagaron el botón
         buses = Unidad.objects.filter(latitud_actual__isnull=False, longitud_actual__isnull=False)
     else:
-        # El público SOLO ve los que están en servicio
-        buses = Unidad.objects.filter(estado='operativa', latitud_actual__isnull=False, longitud_actual__isnull=False)
+        # El ciudadano ve TODOS los buses que estén encendidos ('operativa' o 'activo')
+        buses = Unidad.objects.filter(estado__in=['operativa', 'activo'], latitud_actual__isnull=False, longitud_actual__isnull=False)
 
     data = []
 
@@ -572,44 +507,15 @@ def api_buses_activos(request):
         except (ValueError, TypeError):
             continue
 
-        esta_en_perimetro = False
-
-        # 3. EL PASE VIP ROMPE LA GEOCERCA
-        if modo_radar_global:
-            esta_en_perimetro = True
-        else:
-            # LÓGICA DE GEOCERCA NORMAL (Ciudadanos)
-            if bus.ruta_asignada and bus.ruta_asignada.trazado:
-                try:
-                    trazado_limpio = bus.ruta_asignada.trazado.strip().replace("'", '"')
-                    puntos_ruta = json.loads(trazado_limpio)
-                    
-                    for i in range(len(puntos_ruta) - 1):
-                        p1 = puntos_ruta[i]
-                        p2 = puntos_ruta[i+1]
-                        
-                        lat1 = float(p1.get('lat', p1.get('latitud', p1[0] if isinstance(p1, list) else 0)))
-                        lon1 = float(p1.get('lng', p1.get('lon', p1[1] if isinstance(p1, list) else 0)))
-                        lat2 = float(p2.get('lat', p2.get('latitud', p2[0] if isinstance(p2, list) else 0)))
-                        lon2 = float(p2.get('lng', p2.get('lon', p2[1] if isinstance(p2, list) else 0)))
-                        
-                        dist_min = calcular_distancia_segmento(lat_bus, lon_bus, lat1, lon1, lat2, lon2)
-                        
-                        if dist_min <= TOLERANCIA_METROS:
-                            esta_en_perimetro = True
-                            break 
-                except Exception as e:
-                    pass 
-        
-        if esta_en_perimetro:
-            data.append({
-                'id': bus.id,
-                'unidad': bus.numero_unidad,
-                'lat': lat_bus,
-                'lon': lon_bus,
-                'conductor': bus.conductor.username if bus.conductor else "Desconocido",
-                'ruta_nombre': bus.ruta_asignada.nombre if bus.ruta_asignada else "General",
-                'ruta_id': bus.ruta_asignada.id if bus.ruta_asignada else "todas"
-            })
+       
+        data.append({
+            'id': bus.id,
+            'unidad': bus.numero_unidad,
+            'lat': lat_bus,
+            'lon': lon_bus,
+            'conductor': bus.conductor.username if bus.conductor else "Desconocido",
+            'ruta_nombre': bus.ruta_asignada.nombre if bus.ruta_asignada else "General",
+            'ruta_id': bus.ruta_asignada.id if bus.ruta_asignada else "todas"
+        })
             
     return JsonResponse({'buses': data})
