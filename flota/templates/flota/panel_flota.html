@@ -301,20 +301,22 @@
     }
 
     // ==========================================
-    // 4. RADAR AUTOMÁTICO DE BUSES
+    // 4. RADAR AUTOMÁTICO DE BUSES (CORREGIDO)
     // ==========================================
     function buscarBusesEnVivo(forzarResalte = false) {
         let filtroRutaId = document.getElementById('filtro-ruta-flota').value;
         let textoBusqueda = document.getElementById('buscador-flota').value.toLowerCase();
 
-        fetch('/flota/api/buses-activos/')
+        // 1. Usamos la API PRIVADA de la flota (según tu urls.py)
+        fetch('/flota/api/buses-tiempo-real/')
         .then(response => response.json())
-        .then(buses => {
+        .then(data => {  // 2. RECIBIMOS 'data' (El diccionario completo)
             capaBuses.clearLayers(); 
             let busesActivosCount = 0;
-            let marcadoresVisibles = []; // Guardamos los pines para el auto-enfoque
+            let marcadoresVisibles = []; 
 
-            buses.forEach(bus => {
+            // 3. Iteramos sobre data.buses (La lista real)
+            data.buses.forEach(bus => {
                 let etiquetaEstado = document.getElementById(`estado-bus-${bus.id}`);
                 let estaOperativo = (bus.estado.toLowerCase() === 'operativa' || bus.estado.toLowerCase() === 'activo');
                 
@@ -353,10 +355,8 @@
             // LA MAGIA DEL EFECTO UBER (Zoom Automático)
             if (forzarResalte && marcadoresVisibles.length > 0) {
                 let grupo = new L.featureGroup(marcadoresVisibles);
-                // Vuelo suave hacia los autobuses filtrados
                 map.flyToBounds(grupo.getBounds(), {padding: [50, 50], maxZoom: 16, duration: 1.2});
                 
-                // Si el usuario buscó exactamente un autobús, le abrimos el cartelito automáticamente
                 if (marcadoresVisibles.length === 1) {
                     setTimeout(() => { marcadoresVisibles[0].openPopup(); }, 1200);
                 }
@@ -364,8 +364,6 @@
         })
         .catch(err => console.error("Error buscando buses en vivo:", err));
     }
-
-    setInterval(() => buscarBusesEnVivo(false), 3000);
 
     // ==========================================
     // 5. FUNCIONES DE DIBUJO Y MODALES
