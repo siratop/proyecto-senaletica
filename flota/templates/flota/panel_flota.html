@@ -307,7 +307,7 @@
         let filtroRutaId = document.getElementById('filtro-ruta-flota').value;
         let textoBusqueda = document.getElementById('buscador-flota').value.toLowerCase();
 
-        fetch('/flota/api/flota/buses-activos/')
+        fetch('/flota/api/buses-activos/')
         .then(response => response.json())
         .then(buses => {
             capaBuses.clearLayers(); 
