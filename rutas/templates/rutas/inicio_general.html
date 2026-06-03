@@ -61,13 +61,15 @@
 
             <a href="{% url 'dashboard_ciudadano' %}"><i class="fa-solid fa-id-card" style="color: #3b82f6;"></i> Mi Panel Familiar NFC</a>
             
-            {% if user.is_staff %}
+         {% if user.is_staff %}
             <a href="{% url 'panel_admin_amigable' %}"><i class="fa-solid fa-server" style="color: #8b5cf6;"></i> Centro de Control Admin</a>
             {% endif %}
             
+            {% if user.is_staff or user.perfil.rol == 'conductor' or user.perfil.rol == 'flota' %}
             <a href="/flota/" style="background: #fffbeb; font-weight: bold; color: #d97706;">
                 <i class="fa-solid fa-bus-simple" style="color: #f59e0b;"></i> Portal Chofer / Flota
             </a>
+            {% endif %}
             
         
             
@@ -525,8 +527,8 @@
     if(!checkboxFlota || !checkboxFlota.checked) return;
 
     try {
-        // NOTA: Verifica que esta URL sea la correcta en tu urls.py
-        let urlAPI = '/flota/api/buses-tiempo-real/';
+       
+        let urlAPI = '/flota/api/buses-activos/';
         
         let params = new URLSearchParams();
         // 1. Evita que el navegador guarde memoria vieja (Rompe la caché)
