@@ -16,7 +16,11 @@
     <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0;">
         <div style="text-align: left;">
             <h2 style="margin: 0; color: #0f172a; font-size: 24px;">📍 {{ parada.nombre }}</h2>
-            <span style="color: #64748b; font-size: 13px; font-weight: bold;">Estación QR: {{ parada.codigo|default:"QR-101" }}</span>
+            <span style="color: #64748b; font-size: 13px; font-weight: bold;">
+                Estación QR: {{ parada.codigo|default:"QR-101" }} 
+                <span style="margin: 0 5px; color: #cbd5e1;">|</span> 
+                <span id="contador-rutas">-- Rutas</span>
+            </span>
         </div>
         <div style="text-align: right;">
             <div id="eta-display" style="font-size: 32px; font-weight: 900; color: #0d9488;">
@@ -106,7 +110,7 @@
     setTimeout(() => { map.invalidateSize(); }, 500);
 
     // ==========================================
-    // 2. CLIMA DINÁMICO EN TIEMPO REAL
+    // 2. CLIMA DINÁMICO
     // ==========================================
     async function cargarClima() {
         let tempDiv = document.getElementById('clima-temp');
@@ -134,12 +138,11 @@
     setInterval(cargarClima, 900000);
 
     // ==========================================
-    // 3. VARIABLES GLOBALES BLINDADAS CONTRA ERRORES
+    // 3. VARIABLES GLOBALES Y CONTADOR DE RUTAS
     // ==========================================
     let rutasData = {};
     let todasParadas = [];
 
-    // Ahora leemos el JSON inyectado de forma segura
     try {
         let scriptRutas = document.getElementById('datos-rutas');
         if (scriptRutas) rutasData = JSON.parse(scriptRutas.textContent);
@@ -152,8 +155,15 @@
 
     todasParadas.push({lat: lat, lon: lon, nombre: "{{ parada.nombre }}"});
 
-    let rutaCalles = [], busMarker = null, marcadorDestino = null, simulacionCancelada = false;
+    // ✨ NUEVO: Mostrar cantidad de rutas asignadas ✨
+    let numRutas = Object.keys(rutasData).length;
+    let contadorDiv = document.getElementById('contador-rutas');
+    if(contadorDiv) {
+        let textoPlural = numRutas !== 1 ? 's' : '';
+        contadorDiv.innerHTML = `<span style="color:#10b981;"><b>${numRutas}</b> Ruta${textoPlural} Asignada${textoPlural}</span>`;
+    }
 
+    let rutaCalles = [], busMarker = null, marcadorDestino = null, simulacionCancelada = false;
     const selRuta = document.getElementById('ruta-simulacion');
     const selDestino = document.getElementById('selector-destino');
     
@@ -184,30 +194,10 @@
     }
     inicializarMapaPeaton();
 
-    // ==========================================
-    // FUNCIONES DE LOS BOTONES (MOSTRAR/OCULTAR)
-    // ==========================================
-    function toggleCapaRuta() {
-        let chk = document.getElementById('chk-ruta');
-        if(!chk.checked) map.removeLayer(layerRuta);
-        else map.addLayer(layerRuta);
-    }
+    function toggleCapaRuta() { document.getElementById('chk-ruta').checked ? map.addLayer(layerRuta) : map.removeLayer(layerRuta); }
+    function toggleCapaParadas() { document.getElementById('chk-paradas').checked ? map.addLayer(layerParadas) : map.removeLayer(layerParadas); }
+    function toggleCapaBuses() { document.getElementById('chk-buses').checked ? map.addLayer(capaFlotaParada) : map.removeLayer(capaFlotaParada); }
 
-    function toggleCapaParadas() {
-        let chk = document.getElementById('chk-paradas');
-        if(!chk.checked) map.removeLayer(layerParadas);
-        else map.addLayer(layerParadas);
-    }
-
-    function toggleCapaBuses() {
-        let chk = document.getElementById('chk-buses');
-        if(!chk.checked) map.removeLayer(capaFlotaParada);
-        else map.addLayer(capaFlotaParada);
-    }
-
-    // ==========================================
-    // RESTO DE FUNCIONES (ADMIN Y CAMINATA)
-    // ==========================================
     if (selRuta) {
         selRuta.innerHTML = '<option value="">Selecciona una ruta...</option>'; 
         Object.entries(rutasData).forEach(([id, info]) => {
@@ -272,7 +262,7 @@
         let minEta = Infinity;
         buses.forEach(bus => {
             let distKm = Math.acos(Math.sin(lat*Math.PI/180)*Math.sin(bus.lat*Math.PI/180) + Math.cos(lat*Math.PI/180)*Math.cos(bus.lat*Math.PI/180)*Math.cos((bus.lon-lon)*Math.PI/180)) * 6371;
-            let tiempoMinutos = Math.ceil((distKm / 15) * 60);
+            let tiempoMinutos = Math.ceil((distKm / 15) * 60); // Calculado a 15km/h urbano
             if (tiempoMinutos < minEta) minEta = tiempoMinutos;
         });
 
@@ -311,7 +301,7 @@
     }
 
     // ==========================================
-    // RASTREO SATELITAL REAL (AJUSTADO A 10 SEGUNDOS)
+    // RASTREO SATELITAL CON E.T.A. INDIVIDUAL
     // ==========================================
     window.marcadoresBusesReal = window.marcadoresBusesReal || {};
 
@@ -331,19 +321,36 @@
                 // 🔥 FILTRO ESTRICTO: Solo mostrar buses si su ruta está cargada en este Tótem
                 if (!rutasData[idRutaBus]) return;
 
+                // ✨ NUEVO: Calcular E.T.A. Individual para el globo al darle clic
+                let distKm = Math.acos(Math.sin(lat*Math.PI/180)*Math.sin(bus.lat*Math.PI/180) + Math.cos(lat*Math.PI/180)*Math.cos(bus.lat*Math.PI/180)*Math.cos((bus.lon-lon)*Math.PI/180)) * 6371;
+                let tiempoMinutos = Math.ceil((distKm / 15) * 60);
+                let textoEtaPopup = tiempoMinutos <= 1 ? "¡Llegando!" : `${tiempoMinutos} min aprox.`;
+
+                // Diseño del globo que sale al hacerle clic al autobús
+                let contenidoPopup = `
+                    <div style="text-align: center; min-width: 140px;">
+                        <b style="color: #0f172a; font-size: 15px; display: block; margin-bottom: 3px;">🚌 ${bus.ruta_nombre}</b>
+                        <span style="color: #64748b; font-size: 12px;">Unidad: <b>${bus.unidad}</b></span>
+                        <hr style="margin: 8px 0; border: 0; border-top: 1px solid #e2e8f0;">
+                        <span style="color: #10b981; font-weight: 900; font-size: 14px;">⏱️ Llegada: ${textoEtaPopup}</span>
+                    </div>
+                `;
+
                 let idString = String(bus.id);
                 idsActivosRecibidos.push(idString);
                 busesRelevantes.push(bus);
                 
+                // Si el bus ya está en el mapa, actualizamos su posición y su texto de E.T.A.
                 if (window.marcadoresBusesReal[idString]) {
                     window.marcadoresBusesReal[idString].setLatLng([bus.lat, bus.lon]);
+                    window.marcadoresBusesReal[idString].setPopupContent(contenidoPopup);
                 } else {
                     let busIcon = L.divIcon({
                         className: 'bus-icon',
                         html: '<div style="background: #10b981; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fa-solid fa-bus"></i></div>',
                         iconSize: [28, 28], iconAnchor: [14, 14]
                     });
-                    window.marcadoresBusesReal[idString] = L.marker([bus.lat, bus.lon], {icon: busIcon}).bindPopup(`<b>🚌 ${bus.ruta_nombre}</b><br>Unidad: ${bus.unidad}`).addTo(capaFlotaParada);
+                    window.marcadoresBusesReal[idString] = L.marker([bus.lat, bus.lon], {icon: busIcon}).bindPopup(contenidoPopup).addTo(capaFlotaParada);
                 }
             });
 
