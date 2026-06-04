@@ -133,10 +133,10 @@
     // ==========================================
     // 3. VARIABLES GLOBALES Y DATOS BLINDADOS
     // ==========================================
-    let rutasDataRaw = '{{ rutas_data_json|escapejs }}';
+    let rutasDataRaw = "{{ rutas_data_json|safe }}".replace(/\\"/g, '"');
     let rutasData = rutasDataRaw ? JSON.parse(rutasDataRaw) : {};
 
-    let paradasRaw = '{{ todas_paradas_json|escapejs }}';
+    let paradasRaw = "{{ todas_paradas_json|safe }}".replace(/\\"/g, '"');
     let todasParadas = paradasRaw ? JSON.parse(paradasRaw) : [];
     todasParadas.push({lat: lat, lon: lon, nombre: "{{ parada.nombre }}"});
 

@@ -102,7 +102,9 @@ def panel_admin_amigable(request):
 
 def inicio_peaton(request, parada_id):
     parada = get_object_or_404(Parada, id=parada_id)
-    rutas_asociadas = Ruta.objects.all()
+    
+    
+    rutas_asociadas = parada.rutas.all()
     
     rutas_data = {}
     tiempo_estimado_default = "--"
@@ -114,11 +116,11 @@ def inicio_peaton(request, parada_id):
         if autobus and autobus.latitud_actual and autobus.longitud_actual:
             try:
                 dist = calcular_distancia_haversine(
-                    parada.latitud, parada.longitud, 
+                    float(parada.latitud), float(parada.longitud), 
                     float(str(autobus.latitud_actual).replace(',','.')), 
                     float(str(autobus.longitud_actual).replace(',','.'))
                 )
-                mins = math.ceil((dist / 25.0) * 60)
+                mins = math.ceil((dist / 15.0) * 60) 
                 if mins < 1: eta_ruta = "Llegando"
                 elif mins > 120: eta_ruta = "+2h"
                 else: eta_ruta = str(mins)
@@ -127,17 +129,15 @@ def inicio_peaton(request, parada_id):
 
         paradas_ruta = [{'lat': float(p.latitud), 'lon': float(p.longitud), 'nombre': p.nombre} for p in Parada.objects.filter(rutas=ruta)]
         
-        trazado_calles = []
-        if ruta.trazado and ruta.trazado != "[]" and ruta.trazado.strip() != "":
-            try:
-                trazado_calles = json.loads(ruta.trazado)
-            except Exception:
-                pass
+        
+        trazado_str = "[]"
+        if ruta.trazado and ruta.trazado.strip() != "":
+            trazado_str = str(ruta.trazado).strip()
                 
         rutas_data[ruta.id] = {
             'nombre': ruta.nombre,
             'paradas': paradas_ruta,
-            'trazado': trazado_calles,
+            'trazado': trazado_str,  
             'eta': eta_ruta
         }
         
@@ -160,8 +160,9 @@ def inicio_peaton(request, parada_id):
         'tiempo_estimado': tiempo_estimado_default,
         'patrocinador': patrocinador_actual,
         'patrocinadores': patrocinadores,
-        'rutas_data_json': json.dumps(rutas_data), 
-        'todas_paradas_json': json.dumps(todas_paradas),
+        
+        'rutas_data_json': json.dumps(rutas_data).replace('"', '\\"'), 
+        'todas_paradas_json': json.dumps(todas_paradas).replace('"', '\\"'),
     }
     return render(request, 'rutas/inicio.html', contexto)
 
