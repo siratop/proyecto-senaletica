@@ -86,6 +86,9 @@
 
 </div>
 
+{{ rutas_data_json|json_script:"datos-rutas" }}
+{{ todas_paradas_json|json_script:"datos-paradas" }}
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     // 1. CONFIGURACIÓN INICIAL DEL MAPA
@@ -97,7 +100,7 @@
     // CAPAS INDEPENDIENTES PARA LOS BOTONES
     var layerRuta = L.featureGroup().addTo(map);
     var layerParadas = L.featureGroup().addTo(map);
-    let capaFlotaParada = L.layerGroup().addTo(map); // Capa de los buses reales
+    let capaFlotaParada = L.layerGroup().addTo(map);
 
     var markerPrincipal = L.marker([lat, lon]).addTo(map).bindPopup('<b>Tótem: {{ parada.nombre }}</b>').openPopup();
     setTimeout(() => { map.invalidateSize(); }, 500);
@@ -131,13 +134,22 @@
     setInterval(cargarClima, 900000);
 
     // ==========================================
-    // 3. VARIABLES GLOBALES Y DATOS BLINDADOS
+    // 3. VARIABLES GLOBALES BLINDADAS CONTRA ERRORES
     // ==========================================
-    let rutasDataRaw = "{{ rutas_data_json|safe }}".replace(/\\"/g, '"');
-    let rutasData = rutasDataRaw ? JSON.parse(rutasDataRaw) : {};
+    let rutasData = {};
+    let todasParadas = [];
 
-    let paradasRaw = "{{ todas_paradas_json|safe }}".replace(/\\"/g, '"');
-    let todasParadas = paradasRaw ? JSON.parse(paradasRaw) : [];
+    // Ahora leemos el JSON inyectado de forma segura
+    try {
+        let scriptRutas = document.getElementById('datos-rutas');
+        if (scriptRutas) rutasData = JSON.parse(scriptRutas.textContent);
+    } catch(e) { console.error("Error cargando rutas:", e); }
+
+    try {
+        let scriptParadas = document.getElementById('datos-paradas');
+        if (scriptParadas) todasParadas = JSON.parse(scriptParadas.textContent);
+    } catch(e) { console.error("Error cargando paradas:", e); }
+
     todasParadas.push({lat: lat, lon: lon, nombre: "{{ parada.nombre }}"});
 
     let rutaCalles = [], busMarker = null, marcadorDestino = null, simulacionCancelada = false;
@@ -187,7 +199,6 @@
         else map.addLayer(layerParadas);
     }
 
-    // NUEVA FUNCIÓN: Mostrar/Ocultar capa de buses
     function toggleCapaBuses() {
         let chk = document.getElementById('chk-buses');
         if(!chk.checked) map.removeLayer(capaFlotaParada);
@@ -348,7 +359,6 @@
         } catch (error) { console.log("Esperando conexión..."); }
     }
 
-    // 🔥 FRECUENCIA RELAJADA: Actualiza cada 10 segundos en lugar de 4
     setInterval(rastrearBusReal, 10000);
     rastrearBusReal();
 

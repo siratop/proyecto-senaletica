@@ -102,8 +102,6 @@ def panel_admin_amigable(request):
 
 def inicio_peaton(request, parada_id):
     parada = get_object_or_404(Parada, id=parada_id)
-    
-    
     rutas_asociadas = parada.rutas.all()
     
     rutas_data = {}
@@ -120,7 +118,7 @@ def inicio_peaton(request, parada_id):
                     float(str(autobus.latitud_actual).replace(',','.')), 
                     float(str(autobus.longitud_actual).replace(',','.'))
                 )
-                mins = math.ceil((dist / 15.0) * 60) 
+                mins = math.ceil((dist / 15.0) * 60)
                 if mins < 1: eta_ruta = "Llegando"
                 elif mins > 120: eta_ruta = "+2h"
                 else: eta_ruta = str(mins)
@@ -129,29 +127,27 @@ def inicio_peaton(request, parada_id):
 
         paradas_ruta = [{'lat': float(p.latitud), 'lon': float(p.longitud), 'nombre': p.nombre} for p in Parada.objects.filter(rutas=ruta)]
         
-        
-        trazado_str = "[]"
-        if ruta.trazado and ruta.trazado.strip() != "":
-            trazado_str = str(ruta.trazado).strip()
+        trazado_calles = []
+        if ruta.trazado and ruta.trazado.strip() not in ["", "[]"]:
+            try:
+                # Limpiamos posibles comillas simples antes de leer el JSON
+                trazado_limpio = str(ruta.trazado).strip().replace("'", '"')
+                trazado_calles = json.loads(trazado_limpio)
+            except Exception:
+                pass
                 
         rutas_data[ruta.id] = {
             'nombre': ruta.nombre,
             'paradas': paradas_ruta,
-            'trazado': trazado_str,  
+            'trazado': trazado_calles, 
             'eta': eta_ruta
         }
         
         if tiempo_estimado_default == "--" and eta_ruta != "--":
             tiempo_estimado_default = eta_ruta
 
-    todas_paradas = []
-    for p in Parada.objects.exclude(id=parada.id): 
-        todas_paradas.append({
-            'lat': float(p.latitud),
-            'lon': float(p.longitud),
-            'nombre': p.nombre
-        })
-
+    todas_paradas = [{'lat': float(p.latitud), 'lon': float(p.longitud), 'nombre': p.nombre} for p in Parada.objects.exclude(id=parada.id)]
+    
     patrocinadores = list(Patrocinador.objects.all())
     patrocinador_actual = random.choice(patrocinadores) if patrocinadores else None
 
@@ -160,9 +156,9 @@ def inicio_peaton(request, parada_id):
         'tiempo_estimado': tiempo_estimado_default,
         'patrocinador': patrocinador_actual,
         'patrocinadores': patrocinadores,
-        
-        'rutas_data_json': json.dumps(rutas_data).replace('"', '\\"'), 
-        'todas_paradas_json': json.dumps(todas_paradas).replace('"', '\\"'),
+        # Enviamos los diccionarios limpios, Django se encargará del resto
+        'rutas_data_json': rutas_data, 
+        'todas_paradas_json': todas_paradas,
     }
     return render(request, 'rutas/inicio.html', contexto)
 
