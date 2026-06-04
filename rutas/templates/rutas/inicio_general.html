@@ -719,7 +719,7 @@
     });
 
     // ==========================================
-    // MAGIA DE FILTRADO (SOLUCIÓN DEFINITIVA)
+    // MAGIA DE FILTRADO 
     // ==========================================
     document.getElementById('selector-ruta-unica').addEventListener('change', function(e) {
         let idSeleccionado = e.target.value;
@@ -794,7 +794,7 @@
     cargarClimaAvanzado();
 
    {% if user.is_authenticated %}
-        // Solo arranca el radar si el usuario está registrado en el sistema
+       
         setInterval(actualizarFlotaEnMapa, 5000);
     {% endif %}
 });  
