@@ -42,10 +42,10 @@
     <div id="mapa"></div>
     <div style="margin-bottom: 10px; display: flex; gap: 10px;">
         <label style="cursor: pointer; background: #f8fafc; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: bold;">
-            <input type="checkbox" checked onchange="toggleCapaRuta()" style="accent-color: #3b82f6;"> Mostrar Línea de Ruta
+            <input type="checkbox" id="chk-ruta" checked onchange="toggleCapaRuta()" style="accent-color: #3b82f6;"> Mostrar Línea de Ruta
         </label>
         <label style="cursor: pointer; background: #f8fafc; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: bold;">
-            <input type="checkbox" checked onchange="toggleCapaParadas()" style="accent-color: #f59e0b;"> Mostrar Paradas
+            <input type="checkbox" id="chk-paradas" checked onchange="toggleCapaParadas()" style="accent-color: #f59e0b;"> Mostrar Paradas
         </label>
     </div>
 
@@ -103,25 +103,19 @@
     async function cargarClima() {
         let tempDiv = document.getElementById('clima-temp');
         let descDiv = document.getElementById('clima-desc');
-        
         try {
             const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation_probability,weather_code&timezone=America/Caracas`;
             const res = await fetch(url);
             const data = await res.json();
-            
             const temp = Math.round(data.current.temperature_2m);
             const probLluvia = data.current.precipitation_probability;
             const cod = data.current.weather_code;
 
             if(tempDiv) tempDiv.innerHTML = `${temp}°C`; 
             if(descDiv) {
-                if (probLluvia > 40 || cod >= 50) {
-                    descDiv.innerHTML = `Lluvia: ${probLluvia}% <i class="fa-solid fa-cloud-showers-heavy" style="color: #3b82f6;"></i>`;
-                } else if (cod >= 1 && cod <= 3) {
-                    descDiv.innerHTML = `Nublado <i class="fa-solid fa-cloud" style="color: #94a3b8;"></i>`;
-                } else {
-                    descDiv.innerHTML = `Despejado <i class="fa-solid fa-sun" style="color: #f59e0b;"></i>`;
-                }
+                if (probLluvia > 40 || cod >= 50) descDiv.innerHTML = `Lluvia: ${probLluvia}% <i class="fa-solid fa-cloud-showers-heavy" style="color: #3b82f6;"></i>`;
+                else if (cod >= 1 && cod <= 3) descDiv.innerHTML = `Nublado <i class="fa-solid fa-cloud" style="color: #94a3b8;"></i>`;
+                else descDiv.innerHTML = `Despejado <i class="fa-solid fa-sun" style="color: #f59e0b;"></i>`;
             }
         } catch (error) {
             if(tempDiv) tempDiv.innerHTML = `<i class="fa-solid fa-satellite" style="font-size:16px;"></i>`; 
@@ -131,9 +125,15 @@
     cargarClima();
     setInterval(cargarClima, 900000);
 
-    // 3. VARIABLES GLOBALES Y DATOS
-    const rutasData = JSON.parse('{{ rutas_data_json|safe }}'.replace(/&quot;/g, '"') || '{}');
-    const todasParadas = JSON.parse('{{ todas_paradas_json|safe }}'.replace(/&quot;/g, '"') || '[]');
+    // ==========================================
+    // 3. VARIABLES GLOBALES Y DATOS BLINDADOS
+    // ==========================================
+    // Usamos 'escapejs' de Django para asegurar que ningún carácter especial rompa el código
+    let rutasDataRaw = '{{ rutas_data_json|escapejs }}';
+    let rutasData = rutasDataRaw ? JSON.parse(rutasDataRaw) : {};
+
+    let paradasRaw = '{{ todas_paradas_json|escapejs }}';
+    let todasParadas = paradasRaw ? JSON.parse(paradasRaw) : [];
     
     todasParadas.push({lat: lat, lon: lon, nombre: "{{ parada.nombre }}"});
 
@@ -144,6 +144,57 @@
     const selRuta = document.getElementById('ruta-simulacion');
     const selDestino = document.getElementById('selector-destino');
     
+    // ==========================================
+    // DIBUJAR TODO POR DEFECTO PARA EL PEATÓN
+    // ==========================================
+    function inicializarMapaPeaton() {
+        layerRuta.clearLayers();
+        layerParadas.clearLayers();
+
+        // Dibujamos las rutas en azul
+        Object.values(rutasData).forEach(info => {
+            let trazadoBruto = info.trazado;
+            let calles = [];
+            if (typeof trazadoBruto === 'string') {
+                try { calles = JSON.parse(trazadoBruto.replace(/'/g, '"')); } catch(e) { calles = info.paradas || []; }
+            } else { calles = trazadoBruto || info.paradas || []; }
+
+            if(calles.length > 1) {
+                L.polyline(calles.map(p => [parseFloat(p.lat ?? p[0]), parseFloat(p.lon ?? p.lng ?? p[1])]), {color: '#3b82f6', weight: 5, opacity: 0.8}).addTo(layerRuta);
+            }
+        });
+
+        // Dibujamos las otras paradas en naranja
+        todasParadas.forEach(p => {
+            if(p.nombre !== "{{ parada.nombre }}") {
+                L.circleMarker([p.lat, p.lon], {color: '#f59e0b', radius: 6, fillOpacity: 0.8})
+                 .bindPopup(`<b>🚏 ${p.nombre}</b>`)
+                 .addTo(layerParadas);
+            }
+        });
+    }
+
+    // Ejecutar de inmediato al cargar la página
+    inicializarMapaPeaton();
+
+    // ==========================================
+    // FUNCIONES DE LOS BOTONES (MOSTRAR/OCULTAR)
+    // ==========================================
+    function toggleCapaRuta() {
+        let chk = document.getElementById('chk-ruta');
+        if(!chk.checked) map.removeLayer(layerRuta);
+        else map.addLayer(layerRuta);
+    }
+
+    function toggleCapaParadas() {
+        let chk = document.getElementById('chk-paradas');
+        if(!chk.checked) map.removeLayer(layerParadas);
+        else map.addLayer(layerParadas);
+    }
+
+    // ==========================================
+    // RESTO DE FUNCIONES (ADMIN Y CAMINATA)
+    // ==========================================
     if (selRuta) {
         selRuta.innerHTML = '<option value="">Selecciona una ruta...</option>'; 
         Object.entries(rutasData).forEach(([id, info]) => {
@@ -159,24 +210,6 @@
         });
     }
 
-    // ==========================================
-    // FUNCIONES DE LOS BOTONES (MOSTRAR/OCULTAR)
-    // ==========================================
-    function toggleCapaRuta() {
-        if(map.hasLayer(layerRuta)) map.removeLayer(layerRuta);
-        else map.addLayer(layerRuta);
-    }
-
-    function toggleCapaParadas() {
-        if(map.hasLayer(layerParadas)) {
-            map.removeLayer(layerParadas);
-            markerPrincipal.addTo(map);
-        } else {
-            map.addLayer(layerParadas);
-        }
-    }
-
-    // 4. CÁLCULO DE CAMINATA
     function calcularCaminata() {
         let val = selDestino.value;
         if(!val) {
@@ -185,129 +218,184 @@
             map.setView([lat, lon], 15);
             return;
         }
-        
         let dest = JSON.parse(val);
         let d = Math.acos(Math.sin(lat*Math.PI/180)*Math.sin(dest.lat*Math.PI/180) + Math.cos(lat*Math.PI/180)*Math.cos(dest.lat*Math.PI/180)*Math.cos((dest.lon-lon)*Math.PI/180)) * 6371;
         document.getElementById('tiempo-caminando').innerHTML = Math.ceil(d * 12) + " <small style='font-size:14px;'>min</small>";
 
         if(marcadorDestino) map.removeLayer(marcadorDestino);
         marcadorDestino = L.circleMarker([dest.lat, dest.lon], {color: '#10b981', radius: 8, fillOpacity: 0.9, weight: 3}).addTo(map).bindPopup('<b>Destino:</b> ' + dest.nombre).openPopup();
-
         let grupo = new L.featureGroup([markerPrincipal, marcadorDestino]);
         map.fitBounds(grupo.getBounds(), {padding: [30, 30]});
     }
 
-    // 5. CAMBIO DE RUTA (LÍNEA AZUL Y LIMPIEZA)
+    // Función del Simulador Administrador
     function cambiarRutaActiva() {
         if (!selRuta || !rutasData[selRuta.value]) return;
         let info = rutasData[selRuta.value];
-        
-        // CORRECCIÓN: Parseo seguro del trazado para la línea azul
         let trazadoBruto = info.trazado;
         if (typeof trazadoBruto === 'string') {
-            try {
-                rutaCalles = JSON.parse(trazadoBruto.replace(/'/g, '"'));
-            } catch(e) {
-                rutaCalles = info.paradas || [];
-            }
-        } else {
-            rutaCalles = trazadoBruto || info.paradas || [];
-        }
-
+            try { rutaCalles = JSON.parse(trazadoBruto.replace(/'/g, '"')); } catch(e) { rutaCalles = info.paradas || []; }
+        } else { rutaCalles = trazadoBruto || info.paradas || []; }
+        
         layerRuta.clearLayers();
         layerParadas.clearLayers();
-        if(busMarker) { map.removeLayer(busMarker); busMarker = null; }
-
-        // Pintar ruta nueva en color AZUL
         if(rutaCalles.length > 1) {
             let linea = L.polyline(rutaCalles.map(p => [parseFloat(p.lat ?? p[0]), parseFloat(p.lon ?? p.lng ?? p[1])]), {color: '#3b82f6', weight: 5, opacity: 0.8}).addTo(layerRuta);
             map.fitBounds(linea.getBounds(), {padding: [20, 20]});
         }
-        
         todasParadas.forEach(p => {
-            L.circleMarker([p.lat, p.lon], {color: '#f59e0b', radius: 6, fillOpacity: 0.8})
-             .bindPopup(`<b>🚏 ${p.nombre}</b>`)
-             .addTo(layerParadas);
+            L.circleMarker([p.lat, p.lon], {color: '#f59e0b', radius: 6, fillOpacity: 0.8}).bindPopup(`<b>🚏 ${p.nombre}</b>`).addTo(layerParadas);
         });
-
-        // Borrar ETA anterior esperando que la API de tiempo real lo calcule
-        document.getElementById('eta-display').innerHTML = `-- <span style="font-size: 16px;">min</span>`;
     }
 
-    if (selRuta && selRuta.options.length > 1) {
-        selRuta.selectedIndex = 1;
-        cambiarRutaActiva();
+    // CÁLCULO DE E.T.A. REAL AUTOMÁTICO
+    function calcularETAReal(buses) {
+        let displayEta = document.getElementById('eta-display');
+        if (!displayEta) return;
+
+        if (buses.length === 0) {
+            displayEta.innerHTML = `<span style="font-size: 18px;">Sin Bus</span>`;
+            return;
+        }
+
+        let minEta = Infinity;
+        buses.forEach(bus => {
+            let distKm = Math.acos(Math.sin(lat*Math.PI/180)*Math.sin(bus.lat*Math.PI/180) + Math.cos(lat*Math.PI/180)*Math.cos(bus.lat*Math.PI/180)*Math.cos((bus.lon-lon)*Math.PI/180)) * 6371;
+            let tiempoMinutos = Math.ceil((distKm / 15) * 60);
+            if (tiempoMinutos < minEta) minEta = tiempoMinutos;
+        });
+
+        if (minEta <= 1) displayEta.innerHTML = `Llegando`;
+        else displayEta.innerHTML = `${minEta} <span style="font-size: 16px;">min</span>`;
+    }
+
+    // SÍNTESIS DE VOZ ARTIFICIAL 
+    function reproducirReporteVoz() {
+        if ('speechSynthesis' in window) {
+            let btn = document.querySelector('button[onclick="reproducirReporteVoz()"]');
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+                if(btn) btn.innerHTML = "🔊 Escuchar Reporte de Voz";
+                return; 
+            }
+            if(btn) btn.innerHTML = "🔇 Detener Reporte"; 
+
+            let displayEta = document.getElementById('eta-display');
+            let tiempoEta = displayEta ? displayEta.innerText.replace('min', 'minutos') : 'desconocido';
+            
+            let mensaje = `Atención usuarios. Bienvenidos al Tótem de la estación {{ parada.nombre }}. `;
+            if(tiempoEta.includes("Sin Bus")) {
+                mensaje += "Actualmente no hay unidades operativas en ruta hacia esta estación.";
+            } else {
+                mensaje += `El tiempo estimado de llegada de la próxima unidad es de ${tiempoEta}. `;
+            }
+            mensaje += `Gracias por utilizar la red inteligente Señalética Plus.`;
+
+            let utterance = new SpeechSynthesisUtterance(mensaje);
+            utterance.lang = 'es-VE'; utterance.rate = 0.95; utterance.pitch = 1.0; 
+            utterance.onend = function() { if(btn) btn.innerHTML = "🔊 Escuchar Reporte Voz"; };
+            window.speechSynthesis.speak(utterance);
+        } else {
+            alert("⚠️ Lo sentimos, su navegador actual no soporta la función de voz.");
+        }
     }
 
     // ==========================================
-    // FUNCIÓN MATEMÁTICA PARA EVITAR SALTOS
+    // RASTREO SATELITAL REAL Y FILTRO ESTRICTO
+    // ==========================================
+    let capaFlotaParada = L.layerGroup().addTo(map);
+    window.marcadoresBusesReal = window.marcadoresBusesReal || {};
+
+    async function rastrearBusReal() {
+        try {
+            let urlSinCache = `/flota/api/buses-activos/?t=` + new Date().getTime();
+            let response = await fetch(urlSinCache);
+            if (!response.ok) return;
+            
+            let data = await response.json();
+            let idsActivosRecibidos = [];
+            let busesRelevantes = [];
+
+            data.buses.forEach(bus => {
+                let idRutaBus = String(bus.ruta_id);
+
+                // 🔥 LA BARRERA DE SEGURIDAD 🔥
+                // Si la ruta a la que pertenece este bus NO pasa por este tótem, lo ignoramos.
+                // (El backend además ya se encargó de ocultarlo si el bus se salió de su geocerca)
+                if (!rutasData[idRutaBus]) return;
+
+                let idString = String(bus.id);
+                idsActivosRecibidos.push(idString);
+                busesRelevantes.push(bus);
+                
+                if (window.marcadoresBusesReal[idString]) {
+                    window.marcadoresBusesReal[idString].setLatLng([bus.lat, bus.lon]);
+                } else {
+                    let busIcon = L.divIcon({
+                        className: 'bus-icon',
+                        html: '<div style="background: #10b981; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fa-solid fa-bus"></i></div>',
+                        iconSize: [28, 28], iconAnchor: [14, 14]
+                    });
+                    window.marcadoresBusesReal[idString] = L.marker([bus.lat, bus.lon], {icon: busIcon}).bindPopup(`<b>🚌 ${bus.ruta_nombre}</b><br>Unidad: ${bus.unidad}`).addTo(capaFlotaParada);
+                }
+            });
+
+            // Purga: Si el bus se apagó, se desvió de su calle principal, o pasó a otra ruta, se borra.
+            Object.keys(window.marcadoresBusesReal).forEach(idPin => {
+                if (!idsActivosRecibidos.includes(idPin)) {
+                    capaFlotaParada.removeLayer(window.marcadoresBusesReal[idPin]);
+                    delete window.marcadoresBusesReal[idPin];
+                }
+            });
+
+            // Calcular E.T.A. solo con los buses que realmente vienen hacia acá
+            calcularETAReal(busesRelevantes);
+        } catch (error) { console.log("Esperando conexión..."); }
+    }
+
+    setInterval(rastrearBusReal, 4000);
+    rastrearBusReal();
+
+    // ==========================================
+    // FUNCIONES EXTRA DEL SIMULADOR ADMIN
     // ==========================================
     function densificarRuta(puntosOriginales) {
         if (!puntosOriginales || puntosOriginales.length < 2) return puntosOriginales;
         let puntosDensos = [];
         const maxDist = 0.00015; 
-        
         for (let i = 0; i < puntosOriginales.length - 1; i++) {
-            let p1 = puntosOriginales[i]; 
-            let p2 = puntosOriginales[i + 1];
-            
-            let lat1 = parseFloat(p1.lat ?? p1[0]);
-            let lon1 = parseFloat(p1.lon ?? p1.lng ?? p1[1]);
-            let lat2 = parseFloat(p2.lat ?? p2[0]);
-            let lon2 = parseFloat(p2.lon ?? p2.lng ?? p2[1]);
-            
+            let p1 = puntosOriginales[i]; let p2 = puntosOriginales[i + 1];
+            let lat1 = parseFloat(p1.lat ?? p1[0]); let lon1 = parseFloat(p1.lon ?? p1.lng ?? p1[1]);
+            let lat2 = parseFloat(p2.lat ?? p2[0]); let lon2 = parseFloat(p2.lon ?? p2.lng ?? p2[1]);
             if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) continue;
 
             let dist = Math.sqrt(Math.pow(lat2 - lat1, 2) + Math.pow(lon2 - lon1, 2));
             let numSegmentos = Math.ceil(dist / maxDist);
             if (numSegmentos === 0) numSegmentos = 1;
-
             for (let j = 0; j < numSegmentos; j++) {
-                puntosDensos.push({ 
-                    lat: lat1 + (lat2 - lat1) * (j / numSegmentos), 
-                    lon: lon1 + (lon2 - lon1) * (j / numSegmentos) 
-                });
+                puntosDensos.push({ lat: lat1 + (lat2 - lat1) * (j / numSegmentos), lon: lon1 + (lon2 - lon1) * (j / numSegmentos) });
             }
         }
-        
         let ultimo = puntosOriginales[puntosOriginales.length - 1];
-        let latUlt = parseFloat(ultimo.lat ?? ultimo[0]);
-        let lonUlt = parseFloat(ultimo.lon ?? ultimo.lng ?? ultimo[1]);
-        if (!isNaN(latUlt) && !isNaN(lonUlt)) {
-            puntosDensos.push({lat: latUlt, lon: lonUlt});
-        }
-        
+        let latUlt = parseFloat(ultimo.lat ?? ultimo[0]); let lonUlt = parseFloat(ultimo.lon ?? ultimo.lng ?? ultimo[1]);
+        if (!isNaN(latUlt) && !isNaN(lonUlt)) puntosDensos.push({lat: latUlt, lon: lonUlt});
         return puntosDensos;
     }
 
-    // ==========================================
-    // 1. SIMULADOR CON PAUSA INTELIGENTE
-    // ==========================================
     async function activarModoTest() {
         if (!rutaCalles || rutaCalles.length === 0) return;
         simulacionCancelada = false;
-        
-        const btn = document.querySelector('button[onclick="activarModoTest()"]') || document.getElementById('btn-test');
+        const btn = document.getElementById('btn-test');
         if(btn) { btn.disabled = true; btn.innerText = "Simulando..."; }
-        
         if (busMarker) map.removeLayer(busMarker);
         
         let rutaFina = densificarRuta(rutaCalles);
+        if (rutaFina.length === 0) return;
 
-        if (rutaFina.length === 0) {
-            alert("Error: El trazado de la ruta tiene coordenadas inválidas.");
-            if(btn) { btn.disabled = false; btn.innerText = "▶ Iniciar"; }
-            return;
-        }
-
-        busMarker = L.circleMarker([rutaFina[0].lat, rutaFina[0].lon], {
-            radius: 8, color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: 1, weight: 2
-        }).addTo(map);
-        
+        busMarker = L.circleMarker([rutaFina[0].lat, rutaFina[0].lon], { radius: 8, color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: 1, weight: 2 }).addTo(map);
         let selectorTiempo = document.getElementById('tiempo-simulacion');
         const tiempoTotal = selectorTiempo ? parseInt(selectorTiempo.value) * 1000 : 15000; 
         const paso = Math.max(10, tiempoTotal / rutaFina.length);
-
         let paradasVisitadas = new Set();
         let displayEta = document.getElementById('eta-display');
 
@@ -317,189 +405,36 @@
 
         for (let i = 0; i < rutaFina.length; i++) {
             if (simulacionCancelada) break;
-
-            let cLat = rutaFina[i].lat;
-            let cLon = rutaFina[i].lon;
+            let cLat = rutaFina[i].lat; let cLon = rutaFina[i].lon;
             busMarker.setLatLng([cLat, cLon]);
             
             if (displayEta && i % 10 === 0) {
                 let porcentajeRestante = (rutaFina.length - 1 - i) / (rutaFina.length - 1);
                 let etaSimulado = Math.ceil(porcentajeRestante * etaOriginal);
-                if (i === rutaFina.length - 1) displayEta.innerHTML = "Llegó";
-                else displayEta.innerHTML = `${etaSimulado} <span style="font-size: 16px;">min</span>`;
+                displayEta.innerHTML = i === rutaFina.length - 1 ? "Llegó" : `${etaSimulado} <span style="font-size: 16px;">min</span>`;
             }
 
-            let paradaCercana = todasParadas.find(p => {
-                let distancia = Math.sqrt(Math.pow(p.lat - cLat, 2) + Math.pow(p.lon - cLon, 2));
-                return distancia < 0.0020; 
-            });
-
+            let paradaCercana = todasParadas.find(p => Math.sqrt(Math.pow(p.lat - cLat, 2) + Math.pow(p.lon - cLon, 2)) < 0.0020);
             if (paradaCercana && !paradasVisitadas.has(paradaCercana.nombre)) {
                 paradasVisitadas.add(paradaCercana.nombre);
                 busMarker.setLatLng([paradaCercana.lat, paradaCercana.lon]);
                 busMarker.setStyle({color: '#10b981', fillColor: '#10b981'});
                 busMarker.setRadius(13);
-                
-                let pausaAleatoria = Math.floor(Math.random() * (8000 - 3000 + 1)) + 3000;
-                await new Promise(r => setTimeout(r, pausaAleatoria)); 
-                
+                await new Promise(r => setTimeout(r, Math.floor(Math.random() * 5000) + 3000)); 
                 busMarker.setLatLng([cLat, cLon]);
                 busMarker.setStyle({color: '#f59e0b', fillColor: '#f59e0b'});
                 busMarker.setRadius(8);
-            } else {
-                await new Promise(r => setTimeout(r, paso)); 
-            }
+            } else { await new Promise(r => setTimeout(r, paso)); }
         }
-        
-        if (!simulacionCancelada && btn) {
-            btn.disabled = false;
-            btn.innerHTML = "▶ Iniciar";
-            setTimeout(() => { if(busMarker) map.removeLayer(busMarker); }, 3000); 
-        }
-    }
-
-    // ==========================================
-    // 2. SÍNTESIS DE VOZ ARTIFICIAL 
-    // ==========================================
-    function reproducirReporteVoz() {
-        if ('speechSynthesis' in window) {
-            let btn = document.querySelector('button[onclick="reproducirReporteVoz()"]');
-            
-            if (window.speechSynthesis.speaking) {
-                window.speechSynthesis.cancel();
-                if(btn) btn.innerHTML = "🔊 Escuchar Reporte de Voz";
-                return; 
-            }
-
-            if(btn) btn.innerHTML = "🔇 Detener Reporte"; 
-
-            let selectorRuta = document.getElementById('ruta-simulacion');
-            let nombreRuta = selectorRuta ? selectorRuta.options[selectorRuta.selectedIndex].text : '';
-            let displayEta = document.getElementById('eta-display');
-            let tiempoEta = displayEta ? displayEta.innerText.replace('min', 'minutos') : 'desconocido';
-            
-            let mensaje = `Atención usuarios. Bienvenidos al Tótem de la estación {{ parada.nombre }}. `;
-            if (selectorRuta && selectorRuta.value !== "") {
-                mensaje += `Están consultando la línea ${nombreRuta}. El tiempo estimado de llegada de la próxima unidad es de ${tiempoEta}. `;
-            } else {
-                mensaje += `Por favor, seleccione una ruta en el panel para conocer los tiempos de llegada. `;
-            }
-            mensaje += `Gracias por utilizar la red inteligente Señalética Plus.`;
-
-            let utterance = new SpeechSynthesisUtterance(mensaje);
-            utterance.lang = 'es-VE'; 
-            utterance.rate = 0.95;    
-            utterance.pitch = 1.0;    
-            
-            utterance.onend = function() {
-                if(btn) btn.innerHTML = "🔊 Escuchar Reporte de Voz";
-            };
-
-            window.speechSynthesis.speak(utterance);
-        } else {
-            alert("⚠️ Lo sentimos, su navegador actual no soporta la función de voz.");
-        }
+        if (!simulacionCancelada && btn) { btn.disabled = false; btn.innerText = "▶ Iniciar"; setTimeout(() => { if(busMarker) map.removeLayer(busMarker); }, 3000); }
     }
 
     function reiniciarSimulacion() {
         simulacionCancelada = true;
         let btn = document.getElementById('btn-test');
-        if (btn) {
-            btn.disabled = false;
-            btn.innerText = "▶ Iniciar";
-        }
+        if (btn) { btn.disabled = false; btn.innerText = "▶ Iniciar"; }
         if (busMarker) map.removeLayer(busMarker);
         cambiarRutaActiva();
     }
-
-    // ==========================================
-    // CÁLCULO DE E.T.A. REAL Y LIMPIEZA
-    // ==========================================
-    function calcularETAReal(buses) {
-        let displayEta = document.getElementById('eta-display');
-        let selectorRuta = document.getElementById('ruta-simulacion');
-        if (!displayEta || !selectorRuta || !selectorRuta.value) return;
-
-        let idRutaActiva = selectorRuta.value;
-        let busesEnRuta = buses.filter(b => b.ruta_id == idRutaActiva);
-
-        if (busesEnRuta.length === 0) {
-            displayEta.innerHTML = `<span style="font-size: 18px;">Sin Bus</span>`;
-            return;
-        }
-
-        let minEta = Infinity;
-
-        busesEnRuta.forEach(bus => {
-            // Distancia en línea recta hasta la parada actual (Fórmula Haversine)
-            let distKm = Math.acos(Math.sin(lat*Math.PI/180)*Math.sin(bus.lat*Math.PI/180) + Math.cos(lat*Math.PI/180)*Math.cos(bus.lat*Math.PI/180)*Math.cos((bus.lon-lon)*Math.PI/180)) * 6371;
-            
-            // Asumimos una velocidad promedio urbana de 15 km/h
-            let tiempoMinutos = Math.ceil((distKm / 15) * 60);
-            if (tiempoMinutos < minEta) minEta = tiempoMinutos;
-        });
-
-        if (minEta <= 1) {
-            displayEta.innerHTML = `Llegando`;
-        } else {
-            displayEta.innerHTML = `${minEta} <span style="font-size: 16px;">min</span>`;
-        }
-    }
-
-    // ==========================================
-    // RASTREO SATELITAL REAL (EN LA PARADA)
-    // ==========================================
-    let capaFlotaParada = L.layerGroup().addTo(map);
-    window.marcadoresBusesReal = window.marcadoresBusesReal || {};
-
-    async function rastrearBusReal() {
-        try {
-            // Memoria Anti-Caché activada
-            let urlSinCache = `/flota/api/buses-activos/?t=` + new Date().getTime();
-            let response = await fetch(urlSinCache);
-            if (!response.ok) return;
-            
-            let data = await response.json();
-            let idsActivosRecibidos = [];
-
-            data.buses.forEach(bus => {
-                let idString = String(bus.id);
-                idsActivosRecibidos.push(idString);
-                
-                if (window.marcadoresBusesReal[idString]) {
-                    window.marcadoresBusesReal[idString].setLatLng([bus.lat, bus.lon]);
-                } else {
-                    let busIcon = L.divIcon({
-                        className: 'bus-icon',
-                        html: '<div style="background: #10b981; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fa-solid fa-bus"></i></div>',
-                        iconSize: [28, 28],
-                        iconAnchor: [14, 14]
-                    });
-
-                    window.marcadoresBusesReal[idString] = L.marker([bus.lat, bus.lon], {icon: busIcon})
-                        .bindPopup(`<b>🚌 ${bus.ruta_nombre}</b><br>Unidad: ${bus.unidad}`)
-                        .addTo(capaFlotaParada);
-                }
-            });
-
-            // Borrar buses apagados (Purga real)
-            Object.keys(window.marcadoresBusesReal).forEach(idPin => {
-                if (!idsActivosRecibidos.includes(idPin)) {
-                    capaFlotaParada.removeLayer(window.marcadoresBusesReal[idPin]);
-                    delete window.marcadoresBusesReal[idPin];
-                }
-            });
-
-            // Mandar a calcular el E.T.A. real de los buses que encontramos
-            calcularETAReal(data.buses);
-
-        } catch (error) {
-            console.log("Esperando conexión con satélite...");
-        }
-    }
-
-    setInterval(rastrearBusReal, 4000);
-    rastrearBusReal();
-
 </script>
 {% endblock %}
