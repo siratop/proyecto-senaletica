@@ -301,27 +301,25 @@
     }
 
     // ==========================================
-    // 4. RADAR AUTOMÁTICO DE BUSES 
+    // 4. RADAR AUTOMÁTICO DE BUSES (TIEMPO REAL OPTIMIZADO)
     // ==========================================
+    let marcadoresFlota = {}; // Guardará la memoria de los buses para moverlos sin parpadear
+
     function buscarBusesEnVivo(forzarResalte = false) {
         let filtroRutaId = document.getElementById('filtro-ruta-flota').value;
         let textoBusqueda = document.getElementById('buscador-flota').value.toLowerCase();
-
-        
         let urlSinCache = '/flota/api/buses-tiempo-real/?t=' + new Date().getTime();
 
         fetch(urlSinCache)
         .then(response => response.json())
         .then(data => {
-            
-            console.log("Recibiendo datos frescos del servidor:", data);
-
-            capaBuses.clearLayers(); 
             let busesActivosCount = 0;
-            let marcadoresVisibles = []; 
+            let idsActivosRecibidos = []; 
+            let limitesParaZoom = [];
 
             data.buses.forEach(bus => {
-               
+                idsActivosRecibidos.push(bus.id);
+                
                 let etiquetaEstado = document.getElementById('estado-bus-' + bus.id);
                 let estaOperativo = (bus.estado.toLowerCase() === 'operativa' || bus.estado.toLowerCase() === 'activo');
                 
@@ -333,13 +331,11 @@
                     }
                 }
 
-                
                 if (!estaOperativo || bus.lat === 0 || bus.lon === 0) return;
 
                 let coincideRuta = (filtroRutaId === 'todas' || bus.ruta_id == filtroRutaId);
                 let coincideTexto = (bus.conductor_display.toLowerCase().includes(textoBusqueda) || bus.unidad.includes(textoBusqueda));
 
-                // Solo dibujamos los que están operativos y cumplen el filtro
                 if (coincideRuta && coincideTexto) {
                     busesActivosCount++;
                     let popupContent = `
@@ -347,31 +343,52 @@
                             <strong style="color:#1e293b;">Unidad ${bus.unidad.toUpperCase()}</strong><br>
                             <span style="color:#64748b; font-size:12px;">Ruta: ${bus.ruta}</span><br>
                             <hr style="margin:5px 0;">
-                            <span style="font-size:12px;">Chofer: <b>${bus.conductor_display}</b></span><br>
-                            <span style="font-size:10px; color:#10b981;">Actualizado: ${bus.actualizado}</span>
+                            <span style="font-size:12px;">Chofer: <b>${bus.conductor_display}</b></span>
                         </div>`;
 
-                    let marker = L.marker([bus.lat, bus.lon], {icon: busIcon}).bindPopup(popupContent);
-                    marker.addTo(capaBuses);
-                    marcadoresVisibles.push(marker);
+                    // Si el bus ya existe en el mapa, SOLO deslizamos su posición (Esto es Tiempo Real real)
+                    if (marcadoresFlota[bus.id]) {
+                        marcadoresFlota[bus.id].setLatLng([bus.lat, bus.lon]);
+                        marcadoresFlota[bus.id].setPopupContent(popupContent);
+                    } else {
+                        // Si no existía, lo creamos
+                        let marker = L.marker([bus.lat, bus.lon], {icon: busIcon}).bindPopup(popupContent);
+                        marker.addTo(capaBuses);
+                        marcadoresFlota[bus.id] = marker;
+                    }
+                    limitesParaZoom.push([bus.lat, bus.lon]);
+                } else {
+                    // Si no cumple el filtro, lo borramos de la pantalla
+                    if (marcadoresFlota[bus.id]) {
+                        capaBuses.removeLayer(marcadoresFlota[bus.id]);
+                        delete marcadoresFlota[bus.id];
+                    }
                 }
             });
 
-            // Actualizamos el contador de buses en el recuadro superior
-            let statElement = document.getElementById('stat-buses-activos');
-            if (statElement) {
-                statElement.innerText = busesActivosCount;
-            }
+            // LIMPIEZA DE FANTASMAS: Si un bus apagó el GPS y ya no viene en la API, lo borramos
+            Object.keys(marcadoresFlota).forEach(id => {
+                if (!idsActivosRecibidos.includes(parseInt(id))) {
+                    capaBuses.removeLayer(marcadoresFlota[id]);
+                    delete marcadoresFlota[id];
+                }
+            });
 
-           
-            if (forzarResalte && marcadoresVisibles.length > 0) {
-                let grupo = new L.featureGroup(marcadoresVisibles);
-                map.flyToBounds(grupo.getBounds(), {padding: [50, 50], maxZoom: 16, duration: 1.2});
+            // Actualizar número en el tablero
+            let statElement = document.getElementById('stat-buses-activos');
+            if (statElement) statElement.innerText = busesActivosCount;
+
+            // Zoom automático solo si el usuario buscó por nombre
+            if (forzarResalte && limitesParaZoom.length > 0) {
+                map.flyToBounds(limitesParaZoom, {padding: [50, 50], maxZoom: 16, duration: 1.2});
             }
         })
         .catch(err => console.error("Error buscando buses en vivo:", err));
     }
 
+    // EL MOTOR: Esto obliga a que la función se ejecute cada 3 segundos sin parar
+    setInterval(() => buscarBusesEnVivo(false), 3000);
+    
     // ==========================================
     // 5. FUNCIONES DE DIBUJO Y MODALES
     // ==========================================
