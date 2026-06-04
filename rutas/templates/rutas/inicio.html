@@ -57,29 +57,6 @@
         </label>
     </div>
 
-    {% if user.is_staff %}
-    <div style="background: #fffbeb; border: 2px dashed #f59e0b; padding: 15px; border-radius: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <span style="color: #b45309; font-weight: bold; font-size: 12px;">🚧 SIMULADOR POR RUTA REAL</span>
-            <button onclick="reiniciarSimulacion()" style="background: none; border: none; color: #b45309; font-weight: bold; cursor: pointer; font-size: 12px;">Reset</button>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-            <select id="ruta-simulacion" onchange="cambiarRutaActiva()" style="padding: 8px; border-radius: 6px; border: 1px solid #f59e0b; font-size: 13px;">
-                <option value="">Cargando rutas...</option>
-            </select>
-            <div style="display: flex; gap: 8px;">
-            <select id="tiempo-simulacion" style="padding: 8px; border-radius: 6px; border: 1px solid #f59e0b; flex-grow: 1;">
-                <option value="15">Demostración Turbo (15 Seg)</option>
-                <option value="30">Rápida (30 Seg)</option>
-                <option value="60">Tránsito Fluido (1 Minuto)</option>
-                <option value="300">Hora Pico (5 Minutos)</option>
-            </select>
-            <button id="btn-test" onclick="activarModoTest()" style="background: #f59e0b; color: white; padding: 8px 15px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer;">▶ Iniciar</button>
-        </div>
-        </div>
-    </div>
-    {% endif %}
-
     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
         <button onclick="reproducirReporteVoz()" style="background: #0f172a; color: white; width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-bottom: 10px;">
     🔊 Escuchar Reporte de Voz
@@ -138,7 +115,7 @@
     setInterval(cargarClima, 900000);
 
     // ==========================================
-    // 3. VARIABLES GLOBALES Y CONTADOR DE RUTAS
+    // 3. VARIABLES GLOBALES Y CONTADOR DE RUTAS (CORREGIDO)
     // ==========================================
     let rutasData = {};
     let todasParadas = [];
@@ -155,16 +132,16 @@
 
     todasParadas.push({lat: lat, lon: lon, nombre: "{{ parada.nombre }}"});
 
-    // ✨ NUEVO: Mostrar cantidad de rutas asignadas ✨
+    // ✨ CORRECCIÓN TEXTO: Mostrar "Rutas Activas" ✨
     let numRutas = Object.keys(rutasData).length;
     let contadorDiv = document.getElementById('contador-rutas');
     if(contadorDiv) {
         let textoPlural = numRutas !== 1 ? 's' : '';
-        contadorDiv.innerHTML = `<span style="color:#10b981;"><b>${numRutas}</b> Ruta${textoPlural} Asignada${textoPlural}</span>`;
+        // Se cambió la palabra "Asignada" por "Activa"
+        contadorDiv.innerHTML = `<span style="color:#10b981;"><b>${numRutas}</b> Ruta${textoPlural} Activa${textoPlural}</span>`;
     }
 
-    let rutaCalles = [], busMarker = null, marcadorDestino = null, simulacionCancelada = false;
-    const selRuta = document.getElementById('ruta-simulacion');
+    let rutaCalles = [], busMarker = null, marcadorDestino = null;
     const selDestino = document.getElementById('selector-destino');
     
     // ==========================================
@@ -175,12 +152,7 @@
         layerParadas.clearLayers();
 
         Object.values(rutasData).forEach(info => {
-            let trazadoBruto = info.trazado;
-            let calles = [];
-            if (typeof trazadoBruto === 'string') {
-                try { calles = JSON.parse(trazadoBruto.replace(/'/g, '"')); } catch(e) { calles = info.paradas || []; }
-            } else { calles = trazadoBruto || info.paradas || []; }
-
+            let calles = info.trazado || info.paradas || [];
             if(calles.length > 1) {
                 L.polyline(calles.map(p => [parseFloat(p.lat ?? p[0]), parseFloat(p.lon ?? p.lng ?? p[1])]), {color: '#3b82f6', weight: 5, opacity: 0.8}).addTo(layerRuta);
             }
@@ -197,13 +169,6 @@
     function toggleCapaRuta() { document.getElementById('chk-ruta').checked ? map.addLayer(layerRuta) : map.removeLayer(layerRuta); }
     function toggleCapaParadas() { document.getElementById('chk-paradas').checked ? map.addLayer(layerParadas) : map.removeLayer(layerParadas); }
     function toggleCapaBuses() { document.getElementById('chk-buses').checked ? map.addLayer(capaFlotaParada) : map.removeLayer(capaFlotaParada); }
-
-    if (selRuta) {
-        selRuta.innerHTML = '<option value="">Selecciona una ruta...</option>'; 
-        Object.entries(rutasData).forEach(([id, info]) => {
-            selRuta.innerHTML += `<option value="${id}">${info.nombre} (ID: ${id})</option>`;
-        });
-    }
 
     if (selDestino) {
         todasParadas.forEach(p => {
@@ -229,25 +194,6 @@
         marcadorDestino = L.circleMarker([dest.lat, dest.lon], {color: '#10b981', radius: 8, fillOpacity: 0.9, weight: 3}).addTo(map).bindPopup('<b>Destino:</b> ' + dest.nombre).openPopup();
         let grupo = new L.featureGroup([markerPrincipal, marcadorDestino]);
         map.fitBounds(grupo.getBounds(), {padding: [30, 30]});
-    }
-
-    function cambiarRutaActiva() {
-        if (!selRuta || !rutasData[selRuta.value]) return;
-        let info = rutasData[selRuta.value];
-        let trazadoBruto = info.trazado;
-        if (typeof trazadoBruto === 'string') {
-            try { rutaCalles = JSON.parse(trazadoBruto.replace(/'/g, '"')); } catch(e) { rutaCalles = info.paradas || []; }
-        } else { rutaCalles = trazadoBruto || info.paradas || []; }
-        
-        layerRuta.clearLayers();
-        layerParadas.clearLayers();
-        if(rutaCalles.length > 1) {
-            let linea = L.polyline(rutaCalles.map(p => [parseFloat(p.lat ?? p[0]), parseFloat(p.lon ?? p.lng ?? p[1])]), {color: '#3b82f6', weight: 5, opacity: 0.8}).addTo(layerRuta);
-            map.fitBounds(linea.getBounds(), {padding: [20, 20]});
-        }
-        todasParadas.forEach(p => {
-            L.circleMarker([p.lat, p.lon], {color: '#f59e0b', radius: 6, fillOpacity: 0.8}).bindPopup(`<b>🚏 ${p.nombre}</b>`).addTo(layerParadas);
-        });
     }
 
     function calcularETAReal(buses) {
@@ -301,12 +247,13 @@
     }
 
     // ==========================================
-    // RASTREO SATELITAL CON E.T.A. INDIVIDUAL
+    // RASTREO SATELITAL CON E.T.A. INDIVIDUAL (CLIC) Y FILTRO INTELIGENTE
     // ==========================================
     window.marcadoresBusesReal = window.marcadoresBusesReal || {};
 
     async function rastrearBusReal() {
         try {
+            // Le pedimos los buses a la API (pasamos modo_admin=true solo para evadir la geocerca estricta en el entorno de pruebas local si es necesario, pero el JS se encarga del filtro)
             let urlSinCache = `/flota/api/buses-activos/?t=` + new Date().getTime();
             let response = await fetch(urlSinCache);
             if (!response.ok) return;
@@ -315,20 +262,23 @@
             let idsActivosRecibidos = [];
             let busesRelevantes = [];
 
+            // Extraemos los IDs de las rutas que pasan por este tótem asegurándonos de que sean cadenas de texto
+            let rutasTotemIds = Object.keys(rutasData).map(String);
+
             data.buses.forEach(bus => {
                 let idRutaBus = String(bus.ruta_id);
 
-                // 🔥 FILTRO ESTRICTO: Solo mostrar buses si su ruta está cargada en este Tótem
-                if (!rutasData[idRutaBus]) return;
+                // 🔥 FILTRO ESTRICTO MEJORADO: Si el ID de la ruta del bus no coincide con las rutas del Tótem, lo ignoramos.
+                if (!rutasTotemIds.includes(idRutaBus)) return;
 
-                // ✨ NUEVO: Calcular E.T.A. Individual para el globo al darle clic
+                // ✨ NUEVO: Tarjeta de E.T.A. al darle clic al icono del autobús
                 let distKm = Math.acos(Math.sin(lat*Math.PI/180)*Math.sin(bus.lat*Math.PI/180) + Math.cos(lat*Math.PI/180)*Math.cos(bus.lat*Math.PI/180)*Math.cos((bus.lon-lon)*Math.PI/180)) * 6371;
                 let tiempoMinutos = Math.ceil((distKm / 15) * 60);
                 let textoEtaPopup = tiempoMinutos <= 1 ? "¡Llegando!" : `${tiempoMinutos} min aprox.`;
 
-                // Diseño del globo que sale al hacerle clic al autobús
+                // Tarjeta HTML que se abre al dar clic en el Bus
                 let contenidoPopup = `
-                    <div style="text-align: center; min-width: 140px;">
+                    <div style="text-align: center; min-width: 140px; font-family: sans-serif;">
                         <b style="color: #0f172a; font-size: 15px; display: block; margin-bottom: 3px;">🚌 ${bus.ruta_nombre}</b>
                         <span style="color: #64748b; font-size: 12px;">Unidad: <b>${bus.unidad}</b></span>
                         <hr style="margin: 8px 0; border: 0; border-top: 1px solid #e2e8f0;">
@@ -340,7 +290,7 @@
                 idsActivosRecibidos.push(idString);
                 busesRelevantes.push(bus);
                 
-                // Si el bus ya está en el mapa, actualizamos su posición y su texto de E.T.A.
+                // Animación y dibujo del bus en el mapa
                 if (window.marcadoresBusesReal[idString]) {
                     window.marcadoresBusesReal[idString].setLatLng([bus.lat, bus.lon]);
                     window.marcadoresBusesReal[idString].setPopupContent(contenidoPopup);
@@ -354,7 +304,7 @@
                 }
             });
 
-            // Borrar buses apagados o que se salieron de su ruta
+            // Limpieza: si un bus apaga el GPS o sale de la ruta, lo borramos del mapa
             Object.keys(window.marcadoresBusesReal).forEach(idPin => {
                 if (!idsActivosRecibidos.includes(idPin)) {
                     capaFlotaParada.removeLayer(window.marcadoresBusesReal[idPin]);
@@ -362,92 +312,13 @@
                 }
             });
 
+            // Actualizamos el letrero grande de E.T.A. arriba a la derecha
             calcularETAReal(busesRelevantes);
-        } catch (error) { console.log("Esperando conexión..."); }
+        } catch (error) { console.log("Esperando conexión o GPS..."); }
     }
 
     setInterval(rastrearBusReal, 10000);
     rastrearBusReal();
 
-    // ==========================================
-    // FUNCIONES EXTRA DEL SIMULADOR ADMIN
-    // ==========================================
-    function densificarRuta(puntosOriginales) {
-        if (!puntosOriginales || puntosOriginales.length < 2) return puntosOriginales;
-        let puntosDensos = [];
-        const maxDist = 0.00015; 
-        for (let i = 0; i < puntosOriginales.length - 1; i++) {
-            let p1 = puntosOriginales[i]; let p2 = puntosOriginales[i + 1];
-            let lat1 = parseFloat(p1.lat ?? p1[0]); let lon1 = parseFloat(p1.lon ?? p1.lng ?? p1[1]);
-            let lat2 = parseFloat(p2.lat ?? p2[0]); let lon2 = parseFloat(p2.lon ?? p2.lng ?? p2[1]);
-            if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) continue;
-
-            let dist = Math.sqrt(Math.pow(lat2 - lat1, 2) + Math.pow(lon2 - lon1, 2));
-            let numSegmentos = Math.ceil(dist / maxDist);
-            if (numSegmentos === 0) numSegmentos = 1;
-            for (let j = 0; j < numSegmentos; j++) {
-                puntosDensos.push({ lat: lat1 + (lat2 - lat1) * (j / numSegmentos), lon: lon1 + (lon2 - lon1) * (j / numSegmentos) });
-            }
-        }
-        let ultimo = puntosOriginales[puntosOriginales.length - 1];
-        let latUlt = parseFloat(ultimo.lat ?? ultimo[0]); let lonUlt = parseFloat(ultimo.lon ?? ultimo.lng ?? ultimo[1]);
-        if (!isNaN(latUlt) && !isNaN(lonUlt)) puntosDensos.push({lat: latUlt, lon: lonUlt});
-        return puntosDensos;
-    }
-
-    async function activarModoTest() {
-        if (!rutaCalles || rutaCalles.length === 0) return;
-        simulacionCancelada = false;
-        const btn = document.getElementById('btn-test');
-        if(btn) { btn.disabled = true; btn.innerText = "Simulando..."; }
-        if (busMarker) map.removeLayer(busMarker);
-        
-        let rutaFina = densificarRuta(rutaCalles);
-        if (rutaFina.length === 0) return;
-
-        busMarker = L.circleMarker([rutaFina[0].lat, rutaFina[0].lon], { radius: 8, color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: 1, weight: 2 }).addTo(map);
-        let selectorTiempo = document.getElementById('tiempo-simulacion');
-        const tiempoTotal = selectorTiempo ? parseInt(selectorTiempo.value) * 1000 : 15000; 
-        const paso = Math.max(10, tiempoTotal / rutaFina.length);
-        let paradasVisitadas = new Set();
-        let displayEta = document.getElementById('eta-display');
-
-        let idRutaSimulada = document.getElementById('ruta-simulacion').value;
-        let infoActual = rutasData[idRutaSimulada];
-        let etaOriginal = infoActual ? (parseInt(infoActual.eta) || 30) : 30; 
-
-        for (let i = 0; i < rutaFina.length; i++) {
-            if (simulacionCancelada) break;
-            let cLat = rutaFina[i].lat; let cLon = rutaFina[i].lon;
-            busMarker.setLatLng([cLat, cLon]);
-            
-            if (displayEta && i % 10 === 0) {
-                let porcentajeRestante = (rutaFina.length - 1 - i) / (rutaFina.length - 1);
-                let etaSimulado = Math.ceil(porcentajeRestante * etaOriginal);
-                displayEta.innerHTML = i === rutaFina.length - 1 ? "Llegó" : `${etaSimulado} <span style="font-size: 16px;">min</span>`;
-            }
-
-            let paradaCercana = todasParadas.find(p => Math.sqrt(Math.pow(p.lat - cLat, 2) + Math.pow(p.lon - cLon, 2)) < 0.0020);
-            if (paradaCercana && !paradasVisitadas.has(paradaCercana.nombre)) {
-                paradasVisitadas.add(paradaCercana.nombre);
-                busMarker.setLatLng([paradaCercana.lat, paradaCercana.lon]);
-                busMarker.setStyle({color: '#10b981', fillColor: '#10b981'});
-                busMarker.setRadius(13);
-                await new Promise(r => setTimeout(r, Math.floor(Math.random() * 5000) + 3000)); 
-                busMarker.setLatLng([cLat, cLon]);
-                busMarker.setStyle({color: '#f59e0b', fillColor: '#f59e0b'});
-                busMarker.setRadius(8);
-            } else { await new Promise(r => setTimeout(r, paso)); }
-        }
-        if (!simulacionCancelada && btn) { btn.disabled = false; btn.innerText = "▶ Iniciar"; setTimeout(() => { if(busMarker) map.removeLayer(busMarker); }, 3000); }
-    }
-
-    function reiniciarSimulacion() {
-        simulacionCancelada = true;
-        let btn = document.getElementById('btn-test');
-        if (btn) { btn.disabled = false; btn.innerText = "▶ Iniciar"; }
-        if (busMarker) map.removeLayer(busMarker);
-        cambiarRutaActiva();
-    }
 </script>
 {% endblock %}
