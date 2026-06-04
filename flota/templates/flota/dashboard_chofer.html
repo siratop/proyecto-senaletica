@@ -108,6 +108,13 @@
             if ('wakeLock' in navigator) {
                 wakeLock = await navigator.wakeLock.request('screen');
                 logDebug('Wake Lock: Pantalla Activa.');
+                
+                
+                wakeLock.addEventListener('release', () => {
+                    logDebug('Wake Lock: Liberado por el sistema.');
+                });
+            } else {
+                logDebug('Aviso: Wake Lock no soportado. (Requiere HTTPS)');
             }
         } catch (err) {
             logDebug(`Aviso: Pantalla podría apagarse. (${err.message})`);
@@ -118,10 +125,20 @@
         if (wakeLock !== null) {
             wakeLock.release().then(() => {
                 wakeLock = null;
-                logDebug('Wake Lock: Liberado.');
             });
         }
     }
+
+    
+    document.addEventListener('visibilitychange', async () => {
+        if (transmitiendo && document.visibilityState === 'visible') {
+            await solicitarWakeLock();
+            logDebug('App en primer plano: Retomando transmisión continua.');
+        } else if (transmitiendo && document.visibilityState === 'hidden') {
+            logDebug('⚠️ ADVERTENCIA: App minimizada. El GPS se pausará.');
+        }
+    });
+   
 
     // 2. INICIALIZACIÓN DEL MAPA LEAFLET
     document.addEventListener("DOMContentLoaded", function() {
