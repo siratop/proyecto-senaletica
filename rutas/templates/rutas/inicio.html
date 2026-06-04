@@ -40,12 +40,16 @@
     </div>
 
     <div id="mapa"></div>
-    <div style="margin-bottom: 10px; display: flex; gap: 10px;">
-        <label style="cursor: pointer; background: #f8fafc; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: bold;">
-            <input type="checkbox" id="chk-ruta" checked onchange="toggleCapaRuta()" style="accent-color: #3b82f6;"> Mostrar Línea de Ruta
+    
+    <div style="margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <label style="cursor: pointer; background: #f8fafc; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: bold; flex: 1; text-align: center;">
+            <input type="checkbox" id="chk-ruta" checked onchange="toggleCapaRuta()" style="accent-color: #3b82f6;"> Línea de Ruta
         </label>
-        <label style="cursor: pointer; background: #f8fafc; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: bold;">
-            <input type="checkbox" id="chk-paradas" checked onchange="toggleCapaParadas()" style="accent-color: #f59e0b;"> Mostrar Paradas
+        <label style="cursor: pointer; background: #f8fafc; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: bold; flex: 1; text-align: center;">
+            <input type="checkbox" id="chk-paradas" checked onchange="toggleCapaParadas()" style="accent-color: #f59e0b;"> Paradas
+        </label>
+        <label style="cursor: pointer; background: #f8fafc; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: bold; flex: 1; text-align: center;">
+            <input type="checkbox" id="chk-buses" checked onchange="toggleCapaBuses()" style="accent-color: #10b981;"> Mostrar Buses
         </label>
     </div>
 
@@ -93,6 +97,7 @@
     // CAPAS INDEPENDIENTES PARA LOS BOTONES
     var layerRuta = L.featureGroup().addTo(map);
     var layerParadas = L.featureGroup().addTo(map);
+    let capaFlotaParada = L.layerGroup().addTo(map); // Capa de los buses reales
 
     var markerPrincipal = L.marker([lat, lon]).addTo(map).bindPopup('<b>Tótem: {{ parada.nombre }}</b>').openPopup();
     setTimeout(() => { map.invalidateSize(); }, 500);
@@ -128,18 +133,14 @@
     // ==========================================
     // 3. VARIABLES GLOBALES Y DATOS BLINDADOS
     // ==========================================
-    // Usamos 'escapejs' de Django para asegurar que ningún carácter especial rompa el código
     let rutasDataRaw = '{{ rutas_data_json|escapejs }}';
     let rutasData = rutasDataRaw ? JSON.parse(rutasDataRaw) : {};
 
     let paradasRaw = '{{ todas_paradas_json|escapejs }}';
     let todasParadas = paradasRaw ? JSON.parse(paradasRaw) : [];
-    
     todasParadas.push({lat: lat, lon: lon, nombre: "{{ parada.nombre }}"});
 
-    let rutaCalles = [], busMarker = null;
-    let marcadorDestino = null;
-    let simulacionCancelada = false;
+    let rutaCalles = [], busMarker = null, marcadorDestino = null, simulacionCancelada = false;
 
     const selRuta = document.getElementById('ruta-simulacion');
     const selDestino = document.getElementById('selector-destino');
@@ -151,7 +152,6 @@
         layerRuta.clearLayers();
         layerParadas.clearLayers();
 
-        // Dibujamos las rutas en azul
         Object.values(rutasData).forEach(info => {
             let trazadoBruto = info.trazado;
             let calles = [];
@@ -164,17 +164,12 @@
             }
         });
 
-        // Dibujamos las otras paradas en naranja
         todasParadas.forEach(p => {
             if(p.nombre !== "{{ parada.nombre }}") {
-                L.circleMarker([p.lat, p.lon], {color: '#f59e0b', radius: 6, fillOpacity: 0.8})
-                 .bindPopup(`<b>🚏 ${p.nombre}</b>`)
-                 .addTo(layerParadas);
+                L.circleMarker([p.lat, p.lon], {color: '#f59e0b', radius: 6, fillOpacity: 0.8}).bindPopup(`<b>🚏 ${p.nombre}</b>`).addTo(layerParadas);
             }
         });
     }
-
-    // Ejecutar de inmediato al cargar la página
     inicializarMapaPeaton();
 
     // ==========================================
@@ -190,6 +185,13 @@
         let chk = document.getElementById('chk-paradas');
         if(!chk.checked) map.removeLayer(layerParadas);
         else map.addLayer(layerParadas);
+    }
+
+    // NUEVA FUNCIÓN: Mostrar/Ocultar capa de buses
+    function toggleCapaBuses() {
+        let chk = document.getElementById('chk-buses');
+        if(!chk.checked) map.removeLayer(capaFlotaParada);
+        else map.addLayer(capaFlotaParada);
     }
 
     // ==========================================
@@ -228,7 +230,6 @@
         map.fitBounds(grupo.getBounds(), {padding: [30, 30]});
     }
 
-    // Función del Simulador Administrador
     function cambiarRutaActiva() {
         if (!selRuta || !rutasData[selRuta.value]) return;
         let info = rutasData[selRuta.value];
@@ -248,7 +249,6 @@
         });
     }
 
-    // CÁLCULO DE E.T.A. REAL AUTOMÁTICO
     function calcularETAReal(buses) {
         let displayEta = document.getElementById('eta-display');
         if (!displayEta) return;
@@ -269,7 +269,6 @@
         else displayEta.innerHTML = `${minEta} <span style="font-size: 16px;">min</span>`;
     }
 
-    // SÍNTESIS DE VOZ ARTIFICIAL 
     function reproducirReporteVoz() {
         if ('speechSynthesis' in window) {
             let btn = document.querySelector('button[onclick="reproducirReporteVoz()"]');
@@ -293,7 +292,7 @@
 
             let utterance = new SpeechSynthesisUtterance(mensaje);
             utterance.lang = 'es-VE'; utterance.rate = 0.95; utterance.pitch = 1.0; 
-            utterance.onend = function() { if(btn) btn.innerHTML = "🔊 Escuchar Reporte Voz"; };
+            utterance.onend = function() { if(btn) btn.innerHTML = "🔊 Escuchar Reporte de Voz"; };
             window.speechSynthesis.speak(utterance);
         } else {
             alert("⚠️ Lo sentimos, su navegador actual no soporta la función de voz.");
@@ -301,9 +300,8 @@
     }
 
     // ==========================================
-    // RASTREO SATELITAL REAL Y FILTRO ESTRICTO
+    // RASTREO SATELITAL REAL (AJUSTADO A 10 SEGUNDOS)
     // ==========================================
-    let capaFlotaParada = L.layerGroup().addTo(map);
     window.marcadoresBusesReal = window.marcadoresBusesReal || {};
 
     async function rastrearBusReal() {
@@ -319,9 +317,7 @@
             data.buses.forEach(bus => {
                 let idRutaBus = String(bus.ruta_id);
 
-                // 🔥 LA BARRERA DE SEGURIDAD 🔥
-                // Si la ruta a la que pertenece este bus NO pasa por este tótem, lo ignoramos.
-                // (El backend además ya se encargó de ocultarlo si el bus se salió de su geocerca)
+                // 🔥 FILTRO ESTRICTO: Solo mostrar buses si su ruta está cargada en este Tótem
                 if (!rutasData[idRutaBus]) return;
 
                 let idString = String(bus.id);
@@ -340,7 +336,7 @@
                 }
             });
 
-            // Purga: Si el bus se apagó, se desvió de su calle principal, o pasó a otra ruta, se borra.
+            // Borrar buses apagados o que se salieron de su ruta
             Object.keys(window.marcadoresBusesReal).forEach(idPin => {
                 if (!idsActivosRecibidos.includes(idPin)) {
                     capaFlotaParada.removeLayer(window.marcadoresBusesReal[idPin]);
@@ -348,12 +344,12 @@
                 }
             });
 
-            // Calcular E.T.A. solo con los buses que realmente vienen hacia acá
             calcularETAReal(busesRelevantes);
         } catch (error) { console.log("Esperando conexión..."); }
     }
 
-    setInterval(rastrearBusReal, 4000);
+    // 🔥 FRECUENCIA RELAJADA: Actualiza cada 10 segundos en lugar de 4
+    setInterval(rastrearBusReal, 10000);
     rastrearBusReal();
 
     // ==========================================
