@@ -109,7 +109,6 @@
                 wakeLock = await navigator.wakeLock.request('screen');
                 logDebug('Wake Lock: Pantalla Activa.');
                 
-                
                 wakeLock.addEventListener('release', () => {
                     logDebug('Wake Lock: Liberado por el sistema.');
                 });
@@ -129,7 +128,6 @@
         }
     }
 
-    
     document.addEventListener('visibilitychange', async () => {
         if (transmitiendo && document.visibilityState === 'visible') {
             await solicitarWakeLock();
@@ -138,7 +136,6 @@
             logDebug('⚠️ ADVERTENCIA: App minimizada. El GPS se pausará.');
         }
     });
-   
 
     // 2. INICIALIZACIÓN DEL MAPA LEAFLET
     document.addEventListener("DOMContentLoaded", function() {
@@ -178,10 +175,11 @@
                 solicitarWakeLock();
                 logDebug('Buscando satélites...');
 
+                // CORRECCIÓN APLICADA: 20 segundos de timeout y 5 segundos de caché máxima
                 watchId = navigator.geolocation.watchPosition(actualizarPosicion, errorGPS, {
                     enableHighAccuracy: true,
-                    maximumAge: 0,
-                    timeout: 5000
+                    maximumAge: 5000,
+                    timeout: 20000
                 });
             } else {
                 alert("El GPS no es compatible con este dispositivo.");
