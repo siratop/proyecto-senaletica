@@ -12,7 +12,7 @@ from django.utils import timezone
 from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth import logout
-from django.db import IntegrityError 
+from django.db import IntegrityError # Importante para cazar errores de la BD
 
 # =========================================================
 # 1. REGISTRO Y GESTIÓN DE CUENTAS
@@ -162,7 +162,7 @@ def ficha_monitoreo_usuario(request, user_id):
     }
     return render(request, 'usuarios/ficha_monitoreo.html', contexto)
 
-
+# 🔥 FUNCIÓN GUARDAR NFC BLINDADA CONTRA ERRORES 500 🔥
 @staff_member_required
 def guardar_nfc(request):
     if request.method == 'POST':
