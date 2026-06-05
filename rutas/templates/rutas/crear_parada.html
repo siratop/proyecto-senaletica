@@ -122,7 +122,7 @@
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
             L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-            // Esto es magia: Fuerza al mapa a dibujarse completo tras cargar la pantalla
+            
             map.invalidateSize();
 
             var marker = null;
@@ -135,7 +135,7 @@
                 });
             }
 
-            // Click para añadir pin nuevo
+          
             map.on('click', function(e) {
                 if (marker) {
                     marker.setLatLng(e.latlng);

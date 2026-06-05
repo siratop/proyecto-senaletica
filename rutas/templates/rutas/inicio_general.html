@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 <style>
-    /* Estilos para los Menús Desplegables */
+    
     .dropdown-mck { position: relative; display: inline-block; }
     .dropdown-content-mck { 
         display: none; position: absolute; right: 0; top: 100%;
@@ -725,7 +725,7 @@
         let idSeleccionado = e.target.value;
         
         // Limpiamos las RUTAS. 
-        // NOTA: NO limpiamos las paradas, dejamos que permanezcan en pantalla siempre.
+       
         layerRutas.clearLayers();
         
         if (idSeleccionado === 'todas') {
@@ -740,7 +740,7 @@
             }
         }
         
-        // Aseguramos que los checkboxes sigan encendidos (incluyendo el de paradas)
+       
         if (!checkboxRutas.checked) {
             checkboxRutas.checked = true;
             mapGlobal.addLayer(layerRutas);

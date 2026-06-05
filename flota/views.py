@@ -438,10 +438,10 @@ def leer_alertas_chofer(request):
     """El celular del chofer pregunta cada 15 segundos si hay mensajes nuevos"""
     unidad = Unidad.objects.filter(conductor=request.user).first()
     if unidad:
-        # Buscamos el mensaje más antiguo que no haya leído
+   
         mensaje = MensajeFlota.objects.filter(unidad=unidad, leido=False).order_by('fecha_envio').first()
         if mensaje:
-            mensaje.leido = True # Lo marcamos como leído para que no vuelva a salir
+            mensaje.leido = True 
             mensaje.save()
             return JsonResponse({'hay_alerta': True, 'mensaje': mensaje.mensaje})
             
@@ -451,7 +451,7 @@ def leer_alertas_chofer(request):
 def reportar_averia(request, unidad_id):
     """Recibe la alerta del chofer, marca el bus como averiado y lo saca del mapa"""
     if request.method == 'POST':
-        # Buscamos la unidad asegurándonos de que pertenezca al chofer que presionó el botón
+       
         unidad = Unidad.objects.filter(id=unidad_id, conductor=request.user).first()
         
         if unidad:
@@ -500,9 +500,7 @@ def api_buses_activos(request):
         except (ValueError, TypeError):
             continue
 
-        # 🔥 BYPASS DE GEOCERCA 🔥
-        # Quitamos la barrera estricta de los 250 metros. Ahora el bus SIEMPRE se enviará al mapa.
-        # El código HTML del Tótem ya tiene el filtro inteligente por ID de ruta.
+      
         
         data.append({
             'id': bus.id,
