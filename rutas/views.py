@@ -53,9 +53,15 @@ def inicio_general(request):
 
     rutas = Ruta.objects.all()
     avisos_generales = AlertaOperativa.objects.filter(activa=True, tipo='general')
-    incidentes_mapa = AlertaOperativa.objects.filter(activa=True).exclude(tipo='general')
-    campanas_activas = Campana.objects.filter(activa=True)
     
+    # 🔥 CANDADO DE SEGURIDAD: Solo los administradores (staff) ven los incidentes S.O.S.
+    if request.user.is_staff:
+        incidentes_mapa = AlertaOperativa.objects.filter(activa=True).exclude(tipo='general')
+    else:
+        # Si es un ciudadano normal, la lista va vacía y no ve nada
+        incidentes_mapa = []
+
+    campanas_activas = Campana.objects.filter(activa=True)
     
     lista_patrocinadores = Patrocinador.objects.all()
     
@@ -69,7 +75,6 @@ def inicio_general(request):
             'rutas_asociadas': list(p.rutas.values_list('id', flat=True))
         })
 
-    
     buses_activos = []
     for u in Unidad.objects.filter(estado__in=['operativa', 'activo']):
         if u.latitud_actual and u.longitud_actual:

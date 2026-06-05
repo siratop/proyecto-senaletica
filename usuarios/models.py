@@ -35,7 +35,8 @@ class RegistroActividad(models.Model):
 
 class TarjetaNFC(models.Model):
     usuario = models.OneToOneField(User, on_delete=models.CASCADE)
-    codigo_uid = models.CharField(max_length=50, unique=True)
+  
+    codigo_uid = models.CharField(max_length=255, unique=True)
     activa = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
@@ -85,4 +86,3 @@ class SolicitudOperador(models.Model):
 
     def __str__(self):
         return f"Solicitud de {self.usuario.username}"
-  
