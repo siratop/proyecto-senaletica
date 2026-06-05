@@ -19,7 +19,7 @@
             <span style="color: #64748b; font-size: 13px; font-weight: bold;">
                 Estación QR: {{ parada.codigo|default:"QR-101" }} 
                 <span style="margin: 0 5px; color: #cbd5e1;">|</span> 
-                <span id="contador-rutas">-- Rutas</span>
+                <span id="contador-buses" style="color: #64748b;">Rastreando flota...</span>
             </span>
         </div>
         <div style="text-align: right;">
@@ -132,14 +132,7 @@
 
     todasParadas.push({lat: lat, lon: lon, nombre: "{{ parada.nombre }}"});
 
-    // ✨ CORRECCIÓN TEXTO: Mostrar "Rutas Activas" ✨
-    let numRutas = Object.keys(rutasData).length;
-    let contadorDiv = document.getElementById('contador-rutas');
-    if(contadorDiv) {
-        let textoPlural = numRutas !== 1 ? 's' : '';
-        // Se cambió la palabra "Asignada" por "Activa"
-        contadorDiv.innerHTML = `<span style="color:#10b981;"><b>${numRutas}</b> Ruta${textoPlural} Activa${textoPlural}</span>`;
-    }
+   
 
     let rutaCalles = [], busMarker = null, marcadorDestino = null;
     const selDestino = document.getElementById('selector-destino');
@@ -253,7 +246,7 @@
 
     async function rastrearBusReal() {
         try {
-            // Le pedimos los buses a la API (pasamos modo_admin=true solo para evadir la geocerca estricta en el entorno de pruebas local si es necesario, pero el JS se encarga del filtro)
+            
             let urlSinCache = `/flota/api/buses-activos/?t=` + new Date().getTime();
             let response = await fetch(urlSinCache);
             if (!response.ok) return;
@@ -262,16 +255,15 @@
             let idsActivosRecibidos = [];
             let busesRelevantes = [];
 
-            // Extraemos los IDs de las rutas que pasan por este tótem asegurándonos de que sean cadenas de texto
+           
             let rutasTotemIds = Object.keys(rutasData).map(String);
 
             data.buses.forEach(bus => {
                 let idRutaBus = String(bus.ruta_id);
 
-                // 🔥 FILTRO ESTRICTO MEJORADO: Si el ID de la ruta del bus no coincide con las rutas del Tótem, lo ignoramos.
                 if (!rutasTotemIds.includes(idRutaBus)) return;
 
-                // ✨ NUEVO: Tarjeta de E.T.A. al darle clic al icono del autobús
+             
                 let distKm = Math.acos(Math.sin(lat*Math.PI/180)*Math.sin(bus.lat*Math.PI/180) + Math.cos(lat*Math.PI/180)*Math.cos(bus.lat*Math.PI/180)*Math.cos((bus.lon-lon)*Math.PI/180)) * 6371;
                 let tiempoMinutos = Math.ceil((distKm / 15) * 60);
                 let textoEtaPopup = tiempoMinutos <= 1 ? "¡Llegando!" : `${tiempoMinutos} min aprox.`;
@@ -312,7 +304,18 @@
                 }
             });
 
-            // Actualizamos el letrero grande de E.T.A. arriba a la derecha
+          
+            let numBuses = busesRelevantes.length;
+            let divContador = document.getElementById('contador-buses');
+            if (divContador) {
+                if (numBuses === 0) {
+                    divContador.innerHTML = `<span style="color:#ef4444;"><b>0</b> buses activos</span>`;
+                } else if (numBuses === 1) {
+                    divContador.innerHTML = `<span style="color:#10b981;"><b>1</b> bus activo en ruta</span>`;
+                } else {
+                    divContador.innerHTML = `<span style="color:#10b981;"><b>${numBuses}</b> buses activos en ruta</span>`;
+                }
+            }
             calcularETAReal(busesRelevantes);
         } catch (error) { console.log("Esperando conexión o GPS..."); }
     }

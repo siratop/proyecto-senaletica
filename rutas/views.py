@@ -573,62 +573,61 @@ def editar_campana(request, campana_id):
 # =========================================================
 # LÓGICA INTELIGENTE DEL BOTÓN S.O.S.
 # =========================================================
+# =========================================================
+# LÓGICA INTELIGENTE DEL BOTÓN S.O.S. (CORREGIDA)
+# =========================================================
 def alerta_emergencia(request, parada_id):
     parada = get_object_or_404(Parada, id=parada_id)
     
-    # 1. Preparar la lista de destinatarios dinámicamente
+    # 1. Identificar al ciudadano
+    ciudadano_nombre = "Un ciudadano anónimo"
+    if request.user.is_authenticated:
+        ciudadano_nombre = f"{request.user.first_name} {request.user.last_name} ({request.user.username})"
+
+    # 2. Guardar en Base de Datos para que salga en el mapa del Admin inmediatamente
+    mensaje_sos = f"🚨 PÁNICO S.O.S. activado por {ciudadano_nombre} en la estación: {parada.nombre} (QR: {parada.codigo})"
+    try:
+        AlertaOperativa.objects.create(
+            tipo='incidente', mensaje=mensaje_sos, latitud=parada.latitud, longitud=parada.longitud, activa=True
+        )
+    except Exception as e:
+        print(f"Error guardando SOS en DB: {e}")
+        
+    # 3. Preparar destinatarios
     destinatarios = []
-    
-    # A) Correos de los Administradores (El sistema de control)
     admins = User.objects.filter(is_staff=True, email__isnull=False).exclude(email='')
     for admin in admins:
         destinatarios.append(admin.email)
         
-    # B) Correo de emergencia del Ciudadano (El familiar del NFC)
-    ciudadano_nombre = "Un ciudadano anónimo"
     if request.user.is_authenticated:
-        ciudadano_nombre = f"{request.user.first_name} {request.user.last_name} ({request.user.username})"
         try:
-            # Traemos el correo que el usuario guardó al crear su NFC
             correo_familiar = request.user.perfil.correo_emergencia
-            if correo_familiar:
-                destinatarios.append(correo_familiar)
-        except Exception:
-            pass 
+            if correo_familiar: destinatarios.append(correo_familiar)
+        except: pass 
             
-    # Protección por si nadie tiene correo configurado
     if not destinatarios:
         destinatarios = ['seguridad_respaldo@senaletica.com']
         
-    # 2. Armar un mensaje profesional con enlace a Google Maps
+    # 4. Armar mensaje
     asunto = f"🚨 EMERGENCIA SOS - Tótem: {parada.nombre}"
     enlace_maps = f"https://www.google.com/maps?q={parada.latitud},{parada.longitud}"
-    
     mensaje = f"""
     SE HA ACTIVADO EL BOTÓN DE PÁNICO EN LA RED SEÑALÉTICA+.
-    
     👤 Usuario en peligro: {ciudadano_nombre}
-    
     📍 Ubicación del Incidente:
     Parada: {parada.nombre}
     Código QR: {parada.codigo}
-    
     🗺️ Ver en el mapa (Rastreo GPS):
     {enlace_maps}
-    
-    Por favor, comuníquese con el usuario o envíe asistencia de inmediato.
     """
-    
-    #  el correo "robot" de tu sistema (r configurarlo en settings.py)
     remitente = 'francisco.fonseca.farias@gmail.com' 
     
-    # 3. Disparar el correo
+    # 5. Disparar correo (fail_silently=True evita el Error 500)
     try:
-        send_mail(asunto, mensaje, remitente, destinatarios, fail_silently=False)
-        messages.success(request, "⚠️ ALERTA SOS ENVIADA: Las autoridades y sus contactos de emergencia han sido notificados con su ubicación GPS.")
+        send_mail(asunto, mensaje, remitente, destinatarios, fail_silently=True)
+        messages.success(request, "⚠️ ALERTA SOS ENVIADA: La central y tus contactos han sido notificados.")
     except Exception as e:
         print(f"Error de envío: {e}")
-        messages.error(request, "Error de red local: La alerta se guardó en la central, pero el envío del correo falló.")
+        messages.error(request, "La alerta se guardó en la central, pero el envío por correo falló.")
 
-    # Redirigir de vuelta a la parada
     return redirect('inicio_peaton', parada_id=parada.id)
