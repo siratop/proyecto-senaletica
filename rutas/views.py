@@ -16,7 +16,7 @@ from flota.models import Unidad
 from usuarios.models import PerfilUsuario
 from django.core.mail import send_mail
 from django.contrib.auth.models import User 
-
+import threading
 # =========================================================
 # 1. FUNCIONES SATELITALES Y MATEMÁTICAS (Core)
 # =========================================================
@@ -578,9 +578,13 @@ def editar_campana(request, campana_id):
 # =========================================================
 # LÓGICA INTELIGENTE DEL BOTÓN S.O.S.
 # =========================================================
-# =========================================================
-# LÓGICA INTELIGENTE DEL BOTÓN S.O.S. (CORREGIDA)
-# =========================================================
+def enviar_correo_sos_background(asunto, mensaje, remitente, destinatarios):
+    try:
+        from django.core.mail import send_mail
+        send_mail(asunto, mensaje, remitente, destinatarios, fail_silently=True)
+    except Exception as e:
+        print(f"Error en envío de correo de fondo: {e}")
+
 def alerta_emergencia(request, parada_id):
     parada = get_object_or_404(Parada, id=parada_id)
     
@@ -589,7 +593,7 @@ def alerta_emergencia(request, parada_id):
     if request.user.is_authenticated:
         ciudadano_nombre = f"{request.user.first_name} {request.user.last_name} ({request.user.username})"
 
-    # 2. Guardar en Base de Datos para que salga en el mapa del Admin inmediatamente
+    # 2. Guardar en Base de Datos para el mapa del Admin
     mensaje_sos = f"🚨 PÁNICO S.O.S. activado por {ciudadano_nombre} en la estación: {parada.nombre} (QR: {parada.codigo})"
     try:
         AlertaOperativa.objects.create(
@@ -627,12 +631,10 @@ def alerta_emergencia(request, parada_id):
     """
     remitente = 'francisco.fonseca.farias@gmail.com' 
     
-    # 5. Disparar correo (fail_silently=True evita el Error 500)
-    try:
-        send_mail(asunto, mensaje, remitente, destinatarios, fail_silently=True)
-        messages.success(request, "⚠️ ALERTA SOS ENVIADA: La central y tus contactos han sido notificados.")
-    except Exception as e:
-        print(f"Error de envío: {e}")
-        messages.error(request, "La alerta se guardó en la central, pero el envío por correo falló.")
+    # 5. Disparar correo EN SEGUNDO PLANO (No bloquea el servidor)
+    hilo_correo = threading.Thread(target=enviar_correo_sos_background, args=(asunto, mensaje, remitente, destinatarios))
+    hilo_correo.start()
+    
+    messages.success(request, "⚠️ ALERTA SOS ENVIADA: La central y tus contactos han sido notificados.")
 
     return redirect('inicio_peaton', parada_id=parada.id)

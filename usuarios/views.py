@@ -1,4 +1,4 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
@@ -6,15 +6,13 @@ from django.views.generic import CreateView, ListView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 import datetime
 from django.contrib.admin.views.decorators import staff_member_required
-from .models import Dependiente, RegistroActividad
-from django.shortcuts import redirect
-from .models import TarjetaNFC 
+from .models import Dependiente, RegistroActividad, TarjetaNFC, PerfilUsuario, SolicitudOperador
 from .forms import RegistroInclusivoForm
 from django.utils import timezone
 from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth import logout
-from .models import PerfilUsuario, SolicitudOperador
+from django.db import IntegrityError 
 
 # =========================================================
 # 1. REGISTRO Y GESTIÓN DE CUENTAS
@@ -68,7 +66,6 @@ class DependienteCreateView(CreateView):
     success_url = reverse_lazy('dashboard_ciudadano')
 
     def form_valid(self, form):
-      
         form.instance.tutor = self.request.user
         return super().form_valid(form)
 
@@ -83,9 +80,6 @@ def ficha_sos_publica(request, token_nfc):
     dependiente = get_object_or_404(Dependiente, token_nfc=token_nfc)
     
     # ======= LÓGICA DE ALERTA AUTOMÁTICA =======
-    
-    # Por ahora, simularemos la alerta imprimiéndola en la consola del servidor:
-    
     hora_actual = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print("\n" + "="*50)
     print("🚨 ¡ALERTA SOS ACTIVADA POR ESCANEO NFC! 🚨")
@@ -168,16 +162,43 @@ def ficha_monitoreo_usuario(request, user_id):
     }
     return render(request, 'usuarios/ficha_monitoreo.html', contexto)
 
+
+@staff_member_required
 def guardar_nfc(request):
     if request.method == 'POST':
         usuario_id = request.POST.get('usuario_id')
         codigo_nfc = request.POST.get('codigo_nfc')
         
-        usuario = User.objects.get(id=usuario_id)
-       
-        TarjetaNFC.objects.create(usuario=usuario, codigo_uid=codigo_nfc, activa=True)
-        
-        return redirect('asignar_nfc')
+        # Validar que los campos no vengan vacíos
+        if not usuario_id or not codigo_nfc:
+            messages.error(request, "Error: Debe seleccionar un usuario y colocar un código NFC.")
+            return redirect('asignar_nfc')
+            
+        try:
+            usuario = User.objects.get(id=usuario_id)
+            
+            # Verificamos si este usuario ya tiene una tarjeta (OneToOneField)
+            if hasattr(usuario, 'tarjetanfc'):
+                # Actualizamos la tarjeta existente
+                usuario.tarjetanfc.codigo_uid = codigo_nfc
+                usuario.tarjetanfc.activa = True
+                usuario.tarjetanfc.save()
+                messages.success(request, f"Tarjeta NFC de {usuario.username} actualizada correctamente.")
+            else:
+                # Creamos una tarjeta nueva
+                TarjetaNFC.objects.create(usuario=usuario, codigo_uid=codigo_nfc, activa=True)
+                messages.success(request, f"Tarjeta NFC vinculada a {usuario.username} con éxito.")
+                
+        except User.DoesNotExist:
+            messages.error(request, "Error: El usuario seleccionado no existe en el sistema.")
+        except IntegrityError:
+            # Si el código NFC (link) ya está en uso por otra persona
+            messages.error(request, "Error crítico: El código o enlace NFC ya está asignado a otro usuario distinto.")
+        except Exception as e:
+            # Captura de errores inesperados (evita el 500)
+            print(f"Error inesperado al guardar NFC: {e}")
+            messages.error(request, "Error interno al procesar la vinculación NFC.")
+            
     return redirect('asignar_nfc')
 
 @login_required
