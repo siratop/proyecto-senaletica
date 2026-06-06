@@ -70,8 +70,17 @@ class AlertaOperativa(models.Model):
     longitud = models.CharField(max_length=50, null=True, blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
+   
+    dependiente = models.ForeignKey(
+        'usuarios.Dependiente', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='alertas_operativas'
+    )
+
     def __str__(self):
-        return f"{self.get_tipo_display()} - {self.mensaje[:30]}"    
+        return f"{self.get_tipo_display()} - {self.mensaje[:30]}"  
     
 class Sugerencia(models.Model):
     TIPO_REPORTES = [
