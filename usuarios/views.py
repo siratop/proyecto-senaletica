@@ -161,8 +161,9 @@ def edicion_avanzada_usuarios(request):
 @staff_member_required
 def asignar_nfc(request):
     """Vista para el formulario de vinculación de tarjetas NFC"""
-    usuarios = User.objects.all()
-    return render(request, 'usuarios/asignar_nfc.html', {'usuarios': usuarios})
+  
+    dependientes = Dependiente.objects.all().select_related('tutor')
+    return render(request, 'usuarios/asignar_nfc.html', {'dependientes': dependientes})
 
 @staff_member_required
 def auditoria_nfc(request):
