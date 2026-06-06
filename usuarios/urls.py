@@ -9,7 +9,7 @@ urlpatterns = [
     
     # --- LA FICHA DE EMERGENCIA PÚBLICA (NFC) ---
 
-    path('sos/<uuid:token_nfc>/', views.ficha_sos_publica, name='ficha_sos_publica'),
+   path('sos/alerta/<uuid:token_nfc>/', views.ficha_sos_publica, name='ficha_sos_publica'),
     
     # --- CRUD ADMINISTRATIVO (Panel de Cuentas Base) ---
     path('gestionar/cuentas/', views.PerfilUsuarioListView.as_view(), name='listar_usuarios'),
@@ -21,5 +21,6 @@ urlpatterns = [
     path('nfc/auditoria/', views.auditoria_nfc, name='auditoria_nfc'),
     path('nfc/guardar/', views.guardar_nfc, name='guardar_nfc'),
     path('mi-perfil/', views.mi_perfil, name='mi_perfil'),
+    
 
 ]
