@@ -54,7 +54,7 @@ def inicio_general(request):
     rutas = Ruta.objects.all()
     avisos_generales = AlertaOperativa.objects.filter(activa=True, tipo='general')
     
-    # 🔥 CANDADO DE SEGURIDAD: Solo los administradores (staff) ven los incidentes S.O.S.
+    
     if request.user.is_staff:
         incidentes_mapa = AlertaOperativa.objects.filter(activa=True).exclude(tipo='general')
     else:
@@ -161,7 +161,7 @@ def inicio_peaton(request, parada_id):
         'tiempo_estimado': tiempo_estimado_default,
         'patrocinador': patrocinador_actual,
         'patrocinadores': patrocinadores,
-        # Enviamos los diccionarios limpios, Django se encargará del resto
+    
         'rutas_data_json': rutas_data, 
         'todas_paradas_json': todas_paradas,
     }

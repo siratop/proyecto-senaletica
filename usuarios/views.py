@@ -75,17 +75,19 @@ class DependienteCreateView(CreateView):
         context['subtitulo'] = 'Configure los datos médicos y genere su enlace criptográfico NFC.'
         return context
 
+from django.core.mail import send_mail
+from django.conf import settings
+from django.shortcuts import render, get_object_or_404
+
 def ficha_sos_publica(request, token_nfc):
     """Pantalla pública de asistencia para personas extraviadas (NFC)"""
     
     dependiente = get_object_or_404(Dependiente, token_nfc=token_nfc)
     
-    
     from rutas.models import AlertaOperativa  
     
     tutor_nombre = f"{dependiente.tutor.first_name} {dependiente.tutor.last_name}".strip() or dependiente.tutor.username
     
-   
     mensaje_sos = (
         f"🚨 INCIDENTE NFC: Se ha escaneado la pulsera de {dependiente.nombre_completo}. "
         f"Parentesco: {dependiente.get_relacion_display()}. "
@@ -96,7 +98,7 @@ def ficha_sos_publica(request, token_nfc):
     alerta_id = None 
     
     try:
-        
+        # 1. Guardar la alerta en el mapa del Centro de Control
         alerta_creada = AlertaOperativa.objects.create(
             tipo='incidente',
             mensaje=mensaje_sos,
@@ -107,10 +109,35 @@ def ficha_sos_publica(request, token_nfc):
         )
         alerta_id = alerta_creada.id 
         print(f" Alerta NFC guardada en Base de Datos para: {dependiente.nombre_completo} (ID: {alerta_id})")
-    except Exception as e:
-        print(f"Error al registrar alerta NFC en la base de datos: {e}")
+        
+        
+        asunto_correo = f"🚨 ALERTA DE EMERGENCIA: {dependiente.nombre_completo} necesita ayuda"
+        cuerpo_correo = f"""
+SISTEMA SEÑALÉTICA+ - ALERTA VITAL
+===================================
+Se acaba de escanear la pulsera NFC de seguridad de su familiar:
 
-   
+Familiar: {dependiente.nombre_completo}
+Condición Registrada: {dependiente.condicion_medica}
+
+Si el rescatista comparte su ubicación (GPS), nuestro sistema lo reflejará en el Centro de Operaciones.
+Por favor, manténgase atento a su número principal: {dependiente.telefono_emergencia}
+
+Este es un mensaje automático de seguridad.
+"""
+        # Ejecutamos el envío del correo electrónico
+        send_mail(
+            asunto_correo,
+            cuerpo_correo,
+            settings.DEFAULT_FROM_EMAIL,
+            [dependiente.tutor.email], # Extraemos el correo real del padre/tutor
+            fail_silently=True
+        )
+        print("Correo de emergencia enviado al tutor con éxito.")
+
+    except Exception as e:
+        print(f"Error al registrar alerta NFC o enviar correo: {e}")
+
     contexto = {
         'dependiente': dependiente,
         'alerta_id': alerta_id  

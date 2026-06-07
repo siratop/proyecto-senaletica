@@ -525,87 +525,134 @@
     }
 
     // ==========================================
+    // MOTOR MATEMÁTICO DE TIEMPO ESTIMADO (ETA)
+    // ==========================================
+    function calcularETA(latBus, lonBus, latParada, lonParada) {
+        const R = 6371; // Radio de la Tierra en kilómetros
+        const dLat = (latParada - latBus) * Math.PI / 180;
+        const dLon = (lonParada - lonBus) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(latBus * Math.PI / 180) * Math.cos(latParada * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const distanciaKm = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+
+        // Asumimos velocidad promedio urbana por paradas y tráfico (ej. 25 km/h en la ciudad)
+        const velocidadPromedioKmh = 25; 
+        const tiempoHoras = distanciaKm / velocidadPromedioKmh;
+        const tiempoMinutos = Math.round(tiempoHoras * 60);
+
+        return { distancia: distanciaKm.toFixed(1), minutos: tiempoMinutos };
+    }
+
+    // ==========================================
     // CONTROLADOR DE FLOTA
     // ==========================================
     async function actualizarFlotaEnMapa() {
-    let checkboxFlota = document.getElementById('filtro-flota');
-    if(!checkboxFlota || !checkboxFlota.checked) return;
+        let checkboxFlota = document.getElementById('filtro-flota');
+        if(!checkboxFlota || !checkboxFlota.checked) return;
 
-    try {
-       
-        let urlAPI = '/flota/api/buses-activos/';
-        
-        let params = new URLSearchParams();
-        params.append('t', new Date().getTime()); 
-        
-        let btnAdmin = document.getElementById('filtro-admin-flota');
-        if (btnAdmin && btnAdmin.checked) {
-            params.append('modo_admin', 'true');
-        }
-
-        let urlFinal = `${urlAPI}?${params.toString()}`;
-        
-        let response = await fetch(urlFinal, {
-            method: 'GET',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            credentials: 'same-origin' 
-        }); 
-        
-        if (!response.ok) return;
-        let data = await response.json();
-
-        let selectorBus = document.getElementById('filtro-bus-especifico');
-        let busSeleccionado = selectorBus ? selectorBus.value : "todos";
-        
-        let selectorRuta = document.getElementById('selector-ruta-unica');
-        let rutaSeleccionada = selectorRuta ? selectorRuta.value : "todas";
-
-        let idsActivos = [];
-
-        data.buses.forEach(bus => {
-            idsActivos.push(bus.id);
+        try {
+            let urlAPI = '/flota/api/buses-activos/';
             
-            let visiblePorBus = (busSeleccionado === "todos" || busSeleccionado == bus.id);
-            let visiblePorRuta = (rutaSeleccionada === "todas" || bus.ruta_id == rutaSeleccionada);
-            let visible = visiblePorBus && visiblePorRuta;
+            let params = new URLSearchParams();
+            params.append('t', new Date().getTime()); 
+            
+            let btnAdmin = document.getElementById('filtro-admin-flota');
+            if (btnAdmin && btnAdmin.checked) {
+                params.append('modo_admin', 'true');
+            }
 
-            if (marcadoresBuses[bus.id]) {
+            let urlFinal = `${urlAPI}?${params.toString()}`;
+            
+            let response = await fetch(urlFinal, {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin' 
+            }); 
+            
+            if (!response.ok) return;
+            let data = await response.json();
+
+            let selectorBus = document.getElementById('filtro-bus-especifico');
+            let busSeleccionado = selectorBus ? selectorBus.value : "todos";
+            
+            let selectorRuta = document.getElementById('selector-ruta-unica');
+            let rutaSeleccionada = selectorRuta ? selectorRuta.value : "todas";
+
+            let idsActivos = [];
+
+            data.buses.forEach(bus => {
+                idsActivos.push(bus.id);
+                
+                let visiblePorBus = (busSeleccionado === "todos" || busSeleccionado == bus.id);
+                let visiblePorRuta = (rutaSeleccionada === "todas" || bus.ruta_id == rutaSeleccionada);
+                let visible = visiblePorBus && visiblePorRuta;
+
                 if(visible) {
-                    marcadoresBuses[bus.id].setLatLng([bus.lat, bus.lon]);
-                    if(!layerFlota.hasLayer(marcadoresBuses[bus.id])) {
-                        marcadoresBuses[bus.id].addTo(layerFlota);
+                    // 1. Encontrar la parada más cercana a este bus
+                    let paradaCercana = null;
+                    let minimaDistancia = Infinity;
+
+                    for (let id in marcadoresParadas) {
+                        let coords = marcadoresParadas[id].marcador.getLatLng();
+                        let calculo = calcularETA(bus.lat, bus.lon, coords.lat, coords.lng);
+                        if (calculo.distancia < minimaDistancia) {
+                            minimaDistancia = calculo.distancia;
+                            paradaCercana = { nombre: marcadoresParadas[id].nombre, ...calculo };
+                        }
+                    }
+
+                    // 2. Construir el texto del popup con el ETA
+                    let textoETA = "";
+                    if (paradaCercana && paradaCercana.distancia < 10) {
+                        let tiempoTxt = paradaCercana.minutos < 1 ? "Llegando..." : `~${paradaCercana.minutos} min`;
+                        textoETA = `<hr style="margin:5px 0;"><div style="font-size:11px; color:#10b981;"><b>Próxima:</b> ${paradaCercana.nombre}<br><i class="fa-solid fa-stopwatch"></i> A ${paradaCercana.distancia} km (${tiempoTxt})</div>`;
+                    }
+                    
+                    let popupContent = `<b>🚌 Unidad ${bus.unidad}</b><br>Ruta: ${bus.ruta_nombre}<br>Chofer: ${bus.conductor}${textoETA}`;
+
+                    if (marcadoresBuses[bus.id]) {
+                        // El marcador existe: actualizamos su posición y su cartel de tiempo
+                        marcadoresBuses[bus.id].setLatLng([bus.lat, bus.lon]);
+                        marcadoresBuses[bus.id].setPopupContent(popupContent);
+                        if(!layerFlota.hasLayer(marcadoresBuses[bus.id])) {
+                            marcadoresBuses[bus.id].addTo(layerFlota);
+                        }
+                    } else {
+                        // El marcador es nuevo
+                        let busIcon = L.divIcon({
+                            className: 'bus-icon',
+                            html: '<div style="background: #d97706; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fa-solid fa-bus"></i></div>',
+                            iconSize: [28, 28],
+                            iconAnchor: [14, 14]
+                        });
+
+                        let nuevoMarcador = L.marker([bus.lat, bus.lon], {icon: busIcon})
+                                             .bindPopup(popupContent);
+                        
+                        marcadoresBuses[bus.id] = nuevoMarcador;
+                        nuevoMarcador.addTo(layerFlota);
                     }
                 } else {
-                    layerFlota.removeLayer(marcadoresBuses[bus.id]);
+                    // Si no cumple el filtro, se oculta
+                    if (marcadoresBuses[bus.id]) {
+                        layerFlota.removeLayer(marcadoresBuses[bus.id]);
+                    }
                 }
-            } else {
-                if(visible) {
-                    let busIcon = L.divIcon({
-                        className: 'bus-icon',
-                        html: '<div style="background: #d97706; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fa-solid fa-bus"></i></div>',
-                        iconSize: [28, 28],
-                        iconAnchor: [14, 14]
-                    });
+            });
 
-                    let nuevoMarcador = L.marker([bus.lat, bus.lon], {icon: busIcon})
-                                         .bindPopup(`<b>🚌 Unidad ${bus.unidad}</b><br>Ruta: ${bus.ruta_nombre}<br>Chofer: ${bus.conductor}`);
-                    
-                    marcadoresBuses[bus.id] = nuevoMarcador;
-                    nuevoMarcador.addTo(layerFlota);
+            // Limpiar los buses que se desconectaron de la red
+            Object.keys(marcadoresBuses).forEach(id => {
+                if (!idsActivos.includes(parseInt(id))) {
+                    layerFlota.removeLayer(marcadoresBuses[id]);
+                    delete marcadoresBuses[id];
                 }
-            }
-        });
-
-        Object.keys(marcadoresBuses).forEach(id => {
-            if (!idsActivos.includes(parseInt(id))) {
-                layerFlota.removeLayer(marcadoresBuses[id]);
-                delete marcadoresBuses[id];
-            }
-        });
-    } catch(e) {
-        console.log("Sincronizando coordenadas con el satélite urbano...");
+            });
+        } catch(e) {
+            console.log("Sincronizando coordenadas con el satélite urbano...");
+        }
     }
-}
+
     // ==========================================
     // 2. INICIALIZACIÓN AL CARGAR LA PÁGINA
     // ==========================================
@@ -638,8 +685,10 @@
         
         marker_{{ parada.id }}.bindPopup(popupParada_{{ parada.id }}).addTo(layerParadas);
         
+        
         marcadoresParadas[{{ parada.id }}] = {
             marcador: marker_{{ parada.id }},
+            nombre: "{{ parada.nombre|escapejs }}", 
             rutas: [{% for r in parada.rutas.all %}{{ r.id }},{% endfor %}]
         };
     {% endfor %}
