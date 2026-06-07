@@ -3,7 +3,6 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 <style>
-    
     .dropdown-mck { position: relative; display: inline-block; }
     .dropdown-content-mck { 
         display: none; position: absolute; right: 0; top: 100%;
@@ -22,6 +21,29 @@
     .dropdown-mck:hover .dropdown-content-mck { display: block; animation: fadeIn 0.2s ease-in-out; }
     
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+    
+    @media (max-width: 768px) {
+        /* Adapta la barra de navegación para que se apile hacia abajo */
+        .nav-principal { flex-direction: column !important; padding: 15px !important; gap: 15px !important; text-align: center; }
+        .nav-acciones { flex-direction: column !important; width: 100% !important; gap: 10px !important; }
+        .divisor-nav { display: none !important; } /* Oculta la línea divisoria vertical */
+        #nav-clima { width: 100% !important; justify-content: center !important; box-sizing: border-box !important; }
+        .dropdown-mck { width: 100% !important; }
+        .btn-mck { width: 100% !important; justify-content: center !important; }
+        .dropdown-content-mck { position: static !important; width: 100% !important; border: 1px solid #cbd5e1 !important; margin-top: 5px !important; box-shadow: none !important; }
+        
+        /* Adapta el mapa y los filtros para que no se superpongan */
+        .contenedor-mapa { display: flex !important; flex-direction: column !important; height: auto !important; }
+        #mapa-global { height: 400px !important; position: relative !important; z-index: 1 !important; border-radius: 0 0 12px 12px !important; }
+        .filtros-flotantes { position: relative !important; top: 0 !important; right: 0 !important; width: 100% !important; box-sizing: border-box !important; border-radius: 12px 12px 0 0 !important; border-bottom: none !important; z-index: 2 !important; box-shadow: none !important; }
+
+        /* Adapta la barra negra de seguridad */
+        .cinta-seguridad { flex-direction: column !important; align-items: flex-start !important; gap: 15px !important; }
+        
+        /* Adapta el formulario de dos columnas a una sola columna */
+        .grid-formulario { grid-template-columns: 1fr !important; }
+    }
 </style>
 
 {% if user.is_staff %}
@@ -33,20 +55,19 @@
 </div>
 {% endif %}
 
-
-<nav style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; background: white; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+<nav class="nav-principal" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; background: white; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
     
     <div style="font-weight: 900; color: var(--primary-dark); font-size: 22px;">
         <i class="fa-solid fa-earth-americas" style="color: var(--primary);"></i> SeñalEtica<span style="color: var(--primary);">+</span>
     </div>
     
-    <div style="display: flex; gap: 20px; align-items: center;">
+    <div class="nav-acciones" style="display: flex; gap: 20px; align-items: center;">
         
         <div id="nav-clima" style="display: flex; align-items: center; gap: 8px; background: #f8fafc; padding: 6px 12px; border-radius: 20px; border: 1px solid #e2e8f0; font-size: 13px; font-weight: bold; color: #475569;">
             <i class="fa-solid fa-spinner fa-spin"></i> Satélite...
         </div>
 
-        <div style="width: 1px; height: 24px; background: #cbd5e1;"></div>
+        <div class="divisor-nav" style="width: 1px; height: 24px; background: #cbd5e1;"></div>
         
         <div class="dropdown-mck">
     {% if user.is_authenticated %}
@@ -66,13 +87,11 @@
             <a href="{% url 'panel_admin_amigable' %}"><i class="fa-solid fa-server" style="color: #8b5cf6;"></i> Centro de Control Admin</a>
             {% endif %}
             
-{% if user.perfil.rol == 'conductor' or user.perfil.rol == 'flota' %}
-<a href="{% url 'dashboard_router' %}" style="background: #fffbeb; font-weight: bold; color: #d97706;">
-    <i class="fa-solid fa-bus-simple" style="color: #f59e0b;"></i> Portal Chofer / Flota
-</a>
-{% endif %}
-            
-        
+        {% if user.perfil.rol == 'conductor' or user.perfil.rol == 'flota' %}
+        <a href="{% url 'dashboard_router' %}" style="background: #fffbeb; font-weight: bold; color: #d97706;">
+            <i class="fa-solid fa-bus-simple" style="color: #f59e0b;"></i> Portal Chofer / Flota
+        </a>
+        {% endif %}
             
             <form action="{% url 'logout' %}" method="post" style="margin: 0;">
                 {% csrf_token %}
@@ -91,10 +110,8 @@
             <a href="{% url 'crear_perfil' %}"><i class="fa-solid fa-user-plus" style="color: #f59e0b;"></i> Crear Cuenta Ciudadana</a>
         </div>
     {% endif %}
-</div>
-
+        </div>
     </div>
-    
 </nav>
 
 {% if avisos_generales %}
@@ -122,11 +139,9 @@
 </style>
 
 <div class="carousel-container" id="promoCarousel">
-    
     <div class="carousel-track" id="promoTrack">
         {% for campana in campanas %}
         <div class="carousel-slide">
-            
             {% if campana.imagen_banner %}
                 <img src="{{ campana.imagen_banner.url }}" alt="{{ campana.nombre }}" style="width: 100%; height: 200px; object-fit: cover; display: block;">
             {% else %}
@@ -140,7 +155,6 @@
                     <i class="fa-solid fa-star" style="color: #f59e0b;"></i> {{ campana.patrocinador.nombre }}
                 </div>
             {% endif %}
-            
         </div>
         {% endfor %}
     </div>
@@ -161,15 +175,11 @@
 
         function updateCarousel() {
             if (!track) return;
-            // Mueve la pista hacia la izquierda dependiendo del slide actual
             track.style.transform = `translateX(-${currentIndex * 100}%)`;
-            
-            // Actualiza el color de los puntitos
             dots.forEach(dot => dot.classList.remove('active'));
             if(dots.length > 0) dots[currentIndex].classList.add('active');
         }
 
-        // Función para cambiar cuando tocan un puntito
         window.goToSlide = function(index) {
             currentIndex = index;
             updateCarousel();
@@ -180,15 +190,10 @@
             updateCarousel();
         }
 
-        // Si hay más de 1 imagen, arrancar el motor automático cada 4 segundos
-        if(totalSlides > 1) {
-            setInterval(nextSlide, 4000);
-        }
+        if(totalSlides > 1) { setInterval(nextSlide, 4000); }
     });
 </script>
 {% endif %}
-
-
 
 <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 30px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
     <div style="padding: 15px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
@@ -196,9 +201,9 @@
         <span style="font-size: 12px; font-weight: bold; color: #10b981; background: #ecfdf5; padding: 4px 10px; border-radius: 20px;"><i class="fa-solid fa-circle-check"></i> Sistema en Línea</span>
     </div>
     
-   <div style="position: relative; height: 450px; width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 30px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+   <div class="contenedor-mapa" style="position: relative; height: 450px; width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 30px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
     
-    <details style="position: absolute; top: 15px; right: 15px; z-index: 1000; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); padding: 12px 15px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border: 1px solid #cbd5e1; min-width: 240px;" >
+    <details class="filtros-flotantes" style="position: absolute; top: 15px; right: 15px; z-index: 1000; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); padding: 12px 15px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border: 1px solid #cbd5e1; min-width: 240px;" >
         <summary style="font-weight: 800; color: var(--primary-dark); cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; outline: none;">
             <span><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> Filtros del Mapa</span>
             <i class="fa-solid fa-chevron-down" style="font-size: 12px; color: #64748b;"></i>
@@ -264,7 +269,7 @@
     <div id="mapa-global" style="height: 100%; width: 100%;"></div>
 </div>
     
-    <div style="background: #0f172a; padding: 12px 20px; display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 15px;">
+    <div class="cinta-seguridad" style="background: #0f172a; padding: 12px 20px; display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div style="color: #94a3b8; font-size: 12px; display: flex; align-items: center; gap: 8px;">
             <i class="fa-solid fa-shield-halved" style="color: #10b981; font-size: 16px;"></i>
             <span><strong>Cifrado PBKDF2</strong><br>Contraseñas Seguras</span>
@@ -298,7 +303,7 @@
                 <input type="text" id="buscar-paradas" onkeyup="filtrarTarjetas('buscar-paradas', 'grid-paradas')" placeholder="Buscar parada por nombre o código QR..." style="width: 100%; box-sizing: border-box; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none;">
             </div>
 
-            <div id="grid-paradas" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+            <div id="grid-paradas" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
                 {% for parada in paradas %}
                 <div class="tarjeta-filtro" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
                     <h4 class="titulo-filtro" style="margin: 0 0 5px 0; color: #334155; font-size: 17px;">{{ parada.nombre }}</h4>
@@ -333,7 +338,7 @@
                 <input type="text" id="buscar-rutas" onkeyup="filtrarTarjetas('buscar-rutas', 'grid-rutas')" placeholder="Buscar por nombre de línea o sector..." style="width: 100%; box-sizing: border-box; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none;">
             </div>
 
-            <div id="grid-rutas" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+            <div id="grid-rutas" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
                 {% for ruta in rutas %}
                 <div class="tarjeta-filtro" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; border-left: 4px solid #3b82f6;">
                     <h4 class="titulo-filtro" style="margin: 0 0 5px 0; color: #0f172a; font-size: 17px;">{{ ruta.nombre }}</h4>
@@ -374,11 +379,10 @@
                         <option value="ruta">🗺️ Sugerir nueva ruta o cobertura</option>
                         <option value="tranca">🚗 Alertar de tranca o congestión vehicular</option>
                         <option value="parada">🚏 Reportar problema en un Tótem / Parada</option>
-
                     </select>
                 </div>
                 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="grid-formulario" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div>
                         <label style="font-size: 13px; font-weight: bold; color: #92400e;">Sector o Comunidad:</label>
                         <input type="text" id="reporte-sector" required placeholder="Ej: Core 8, Redoma La Piña..." style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #fcd34d; border-radius: 6px; margin-top: 5px; outline: none;">
@@ -392,7 +396,7 @@
                     <label style="font-size: 13px; font-weight: bold; color: #92400e;">Detalles del reporte:</label>
                     <textarea id="reporte-detalles" required placeholder="Describa la situación..." rows="3" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #fcd34d; border-radius: 6px; margin-top: 5px; outline: none; resize: vertical;"></textarea>
                 </div>
-                <button type="submit" class="btn-mck" style="background: #f59e0b; color: white; border: none; padding: 12px; font-weight: bold; cursor: pointer; align-self: flex-start;">
+                <button type="submit" class="btn-mck" style="background: #f59e0b; color: white; border: none; padding: 12px; font-weight: bold; cursor: pointer; align-self: flex-start; max-width: 100%;">
                     <i class="fa-solid fa-paper-plane"></i> Enviar Reporte al Centro de Control
                 </button>
             </form>
@@ -532,7 +536,6 @@
         let urlAPI = '/flota/api/buses-activos/';
         
         let params = new URLSearchParams();
-        // 1. Evita que el navegador guarde memoria vieja (Rompe la caché)
         params.append('t', new Date().getTime()); 
         
         let btnAdmin = document.getElementById('filtro-admin-flota');
@@ -542,7 +545,6 @@
 
         let urlFinal = `${urlAPI}?${params.toString()}`;
         
-        // 2. OBLIGA al navegador a enviar la cookie de sesión del administrador
         let response = await fetch(urlFinal, {
             method: 'GET',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -552,11 +554,9 @@
         if (!response.ok) return;
         let data = await response.json();
 
-        // --- INICIO DE LOS FILTROS ---
         let selectorBus = document.getElementById('filtro-bus-especifico');
         let busSeleccionado = selectorBus ? selectorBus.value : "todos";
         
-       
         let selectorRuta = document.getElementById('selector-ruta-unica');
         let rutaSeleccionada = selectorRuta ? selectorRuta.value : "todas";
 
@@ -565,25 +565,21 @@
         data.buses.forEach(bus => {
             idsActivos.push(bus.id);
             
-            // Calculamos si el bus debe ser visible cumpliendo las dos reglas:
             let visiblePorBus = (busSeleccionado === "todos" || busSeleccionado == bus.id);
             let visiblePorRuta = (rutaSeleccionada === "todas" || bus.ruta_id == rutaSeleccionada);
             let visible = visiblePorBus && visiblePorRuta;
 
             if (marcadoresBuses[bus.id]) {
                 if(visible) {
-                    // Si cumple los filtros, actualiza su posición
                     marcadoresBuses[bus.id].setLatLng([bus.lat, bus.lon]);
                     if(!layerFlota.hasLayer(marcadoresBuses[bus.id])) {
                         marcadoresBuses[bus.id].addTo(layerFlota);
                     }
                 } else {
-                    // Si no cumple los filtros (ej. es de otra ruta), se oculta
                     layerFlota.removeLayer(marcadoresBuses[bus.id]);
                 }
             } else {
                 if(visible) {
-                    // Si el bus no existía en el mapa y cumple el filtro, se dibuja
                     let busIcon = L.divIcon({
                         className: 'bus-icon',
                         html: '<div style="background: #d97706; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fa-solid fa-bus"></i></div>',
@@ -600,7 +596,6 @@
             }
         });
 
-        // Limpieza y purga de autobuses que dejaron de transmitir
         Object.keys(marcadoresBuses).forEach(id => {
             if (!idsActivos.includes(parseInt(id))) {
                 layerFlota.removeLayer(marcadoresBuses[id]);
@@ -724,23 +719,18 @@
     document.getElementById('selector-ruta-unica').addEventListener('change', function(e) {
         let idSeleccionado = e.target.value;
         
-        // Limpiamos las RUTAS. 
-       
         layerRutas.clearLayers();
         
         if (idSeleccionado === 'todas') {
-            // Dibujamos todas las rutas de nuevo
             for (let id in lineasRutas) lineasRutas[id].addTo(layerRutas);
             mapGlobal.setView([8.2962, -62.7115], 13);
         } else {
-            // Dibujar solo la ruta seleccionada y encuadrar la cámara
             if (lineasRutas[idSeleccionado]) {
                 lineasRutas[idSeleccionado].addTo(layerRutas);
                 mapGlobal.fitBounds(lineasRutas[idSeleccionado].getBounds(), { padding: [30, 30] });
             }
         }
         
-       
         if (!checkboxRutas.checked) {
             checkboxRutas.checked = true;
             mapGlobal.addLayer(layerRutas);
@@ -794,10 +784,8 @@
     cargarClimaAvanzado();
 
    {% if user.is_authenticated %}
-       
         setInterval(actualizarFlotaEnMapa, 5000);
     {% endif %}
 });  
 </script>
-
 {% endblock %}
