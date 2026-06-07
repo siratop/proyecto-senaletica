@@ -21,6 +21,7 @@ urlpatterns = [
     path('nfc/auditoria/', views.auditoria_nfc, name='auditoria_nfc'),
     path('nfc/guardar/', views.guardar_nfc, name='guardar_nfc'),
     path('mi-perfil/', views.mi_perfil, name='mi_perfil'),
+    path('sos/actualizar-gps/', views.actualizar_gps_alerta, name='actualizar_gps_alerta'),
     
 
 ]

@@ -58,4 +58,40 @@
         100% { transform: scale(1); }
     }
 </style>
+
+{% if alerta_id %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                // Si el samaritano acepta compartir ubicación, enviamos las coordenadas al servidor
+                fetch("{% url 'actualizar_gps_alerta' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: JSON.stringify({
+                        alerta_id: {{ alerta_id }},
+                        lat: position.coords.latitude,
+                        lon: position.coords.longitude
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.status === 'ok'){
+                        console.log("Ubicación de emergencia enviada exitosamente a la central.");
+                    }
+                })
+                .catch(error => console.error("Error enviando ubicación:", error));
+            }, function(error) {
+                console.log("El usuario denegó los permisos de GPS o hubo un error:", error.message);
+            });
+        } else {
+            console.log("Geolocalización no soportada por este navegador.");
+        }
+    });
+</script>
+{% endif %}
+
 {% endblock %}

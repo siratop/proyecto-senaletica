@@ -13,7 +13,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.db import IntegrityError 
-
+from django.http import JsonResponse
 # =========================================================
 # 1. REGISTRO Y GESTIÓN DE CUENTAS
 # =========================================================
@@ -77,15 +77,15 @@ class DependienteCreateView(CreateView):
 
 def ficha_sos_publica(request, token_nfc):
     """Pantalla pública de asistencia para personas extraviadas (NFC)"""
-    # 1. Identificación exacta gracias al Token Único (Opción 1)
+    
     dependiente = get_object_or_404(Dependiente, token_nfc=token_nfc)
     
-    # ======= LÓGICA DE ALERTA REAL EN EL CENTRO DE CONTROL (Opción 3) =======
-    from rutas.models import AlertaOperativa  # Importamos el modelo de alertas
+    
+    from rutas.models import AlertaOperativa  
     
     tutor_nombre = f"{dependiente.tutor.first_name} {dependiente.tutor.last_name}".strip() or dependiente.tutor.username
     
-    # Armamos un mensaje ultra detallado para el Administrador
+   
     mensaje_sos = (
         f"🚨 INCIDENTE NFC: Se ha escaneado la pulsera de {dependiente.nombre_completo}. "
         f"Parentesco: {dependiente.get_relacion_display()}. "
@@ -93,27 +93,29 @@ def ficha_sos_publica(request, token_nfc):
         f"Teléfono de Contacto: {dependiente.telefono_emergencia}."
     )
     
+    alerta_id = None 
+    
     try:
-        # Creamos la alerta vinculando directamente al objeto 'dependiente'
-        AlertaOperativa.objects.create(
+        
+        alerta_creada = AlertaOperativa.objects.create(
             tipo='incidente',
             mensaje=mensaje_sos,
             dependiente=dependiente, 
             activa=True,
-           
             latitud=0.0,
             longitud=0.0
         )
-        print(f" Alerta NFC guardada en Base de Datos para: {dependiente.nombre_completo}")
+        alerta_id = alerta_creada.id 
+        print(f" Alerta NFC guardada en Base de Datos para: {dependiente.nombre_completo} (ID: {alerta_id})")
     except Exception as e:
         print(f"Error al registrar alerta NFC en la base de datos: {e}")
-  
 
+   
     contexto = {
-        'dependiente': dependiente
+        'dependiente': dependiente,
+        'alerta_id': alerta_id  
     }
     return render(request, 'usuarios/ficha_sos_publica.html', contexto)
-
 
 # =========================================================
 # 3. CRUD ADMINISTRATIVO (Para el panel de control)

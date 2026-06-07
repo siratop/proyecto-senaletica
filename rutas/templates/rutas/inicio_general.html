@@ -66,7 +66,7 @@
             <a href="{% url 'panel_admin_amigable' %}"><i class="fa-solid fa-server" style="color: #8b5cf6;"></i> Centro de Control Admin</a>
             {% endif %}
             
-           {% if user.is_staff or user.perfil.rol == 'conductor' or user.perfil.rol == 'flota' %}
+{% if user.perfil.rol == 'conductor' or user.perfil.rol == 'flota' %}
 <a href="{% url 'dashboard_router' %}" style="background: #fffbeb; font-weight: bold; color: #d97706;">
     <i class="fa-solid fa-bus-simple" style="color: #f59e0b;"></i> Portal Chofer / Flota
 </a>
