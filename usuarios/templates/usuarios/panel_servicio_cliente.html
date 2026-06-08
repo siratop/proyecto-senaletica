@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>🚨 Central de Emergencias</h2>
+
+    <div class="row">
+        <div class="col-md-8">
+            <h3>Alertas Activas (SOS)</h3>
+            {% for alerta in alertas_activas %}
+            <div class="alert alert-danger">
+                <strong>{{ alerta.dependiente.nombre_completo }}</strong> - {{ alerta.mensaje }}
+                <a href="{% url 'gestionar_alerta_sos' alerta.id 'resolver' %}" class="btn btn-success btn-sm">Marcar Resuelta</a>
+            </div>
+            {% empty %}
+            <p>No hay emergencias activas.</p>
+            {% endfor %}
+        </div>
+
+        <div class="col-md-4">
+            <h3>Historial</h3>
+            {% for alerta in alertas_historial %}
+            <p><small>{{ alerta.mensaje }}</small></p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
