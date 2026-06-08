@@ -14,6 +14,11 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.db import IntegrityError 
 from django.http import JsonResponse
+
+# Importaciones para envío de correos (Añadidas aquí arriba por buenas prácticas)
+from django.core.mail import send_mail
+from django.conf import settings
+
 # =========================================================
 # 1. REGISTRO Y GESTIÓN DE CUENTAS
 # =========================================================
@@ -75,9 +80,6 @@ class DependienteCreateView(CreateView):
         context['subtitulo'] = 'Configure los datos médicos y genere su enlace criptográfico NFC.'
         return context
 
-from django.core.mail import send_mail
-from django.conf import settings
-from django.shortcuts import render, get_object_or_404
 
 def ficha_sos_publica(request, token_nfc):
     """Pantalla pública de asistencia para personas extraviadas (NFC)"""
@@ -108,11 +110,16 @@ def ficha_sos_publica(request, token_nfc):
             longitud=0.0
         )
         alerta_id = alerta_creada.id 
-        print(f" Alerta NFC guardada en Base de Datos para: {dependiente.nombre_completo} (ID: {alerta_id})")
+        print(f"✅ Alerta NFC guardada en BD para: {dependiente.nombre_completo} (ID: {alerta_id})", flush=True)
         
+        # 2. Verificación y envío de correo
+        correo_destino = dependiente.tutor.email
         
-        asunto_correo = f"🚨 ALERTA DE EMERGENCIA: {dependiente.nombre_completo} necesita ayuda"
-        cuerpo_correo = f"""
+        if not correo_destino:
+            print("⚠️ ABORTO DE CORREO: El usuario Tutor no tiene un email guardado en su perfil.", flush=True)
+        else:
+            asunto_correo = f"🚨 ALERTA DE EMERGENCIA: {dependiente.nombre_completo} necesita ayuda"
+            cuerpo_correo = f"""
 SISTEMA SEÑALÉTICA+ - ALERTA VITAL
 ===================================
 Se acaba de escanear la pulsera NFC de seguridad de su familiar:
@@ -125,19 +132,19 @@ Por favor, manténgase atento a su número principal: {dependiente.telefono_emer
 
 Este es un mensaje automático de seguridad.
 """
-   print(f"=== INICIANDO ENVÍO DE CORREO A: {dependiente.tutor.email} ===")
-        
-        send_mail(
-            asunto_correo,
-            cuerpo_correo,
-            settings.DEFAULT_FROM_EMAIL,
-            [dependiente.tutor.email],
-            fail_silently=False  
-        )
-        print("=== CORREO ENVIADO CORRECTAMENTE AL SERVIDOR SMTP ===")
+            print(f"=== INICIANDO ENVÍO DE CORREO A: {correo_destino} ===", flush=True)
+            
+            send_mail(
+                asunto_correo,
+                cuerpo_correo,
+                settings.DEFAULT_FROM_EMAIL,
+                [correo_destino],
+                fail_silently=False  
+            )
+            print("=== ✅ CORREO ENVIADO CORRECTAMENTE AL SERVIDOR SMTP ===", flush=True)
 
     except Exception as e:
-        print(f"❌ ERROR FATAL AL ENVIAR CORREO O CREAR ALERTA: {e}")
+        print(f"❌ ERROR FATAL AL ENVIAR CORREO O CREAR ALERTA: {e}", flush=True)
 
     contexto = {
         'dependiente': dependiente,
