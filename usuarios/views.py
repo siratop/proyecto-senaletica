@@ -15,7 +15,7 @@ from django.contrib.auth import logout
 from django.db import IntegrityError 
 from django.http import JsonResponse
 
-# Importaciones para envío de correos (Añadidas aquí arriba por buenas prácticas)
+
 from django.core.mail import send_mail
 from django.conf import settings
 
@@ -139,7 +139,7 @@ Este es un mensaje automático de seguridad.
                 cuerpo_correo,
                 settings.DEFAULT_FROM_EMAIL,
                 [correo_destino],
-                fail_silently=False  
+                fail_silently=True 
             )
             print("=== ✅ CORREO ENVIADO CORRECTAMENTE AL SERVIDOR SMTP ===", flush=True)
 
