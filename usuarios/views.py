@@ -82,8 +82,7 @@ class DependienteCreateView(CreateView):
 
 
 def ficha_sos_publica(request, token_nfc):
-    """Pantalla pública de asistencia para personas extraviadas (NFC)"""
-    
+    """Pantalla pública de asistencia para personas extraviadas (NFC) - SIN CORREO"""
     dependiente = get_object_or_404(Dependiente, token_nfc=token_nfc)
     
     from rutas.models import AlertaOperativa  
@@ -100,7 +99,7 @@ def ficha_sos_publica(request, token_nfc):
     alerta_id = None 
     
     try:
-        # 1. Guardar la alerta en el mapa del Centro de Control
+        # Solo guardamos la alerta en la base de datos para que el panel de Servicio al Cliente la vea
         alerta_creada = AlertaOperativa.objects.create(
             tipo='incidente',
             mensaje=mensaje_sos,
@@ -110,41 +109,10 @@ def ficha_sos_publica(request, token_nfc):
             longitud=0.0
         )
         alerta_id = alerta_creada.id 
-        print(f"✅ Alerta NFC guardada en BD para: {dependiente.nombre_completo} (ID: {alerta_id})", flush=True)
-        
-        # 2. Verificación y envío de correo
-        correo_destino = dependiente.tutor.email
-        
-        if not correo_destino:
-            print("⚠️ ABORTO DE CORREO: El usuario Tutor no tiene un email guardado en su perfil.", flush=True)
-        else:
-            asunto_correo = f"🚨 ALERTA DE EMERGENCIA: {dependiente.nombre_completo} necesita ayuda"
-            cuerpo_correo = f"""
-SISTEMA SEÑALÉTICA+ - ALERTA VITAL
-===================================
-Se acaba de escanear la pulsera NFC de seguridad de su familiar:
-
-Familiar: {dependiente.nombre_completo}
-Condición Registrada: {dependiente.condicion_medica}
-
-Si el rescatista comparte su ubicación (GPS), nuestro sistema lo reflejará en el Centro de Operaciones.
-Por favor, manténgase atento a su número principal: {dependiente.telefono_emergencia}
-
-Este es un mensaje automático de seguridad.
-"""
-            print(f"=== INICIANDO ENVÍO DE CORREO A: {correo_destino} ===", flush=True)
-            
-            send_mail(
-                asunto_correo,
-                cuerpo_correo,
-                settings.DEFAULT_FROM_EMAIL,
-                [correo_destino],
-                fail_silently=True 
-            )
-            print("=== ✅ CORREO ENVIADO CORRECTAMENTE AL SERVIDOR SMTP ===", flush=True)
+        print(f"✅ Alerta SOS registrada (ID: {alerta_id}). (Módulo de correo desactivado)", flush=True)
 
     except Exception as e:
-        print(f"❌ ERROR FATAL AL ENVIAR CORREO O CREAR ALERTA: {e}", flush=True)
+        print(f"❌ ERROR AL CREAR ALERTA SOS: {e}", flush=True)
 
     contexto = {
         'dependiente': dependiente,
@@ -338,3 +306,42 @@ def mi_perfil(request):
         'dias_restantes': dias_restantes,
         'dias_restantes_flota': dias_restantes_flota 
     })
+
+def ficha_sos_publica(request, token_nfc):
+    """Pantalla pública de asistencia para personas extraviadas (NFC) - SIN CORREO"""
+    dependiente = get_object_or_404(Dependiente, token_nfc=token_nfc)
+    
+    from rutas.models import AlertaOperativa  
+    
+    tutor_nombre = f"{dependiente.tutor.first_name} {dependiente.tutor.last_name}".strip() or dependiente.tutor.username
+    
+    mensaje_sos = (
+        f"🚨 INCIDENTE NFC: Se ha escaneado la pulsera de {dependiente.nombre_completo}. "
+        f"Parentesco: {dependiente.get_relacion_display()}. "
+        f"Representante: {tutor_nombre}. "
+        f"Teléfono de Contacto: {dependiente.telefono_emergencia}."
+    )
+    
+    alerta_id = None 
+    
+    try:
+        # Solo guardamos la alerta en la base de datos para que el panel de Servicio al Cliente la vea
+        alerta_creada = AlertaOperativa.objects.create(
+            tipo='incidente',
+            mensaje=mensaje_sos,
+            dependiente=dependiente, 
+            activa=True,
+            latitud=0.0,
+            longitud=0.0
+        )
+        alerta_id = alerta_creada.id 
+        print(f"✅ Alerta SOS registrada (ID: {alerta_id}). (Módulo de correo desactivado)", flush=True)
+
+    except Exception as e:
+        print(f"❌ ERROR AL CREAR ALERTA SOS: {e}", flush=True)
+
+    contexto = {
+        'dependiente': dependiente,
+        'alerta_id': alerta_id  
+    }
+    return render(request, 'usuarios/ficha_sos_publica.html', contexto)

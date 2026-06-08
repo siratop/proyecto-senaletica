@@ -92,7 +92,20 @@
             <i class="fa-solid fa-bus-simple" style="color: #f59e0b;"></i> Portal Chofer / Flota
         </a>
         {% endif %}
-            
+        
+        {% if user.is_staff %}
+<li class="nav-item dropdown">
+    <a class="nav-link dropdown-toggle text-danger fw-bold" href="#" id="navbarServicioCliente" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        🚨 Central de Emergencias
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarServicioCliente">
+        <li><a class="dropdown-item" href="{% url 'panel_servicio_cliente' %}">📡 Monitor en Vivo (SOS)</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{% url 'listar_usuarios' %}">👥 Editar Usuarios</a></li>
+    </ul>
+</li>
+{% endif %}
+
             <form action="{% url 'logout' %}" method="post" style="margin: 0;">
                 {% csrf_token %}
                 <button type="submit" style="width: 100%; text-align: left; background: none; border: none; color: #ef4444; padding: 12px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.2s;">

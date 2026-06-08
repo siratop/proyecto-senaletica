@@ -22,6 +22,7 @@ urlpatterns = [
     path('nfc/guardar/', views.guardar_nfc, name='guardar_nfc'),
     path('mi-perfil/', views.mi_perfil, name='mi_perfil'),
     path('sos/actualizar-gps/', views.actualizar_gps_alerta, name='actualizar_gps_alerta'),
-    
+    path('servicio-al-cliente/', views.panel_servicio_cliente, name='panel_servicio_cliente'),
+    path('servicio-al-cliente/alerta/<int:alerta_id>/<str:accion>/', views.gestionar_alerta_sos, name='gestionar_alerta_sos'),
 
 ]
