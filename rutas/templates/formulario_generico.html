@@ -59,6 +59,20 @@
     
     {{ form.as_p }}
     
+    {% if roles_disponibles %}
+    <p>
+        <label for="rol_usuario">Rol y Nivel de Acceso en el Sistema:</label>
+        <select name="rol_usuario" id="rol_usuario">
+            {% for valor, etiqueta in roles_disponibles %}
+                <option value="{{ valor }}" {% if valor == rol_actual %}selected{% endif %}>
+                    {{ etiqueta }}
+                </option>
+            {% endfor %}
+        </select>
+        <span class="helptext">Si selecciona "Operador / Servicio al Cliente", el usuario recibirá acceso automático al panel oculto de Central de Emergencias.</span>
+    </p>
+    {% endif %}
+    
     <div class="btn-group">
         <a href="javascript:history.back()" style="background: #94a3b8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; text-align: center;">
             <i class="fa-solid fa-arrow-left"></i> Cancelar

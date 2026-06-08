@@ -140,16 +140,48 @@ class PerfilUsuarioListView(ListView):
         return ctx
 
 class UsuarioUpdateView(UpdateView):
-    """Edición de una cuenta de usuario existente"""
+    """Edición de una cuenta de usuario existente y su Rol de Perfil"""
     model = User
-    fields = ['username', 'email', 'first_name', 'last_name', 'is_staff']
+    fields = ['username', 'email', 'first_name', 'last_name']
     template_name = 'formulario_generico.html'
     success_url = reverse_lazy('listar_usuarios')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['titulo'] = '✏️ Editar Cuenta de Usuario'
+        context['titulo'] = '✏️ Editar Cuenta y Rol de Usuario'
+        
+        # Le pasamos las opciones de roles a la plantilla
+        context['roles_disponibles'] = PerfilUsuario._meta.get_field('rol').choices
+        
+        # Buscamos el rol actual del usuario para pre-seleccionarlo
+        perfil, created = PerfilUsuario.objects.get_or_create(usuario=self.object)
+        context['rol_actual'] = perfil.rol
         return context
+
+    def form_valid(self, form):
+        # 1. Guardamos los datos básicos del User (Nombre, email, etc)
+        usuario = form.save(commit=False)
+        
+        # 2. Capturamos el nuevo rol enviado desde el formulario HTML
+        nuevo_rol = self.request.POST.get('rol_usuario')
+        
+        if nuevo_rol:
+            # 3. Actualizamos el PerfilUsuario
+            perfil, created = PerfilUsuario.objects.get_or_create(usuario=usuario)
+            perfil.rol = nuevo_rol
+            perfil.save()
+            
+         
+            # Si el rol es soporte, le damos la llave de la Central de Emergencias
+            if nuevo_rol == 'soporte':
+                usuario.is_staff = True
+            else:
+                # Si lo degradan a ciudadano o conductor, le quitamos la llave
+                usuario.is_staff = False
+                
+        usuario.save()
+        messages.success(self.request, f"La cuenta de {usuario.username} y su rol han sido actualizados.")
+        return super().form_valid(form)
 
 class UsuarioDeleteView(DeleteView):
     """Eliminación segura de un usuario"""

@@ -49,6 +49,7 @@ class PerfilUsuario(models.Model):
         ('ciudadano', 'Ciudadano Normal'),
         ('conductor', 'Dueño de Unidad / Conductor'),
         ('flota', 'Dueño de Flota'),
+        ('soporte', 'Operador / Servicio al Cliente'),
     )
     usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil')
     telefono = models.CharField(max_length=20, blank=True, null=True)

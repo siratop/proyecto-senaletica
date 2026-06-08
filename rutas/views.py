@@ -576,65 +576,33 @@ def editar_campana(request, campana_id):
     })
 
 # =========================================================
-# LÓGICA INTELIGENTE DEL BOTÓN S.O.S.
+# LÓGICA INTELIGENTE DEL BOTÓN S.O.S. (VERSIÓN PANEL INTERNO)
 # =========================================================
-def enviar_correo_sos_background(asunto, mensaje, remitente, destinatarios):
-    try:
-        from django.core.mail import send_mail
-        send_mail(asunto, mensaje, remitente, destinatarios, fail_silently=True)
-    except Exception as e:
-        print(f"Error en envío de correo de fondo: {e}")
 
 def alerta_emergencia(request, parada_id):
     parada = get_object_or_404(Parada, id=parada_id)
     
-    # 1. Identificar al ciudadano
+    # 1. Identificar al ciudadano que presiona el botón
     ciudadano_nombre = "Un ciudadano anónimo"
     if request.user.is_authenticated:
         ciudadano_nombre = f"{request.user.first_name} {request.user.last_name} ({request.user.username})"
 
-    # 2. Guardar en Base de Datos para el mapa del Admin
+    # 2. Guardar en Base de Datos para que aparezca en el panel del Operador / Soporte
     mensaje_sos = f"🚨 PÁNICO S.O.S. activado por {ciudadano_nombre} en la estación: {parada.nombre} (QR: {parada.codigo})"
+    
     try:
         AlertaOperativa.objects.create(
-            tipo='incidente', mensaje=mensaje_sos, latitud=parada.latitud, longitud=parada.longitud, activa=True
+            tipo='incidente', 
+            mensaje=mensaje_sos, 
+            latitud=parada.latitud, 
+            longitud=parada.longitud, 
+            activa=True
         )
+        print("✅ Alerta SOS de parada registrada en BD (Módulo de correo extirpado)", flush=True)
     except Exception as e:
-        print(f"Error guardando SOS en DB: {e}")
+        print(f"❌ Error guardando SOS de parada en DB: {e}", flush=True)
         
-    # 3. Preparar destinatarios
-    destinatarios = []
-    admins = User.objects.filter(is_staff=True, email__isnull=False).exclude(email='')
-    for admin in admins:
-        destinatarios.append(admin.email)
-        
-    if request.user.is_authenticated:
-        try:
-            correo_familiar = request.user.perfil.correo_emergencia
-            if correo_familiar: destinatarios.append(correo_familiar)
-        except: pass 
-            
-    if not destinatarios:
-        destinatarios = ['seguridad_respaldo@senaletica.com']
-        
-    # 4. Armar mensaje
-    asunto = f"🚨 EMERGENCIA SOS - Tótem: {parada.nombre}"
-    enlace_maps = f"https://www.google.com/maps?q={parada.latitud},{parada.longitud}"
-    mensaje = f"""
-    SE HA ACTIVADO EL BOTÓN DE PÁNICO EN LA RED SEÑALÉTICA+.
-    👤 Usuario en peligro: {ciudadano_nombre}
-    📍 Ubicación del Incidente:
-    Parada: {parada.nombre}
-    Código QR: {parada.codigo}
-    🗺️ Ver en el mapa (Rastreo GPS):
-    {enlace_maps}
-    """
-    remitente = 'francisco.fonseca.farias@gmail.com' 
-    
-    # 5. Disparar correo EN SEGUNDO PLANO (No bloquea el servidor)
-    hilo_correo = threading.Thread(target=enviar_correo_sos_background, args=(asunto, mensaje, remitente, destinatarios))
-    hilo_correo.start()
-    
-    messages.success(request, "⚠️ ALERTA SOS ENVIADA: La central y tus contactos han sido notificados.")
+    # 3. Notificar al usuario en su pantalla que la central ya lo está viendo
+    messages.success(request, "⚠️ ALERTA SOS ENVIADA: Nuestra central de emergencias ha sido notificada al instante.")
 
     return redirect('inicio_peaton', parada_id=parada.id)
