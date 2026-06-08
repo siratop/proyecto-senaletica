@@ -131,7 +131,7 @@ Este es un mensaje automático de seguridad.
             cuerpo_correo,
             settings.DEFAULT_FROM_EMAIL,
             [dependiente.tutor.email], # Extraemos el correo real del padre/tutor
-            fail_silently=True
+            fail_silently=False
         )
         print("Correo de emergencia enviado al tutor con éxito.")
 
