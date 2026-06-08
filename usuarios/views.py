@@ -125,18 +125,19 @@ Por favor, manténgase atento a su número principal: {dependiente.telefono_emer
 
 Este es un mensaje automático de seguridad.
 """
-        # Ejecutamos el envío del correo electrónico
+   print(f"=== INICIANDO ENVÍO DE CORREO A: {dependiente.tutor.email} ===")
+        
         send_mail(
             asunto_correo,
             cuerpo_correo,
             settings.DEFAULT_FROM_EMAIL,
-            [dependiente.tutor.email], # Extraemos el correo real del padre/tutor
-            fail_silently=True
+            [dependiente.tutor.email],
+            fail_silently=False  
         )
-        print("Correo de emergencia enviado al tutor con éxito.")
+        print("=== CORREO ENVIADO CORRECTAMENTE AL SERVIDOR SMTP ===")
 
     except Exception as e:
-        print(f"Error al registrar alerta NFC o enviar correo: {e}")
+        print(f"❌ ERROR FATAL AL ENVIAR CORREO O CREAR ALERTA: {e}")
 
     contexto = {
         'dependiente': dependiente,
