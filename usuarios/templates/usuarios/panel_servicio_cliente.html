@@ -1,27 +1,153 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="container mt-4">
-    <h2>🚨 Central de Emergencias</h2>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    <div class="row">
-        <div class="col-md-8">
-            <h3>Alertas Activas (SOS)</h3>
-            {% for alerta in alertas_activas %}
-            <div class="alert alert-danger">
-                <strong>{{ alerta.dependiente.nombre_completo }}</strong> - {{ alerta.mensaje }}
-                <a href="{% url 'gestionar_alerta_sos' alerta.id 'resolver' %}" class="btn btn-success btn-sm">Marcar Resuelta</a>
+<style>
+    .sos-container { max-width: 1200px; margin: 20px auto; padding: 0 15px; }
+    .sos-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #fecaca; padding-bottom: 15px; margin-bottom: 20px; }
+    .sos-title { margin: 0; color: #b91c1c; font-size: 24px; display: flex; align-items: center; gap: 10px; }
+    
+    .sos-grid { display: grid; grid-template-columns: 350px 1fr; gap: 20px; height: 600px; }
+    
+    /* Panel lateral de la lista */
+    .sos-sidebar { background: white; border: 1px solid #e2e8f0; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .sos-sidebar-header { background: #fef2f2; padding: 15px; border-bottom: 1px solid #fecaca; font-weight: bold; color: #991b1b; }
+    .sos-list { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
+    
+    /* Tarjetas de cada alerta */
+    .alerta-card { background: white; border: 1px solid #fca5a5; border-left: 5px solid #ef4444; border-radius: 6px; padding: 12px; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.1); }
+    .alerta-card:hover { transform: translateX(5px); border-color: #ef4444; }
+    .alerta-fecha { font-size: 11px; color: #64748b; margin-bottom: 5px; display: block; }
+    .alerta-msj { font-size: 13px; color: #334155; margin-bottom: 12px; line-height: 1.4; }
+    .alerta-acciones { display: flex; gap: 8px; }
+    
+    .btn-resolver { background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; text-decoration: none; display: inline-block; text-align: center; flex: 1; }
+    .btn-eliminar { background: #f8fafc; color: #ef4444; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; text-decoration: none; display: inline-block; text-align: center; }
+
+    /* Contenedor del Mapa */
+    .sos-mapa-wrapper { background: white; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative; }
+    #mapa-emergencia { width: 100%; height: 100%; }
+
+    @media (max-width: 900px) {
+        .sos-grid { grid-template-columns: 1fr; height: auto; }
+        .sos-mapa-wrapper { height: 400px; }
+        .sos-list { max-height: 400px; }
+    }
+</style>
+
+<div class="sos-container">
+    <div class="sos-header">
+        <h2 class="sos-title"><i class="fa-solid fa-satellite-dish fa-beat-fade"></i> Central de Emergencias SOS</h2>
+        <span style="background: #ef4444; color: white; padding: 5px 15px; border-radius: 20px; font-size: 14px; font-weight: bold; box-shadow: 0 2px 10px rgba(239, 68, 68, 0.4);">
+            {{ alertas_activas|length }} Alerta(s) Activa(s)
+        </span>
+    </div>
+
+    <div class="sos-grid">
+        <div class="sos-sidebar">
+            <div class="sos-sidebar-header">
+                <i class="fa-solid fa-triangle-exclamation"></i> Incidentes Requiriendo Atención
             </div>
-            {% empty %}
-            <p>No hay emergencias activas.</p>
-            {% endfor %}
+            <div class="sos-list">
+                {% for alerta in alertas_activas %}
+                <div class="alerta-card" onclick="enfocarMapa({{ alerta.latitud|default:'0'|safe }}, {{ alerta.longitud|default:'0'|safe }}, {{ alerta.id }})">
+                    <span class="alerta-fecha">ID: #{{ alerta.id }} | Pendiente</span>
+                    <div class="alerta-msj">{{ alerta.mensaje }}</div>
+                    
+                    {% if alerta.latitud == 0.0 and alerta.longitud == 0.0 %}
+                    <div style="font-size: 11px; color: #d97706; margin-bottom: 10px; background: #fffbeb; padding: 4px; border-radius: 4px;">
+                        <i class="fa-solid fa-location-crosshairs"></i> Sin GPS (Alerta NFC genérica)
+                    </div>
+                    {% endif %}
+
+                    <div class="alerta-acciones">
+                        <a href="{% url 'gestionar_alerta_sos' alerta.id 'resolver' %}" class="btn-resolver">
+                            <i class="fa-solid fa-check"></i> Marcar Resuelta
+                        </a>
+                        <a href="{% url 'gestionar_alerta_sos' alerta.id 'eliminar' %}" class="btn-eliminar" onclick="return confirm('¿Eliminar alerta por completo?')">
+                            <i class="fa-solid fa-trash"></i>
+                        </a>
+                    </div>
+                </div>
+                {% empty %}
+                <div style="text-align: center; padding: 40px 20px; color: #10b981;">
+                    <i class="fa-solid fa-shield-check" style="font-size: 40px; margin-bottom: 15px;"></i>
+                    <h3 style="margin: 0;">Todo bajo control</h3>
+                    <p style="font-size: 13px; color: #64748b;">No hay emergencias activas en la red en este momento.</p>
+                </div>
+                {% endfor %}
+            </div>
         </div>
 
-        <div class="col-md-4">
-            <h3>Historial</h3>
-            {% for alerta in alertas_historial %}
-            <p><small>{{ alerta.mensaje }}</small></p>
-            {% endfor %}
+        <div class="sos-mapa-wrapper">
+            <div id="mapa-emergencia"></div>
         </div>
     </div>
+
+    <div style="margin-top: 30px; background: white; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0;">
+        <h4 style="margin-top: 0; color: #475569;"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Resueltos (Últimos 10)</h4>
+        <ul style="font-size: 13px; color: #64748b; list-style-type: square; padding-left: 20px; margin-bottom: 0;">
+            {% for alerta in alertas_historial|slice:":10" %}
+            <li style="margin-bottom: 5px;">{{ alerta.mensaje|truncatechars:100 }}</li>
+            {% empty %}
+            <li>El historial está limpio.</li>
+            {% endfor %}
+        </ul>
+    </div>
 </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    let mapEmergencia;
+    let marcadoresSOS = {};
+
+    document.addEventListener("DOMContentLoaded", function() {
+        // Inicializar el mapa en Puerto Ordaz / San Félix
+        mapEmergencia = L.map('mapa-emergencia').setView([8.2962, -62.7115], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapEmergencia);
+
+        // Ícono de emergencia parpadeante
+        let iconSOS = L.divIcon({
+            className: 'custom-sos-icon',
+            html: '<div style="background: red; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 3px solid white; box-shadow: 0 0 15px rgba(255,0,0,0.8); animation: pulse 1s infinite;"><i class="fa-solid fa-triangle-exclamation"></i></div>',
+            iconSize: [34, 34],
+            iconAnchor: [17, 17]
+        });
+
+        // Insertar los estilos de animación
+        let style = document.createElement('style');
+        style.innerHTML = '@keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); } 70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); } }';
+        document.head.appendChild(style);
+
+        // Cargar las alertas activas en el mapa
+        {% for alerta in alertas_activas %}
+            // Validar que la alerta tenga coordenadas distintas a 0.0 (océano)
+            if (parseFloat('{{ alerta.latitud|safe }}') !== 0.0 && parseFloat('{{ alerta.longitud|safe }}') !== 0.0) {
+                let marker = L.marker([{{ alerta.latitud|safe }}, {{ alerta.longitud|safe }}], {icon: iconSOS})
+                              .addTo(mapEmergencia)
+                              .bindPopup(`<strong style="color:red;">🚨 S.O.S. ALERTA</strong><br>{{ alerta.mensaje|escapejs }}`);
+                
+                marcadoresSOS[{{ alerta.id }}] = marker;
+            }
+        {% endfor %}
+    });
+
+    // Función que se activa al hacer clic en una tarjeta de la lista
+    function enfocarMapa(lat, lng, alertaId) {
+        if (lat === 0 && lng === 0) {
+            alert("⚠️ Esta alerta proviene de un escaneo NFC sin coordenadas GPS registradas por el dispositivo.");
+            return;
+        }
+        
+        // Centrar el mapa con zoom
+        mapEmergencia.flyTo([lat, lng], 17, { duration: 1.5 });
+        
+        // Abrir el popup del marcador si existe
+        if (marcadoresSOS[alertaId]) {
+            setTimeout(() => {
+                marcadoresSOS[alertaId].openPopup();
+            }, 1500);
+        }
+    }
+</script>
 {% endblock %}
