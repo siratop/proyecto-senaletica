@@ -93,18 +93,14 @@
         </a>
         {% endif %}
         
-        {% if user.perfilusuario.rol == 'soporte' %}
-<li class="nav-item dropdown">
-    <a class="nav-link dropdown-toggle text-danger fw-bold" href="#" id="navbarServicioCliente" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-        🚨 Central de Emergencias
-    </a>
-    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarServicioCliente">
-        <li><a class="dropdown-item" href="{% url 'panel_servicio_cliente' %}">📡 Monitor en Vivo (SOS)</a></li>
-        <li><hr class="dropdown-divider"></li>
-        <li><a class="dropdown-item" href="{% url 'listar_usuarios' %}">👥 Editar Usuarios</a></li>
-    </ul>
-</li>
-{% endif %}
+{% if user.perfil.rol == 'soporte' %}
+        <a href="{% url 'panel_servicio_cliente' %}" style="background: #fef2f2; font-weight: bold; color: #ef4444; border-bottom: 1px solid #fecaca;">
+            <i class="fa-solid fa-headset" style="color: #ef4444;"></i> Monitor SOS en Vivo
+        </a>
+        <a href="{% url 'listar_usuarios' %}" style="background: #fef2f2; font-weight: bold; color: #ef4444;">
+            <i class="fa-solid fa-users-gear" style="color: #ef4444;"></i> Editar Usuarios
+        </a>
+        {% endif %}
 
             <form action="{% url 'logout' %}" method="post" style="margin: 0;">
                 {% csrf_token %}
