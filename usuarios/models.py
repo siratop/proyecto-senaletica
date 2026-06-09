@@ -77,13 +77,13 @@ class PerfilUsuario(models.Model):
         return diferencia.days >= 30
 
 class SolicitudOperador(models.Model):
-    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     telefono_contacto = models.CharField(max_length=20)
     experiencia_anios = models.IntegerField(help_text="Años de experiencia manejando unidades pesadas")
     tipo_licencia = models.CharField(max_length=50, help_text="Ej: Título de 5ta")
     mensaje = models.TextField(blank=True, help_text="¿Por qué desea unirse a nuestra red?")
     fecha_solicitud = models.DateTimeField(auto_now_add=True)
     estado = models.CharField(max_length=20, default='pendiente', choices=[('pendiente', 'Pendiente'), ('aprobada', 'Aprobada'), ('rechazada', 'Rechazada')])
-
+   
     def __str__(self):
         return f"Solicitud de {self.usuario.username}"

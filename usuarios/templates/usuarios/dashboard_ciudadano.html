@@ -30,7 +30,16 @@
         <a href="{% url 'crear_dependiente' %}" style="background: #0d9488; color: white; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px;">
             + Añadir Familiar / Pulsera
         </a>
-        
+        <div class="mis-alertas">
+    <h3>Mis Reportes Activos</h3>
+    {% for alerta in user.alertaoperativa_set.all %}
+        {% if alerta.activa %}
+            <div class="card-alerta">
+                {{ alerta.mensaje }} - <span class="badge">Pendiente</span>
+            </div>
+        {% endif %}
+    {% endfor %}
+</div>
         <a href="{% url 'inicio_general' %}" style="background: #f1f5f9; color: #475569; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px;">
             <i class="fa-solid fa-arrow-left"></i> Volver al inicio
         </a>

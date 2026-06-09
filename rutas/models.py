@@ -1,5 +1,6 @@
 from django.db import models
 import time
+from django.conf import settings
 
 class Patrocinador(models.Model):
     nombre = models.CharField(max_length=100)
@@ -63,6 +64,16 @@ class AlertaOperativa(models.Model):
         ('trafico', '🚗 Congestión / Retraso (Mapa)'),
         ('incidente', '⚠️ Accidente / Vía Cerrada (Mapa)'),
     ]
+    
+    # NUEVO CAMPO: Relación con el usuario que creó la alerta
+    usuario_creador = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True,
+        related_name='alertas_creadas'
+    )
+    
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='general')
     mensaje = models.CharField(max_length=200, help_text="Ej: Paro de transporte, vía cerrada en Alta Vista...")
     activa = models.BooleanField(default=True, help_text="Desmarcar para quitar la alerta")
@@ -70,7 +81,6 @@ class AlertaOperativa(models.Model):
     longitud = models.CharField(max_length=50, null=True, blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
-   
     dependiente = models.ForeignKey(
         'usuarios.Dependiente', 
         on_delete=models.SET_NULL, 
@@ -80,8 +90,7 @@ class AlertaOperativa(models.Model):
     )
 
     def __str__(self):
-        return f"{self.get_tipo_display()} - {self.mensaje[:30]}"  
-    
+        return f"{self.get_tipo_display()} - {self.mensaje[:30]}"
 class Sugerencia(models.Model):
     TIPO_REPORTES = [
         ('ruta', 'Sugerencia de Ruta'),

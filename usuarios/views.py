@@ -15,7 +15,7 @@ from django.contrib.auth import logout
 from django.db import IntegrityError 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-
+import json
 # =========================================================
 # 1. REGISTRO Y GESTIÓN DE CUENTAS
 # =========================================================
@@ -317,15 +317,22 @@ def mi_perfil(request):
 
 @login_required
 def panel_servicio_cliente(request):
-    """Panel Exclusivo para Operadores / Servicio al Cliente"""
-    if not request.user.is_staff:
-        messages.error(request, "Acceso denegado. Área exclusiva de Servicio al Cliente.")
-        return redirect('dashboard_ciudadano')
-
+    """Panel Exclusivo para Operadores / Servicio al Cliente y usuarios con reportes"""
+    
+    # 1. Obtenemos el perfil para verificar su rol
+    from usuarios.models import PerfilUsuario
+    perfil, created = PerfilUsuario.objects.get_or_create(usuario=request.user)
+    
     from rutas.models import AlertaOperativa
     
-    alertas_activas = AlertaOperativa.objects.filter(activa=True).order_by('-id')
-    alertas_historial = AlertaOperativa.objects.filter(activa=False).order_by('-id')[:50]
+   
+    if request.user.is_staff or perfil.rol == 'soporte':
+        alertas_activas = AlertaOperativa.objects.filter(activa=True).order_by('-id')
+        alertas_historial = AlertaOperativa.objects.filter(activa=False).order_by('-id')[:50]
+    else:
+        # Filtramos por el usuario que creó la alerta
+        alertas_activas = AlertaOperativa.objects.filter(activa=True, usuario_creador=request.user).order_by('-id')
+        alertas_historial = AlertaOperativa.objects.filter(activa=False, usuario_creador=request.user).order_by('-id')[:20]
 
     contexto = {
         'alertas_activas': alertas_activas,
