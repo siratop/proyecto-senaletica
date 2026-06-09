@@ -93,7 +93,7 @@
         </a>
         {% endif %}
         
-        {% if user.is_staff %}
+        {% if user.perfilusuario.rol == 'soporte' %}
 <li class="nav-item dropdown">
     <a class="nav-link dropdown-toggle text-danger fw-bold" href="#" id="navbarServicioCliente" role="button" data-bs-toggle="dropdown" aria-expanded="false">
         🚨 Central de Emergencias
