@@ -46,6 +46,21 @@
         margin-top: -15px;
         margin-bottom: 20px;
     }
+
+    /* Mejora: Alineación perfecta de los botones */
+    .btn-group {
+        display: flex;
+        gap: 15px;
+        margin-top: 20px;
+    }
+    
+    .btn-group a, .btn-group button {
+        flex: 1;
+        justify-content: center;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
 </style>
 
 <div class="form-container">
@@ -74,11 +89,11 @@
     {% endif %}
     
     <div class="btn-group">
-        <a href="javascript:history.back()" style="background: #94a3b8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; text-align: center;">
+        <a href="javascript:history.back()" style="background: #94a3b8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
             <i class="fa-solid fa-arrow-left"></i> Cancelar
         </a>
         
-        <button type="submit" class="btn-base btn-primary">
+        <button type="submit" class="btn-base btn-primary" style="padding: 12px 24px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer;">
             <i class="fa-solid fa-save"></i> Guardar Cambios
         </button>
     </div>

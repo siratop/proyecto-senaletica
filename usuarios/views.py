@@ -14,10 +14,7 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.db import IntegrityError 
 from django.http import JsonResponse
-
-
-from django.core.mail import send_mail
-from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
 
 # =========================================================
 # 1. REGISTRO Y GESTIÓN DE CUENTAS
@@ -99,7 +96,6 @@ def ficha_sos_publica(request, token_nfc):
     alerta_id = None 
     
     try:
-        # Solo guardamos la alerta en la base de datos para que el panel de Servicio al Cliente la vea
         alerta_creada = AlertaOperativa.objects.create(
             tipo='incidente',
             mensaje=mensaje_sos,
@@ -119,6 +115,7 @@ def ficha_sos_publica(request, token_nfc):
         'alerta_id': alerta_id  
     }
     return render(request, 'usuarios/ficha_sos_publica.html', contexto)
+
 
 # =========================================================
 # 3. CRUD ADMINISTRATIVO (Para el panel de control)
@@ -149,34 +146,24 @@ class UsuarioUpdateView(UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['titulo'] = '✏️ Editar Cuenta y Rol de Usuario'
-        
-        # Le pasamos las opciones de roles a la plantilla
         context['roles_disponibles'] = PerfilUsuario._meta.get_field('rol').choices
         
-        # Buscamos el rol actual del usuario para pre-seleccionarlo
         perfil, created = PerfilUsuario.objects.get_or_create(usuario=self.object)
         context['rol_actual'] = perfil.rol
         return context
 
     def form_valid(self, form):
-        # 1. Guardamos los datos básicos del User (Nombre, email, etc)
         usuario = form.save(commit=False)
-        
-        # 2. Capturamos el nuevo rol enviado desde el formulario HTML
         nuevo_rol = self.request.POST.get('rol_usuario')
         
         if nuevo_rol:
-            # 3. Actualizamos el PerfilUsuario
             perfil, created = PerfilUsuario.objects.get_or_create(usuario=usuario)
             perfil.rol = nuevo_rol
             perfil.save()
             
-         
-            # Si el rol es soporte, le damos la llave de la Central de Emergencias
             if nuevo_rol == 'soporte':
                 usuario.is_staff = True
             else:
-                # Si lo degradan a ciudadano o conductor, le quitamos la llave
                 usuario.is_staff = False
                 
         usuario.save()
@@ -198,7 +185,6 @@ def edicion_avanzada_usuarios(request):
 @staff_member_required
 def asignar_nfc(request):
     """Vista para el formulario de vinculación de tarjetas NFC"""
-  
     dependientes = Dependiente.objects.all().select_related('tutor')
     return render(request, 'usuarios/asignar_nfc.html', {'dependientes': dependientes})
 
@@ -210,7 +196,6 @@ def auditoria_nfc(request):
 @staff_member_required
 def ficha_monitoreo_usuario(request, user_id):
     usuario = get_object_or_404(User, id=user_id)
-  
     logs = RegistroActividad.objects.filter(user=usuario).order_by('-fecha')
     
     contexto = {
@@ -227,7 +212,6 @@ def guardar_nfc(request):
         usuario_id = request.POST.get('usuario_id')
         codigo_nfc = request.POST.get('codigo_nfc')
         
-        # Validar que los campos no vengan vacíos
         if not usuario_id or not codigo_nfc:
             messages.error(request, "Error: Debe seleccionar un usuario y colocar un código NFC.")
             return redirect('asignar_nfc')
@@ -235,26 +219,21 @@ def guardar_nfc(request):
         try:
             usuario = User.objects.get(id=usuario_id)
             
-            # Verificamos si este usuario ya tiene una tarjeta (OneToOneField)
             if hasattr(usuario, 'tarjetanfc'):
-                # Actualizamos la tarjeta existente
                 usuario.tarjetanfc.codigo_uid = codigo_nfc
                 usuario.tarjetanfc.activa = True
                 usuario.tarjetanfc.save()
                 messages.success(request, f"Tarjeta NFC de {usuario.username} actualizada correctamente.")
             else:
-                # Creamos una tarjeta nueva
                 TarjetaNFC.objects.create(usuario=usuario, codigo_uid=codigo_nfc, activa=True)
                 messages.success(request, f"Tarjeta NFC vinculada a {usuario.username} con éxito.")
                 
         except User.DoesNotExist:
             messages.error(request, "Error: El usuario seleccionado no existe en el sistema.")
         except IntegrityError:
-            # Si el código NFC (link) ya está en uso por otra persona
             messages.error(request, "Error crítico: El código o enlace NFC ya está asignado a otro usuario distinto.")
         except Exception as e:
-            # Captura de errores inesperados (evita el 500)
-            print(f"Error inesperado al guardar NFC: {e}")
+            print(f"Error unexpected al guardar NFC: {e}")
             messages.error(request, "Error interno al procesar la vinculación NFC.")
             
     return redirect('asignar_nfc')
@@ -263,7 +242,6 @@ def guardar_nfc(request):
 def mi_perfil(request):
     perfil, created = PerfilUsuario.objects.get_or_create(usuario=request.user)
     
-    # 1. Lógica del candado de 7 días (Datos Personales)
     puede_editar = True
     dias_restantes = 0
     if perfil.ultima_modificacion:
@@ -272,7 +250,6 @@ def mi_perfil(request):
             puede_editar = False
             dias_restantes = 7 - tiempo_pasado.days
 
-    # 2. Lógica del candado de 30 días (Dueños de Flota)
     dias_restantes_flota = 0
     if perfil.rol == 'flota' and not perfil.puede_cambiar_nombre():
         dias_pasados = (timezone.now() - perfil.fecha_cambio_nombre).days
@@ -281,7 +258,6 @@ def mi_perfil(request):
     if request.method == 'POST':
         action = request.POST.get('action')
 
-        # Acción: Actualizar Datos Personales
         if action == 'update_data' and puede_editar:
             user = request.user
             user.first_name = request.POST.get('nombre')
@@ -290,19 +266,16 @@ def mi_perfil(request):
             user.save()
             
             perfil.telefono = request.POST.get('telefono')
-            perfil.ultima_modificacion = timezone.now() # Iniciamos el candado de 7 días
+            perfil.ultima_modificacion = timezone.now()
             perfil.save()
             
             messages.success(request, "Datos actualizados correctamente. Por seguridad, no podrá modificarlos de nuevo hasta dentro de 7 días.")
             return redirect('mi_perfil')
 
-        # Acción: Configurar Identidad de Flota
         elif request.POST.get('guardar_flota'):
             if perfil.rol == 'flota':
-                # El teléfono de la flota siempre se puede actualizar libremente
                 perfil.telefono = request.POST.get('telefono_flota')
                 
-                # Verificamos si el candado del nombre está abierto
                 if perfil.puede_cambiar_nombre():
                     perfil.nombre_flota = request.POST.get('nombre_flota')
                     perfil.fecha_cambio_nombre = timezone.now()
@@ -313,7 +286,6 @@ def mi_perfil(request):
                 perfil.save()
             return redirect('mi_perfil')
 
-        # Acción: Solicitud de Operador
         elif action == 'solicitud_empleo':
             SolicitudOperador.objects.create(
                 usuario=request.user,
@@ -325,7 +297,6 @@ def mi_perfil(request):
             messages.success(request, "¡Su solicitud ha sido enviada al departamento de transporte! Lo contactaremos pronto.")
             return redirect('mi_perfil')
 
-        # Acción: Zona de Peligro (Eliminar Cuenta)
         elif action == 'eliminar_cuenta':
             user = request.user
             logout(request)
@@ -339,41 +310,51 @@ def mi_perfil(request):
         'dias_restantes_flota': dias_restantes_flota 
     })
 
-def ficha_sos_publica(request, token_nfc):
-    """Pantalla pública de asistencia para personas extraviadas (NFC) - SIN CORREO"""
-    dependiente = get_object_or_404(Dependiente, token_nfc=token_nfc)
-    
-    from rutas.models import AlertaOperativa  
-    
-    tutor_nombre = f"{dependiente.tutor.first_name} {dependiente.tutor.last_name}".strip() or dependiente.tutor.username
-    
-    mensaje_sos = (
-        f"🚨 INCIDENTE NFC: Se ha escaneado la pulsera de {dependiente.nombre_completo}. "
-        f"Parentesco: {dependiente.get_relacion_display()}. "
-        f"Representante: {tutor_nombre}. "
-        f"Teléfono de Contacto: {dependiente.telefono_emergencia}."
-    )
-    
-    alerta_id = None 
-    
-    try:
-        # Solo guardamos la alerta en la base de datos para que el panel de Servicio al Cliente la vea
-        alerta_creada = AlertaOperativa.objects.create(
-            tipo='incidente',
-            mensaje=mensaje_sos,
-            dependiente=dependiente, 
-            activa=True,
-            latitud=0.0,
-            longitud=0.0
-        )
-        alerta_id = alerta_creada.id 
-        print(f"✅ Alerta SOS registrada (ID: {alerta_id}). (Módulo de correo desactivado)", flush=True)
 
-    except Exception as e:
-        print(f"❌ ERROR AL CREAR ALERTA SOS: {e}", flush=True)
+# =========================================================
+# 4. MONITOR DE EMERGENCIAS Y CENTRAL DE SERVICIO AL CLIENTE
+# =========================================================
+
+@login_required
+def panel_servicio_cliente(request):
+    """Panel Exclusivo para Operadores / Servicio al Cliente"""
+    if not request.user.is_staff:
+        messages.error(request, "Acceso denegado. Área exclusiva de Servicio al Cliente.")
+        return redirect('dashboard_ciudadano')
+
+    from rutas.models import AlertaOperativa
+    
+    alertas_activas = AlertaOperativa.objects.filter(activa=True).order_by('-id')
+    alertas_historial = AlertaOperativa.objects.filter(activa=False).order_by('-id')[:50]
 
     contexto = {
-        'dependiente': dependiente,
-        'alerta_id': alerta_id  
+        'alertas_activas': alertas_activas,
+        'alertas_historial': alertas_historial,
     }
-    return render(request, 'usuarios/ficha_sos_publica.html', contexto)
+    return render(request, 'usuarios/panel_servicio_cliente.html', contexto)
+
+
+@login_required
+def gestionar_alerta_sos(request, alerta_id, accion):
+    """Permite al Operador solucionar o eliminar una emergencia"""
+    if not request.user.is_staff:
+        return redirect('dashboard_ciudadano')
+
+    from rutas.models import AlertaOperativa
+    alerta = get_object_or_404(AlertaOperativa, id=alerta_id)
+
+    if accion == 'resolver':
+        alerta.activa = False
+        alerta.save()
+        messages.success(request, f"¡Emergencia de {alerta.dependiente.nombre_completo} marcada como Resuelta!")
+    elif accion == 'eliminar':
+        alerta.delete()
+        messages.success(request, "El registro de la alerta ha sido eliminado.")
+
+    return redirect('panel_servicio_cliente')
+
+
+@csrf_exempt
+def actualizar_gps_alerta(request):
+    """Endpoint de respaldo requerido por el módulo de rastreo de rutas"""
+    return JsonResponse({'status': 'ok'})
