@@ -364,5 +364,22 @@ def gestionar_alerta_sos(request, alerta_id, accion):
 
 @csrf_exempt
 def actualizar_gps_alerta(request):
-    """Endpoint de respaldo requerido por el módulo de rastreo de rutas"""
-    return JsonResponse({'status': 'ok'})
+    """Recibe la ubicación exacta del teléfono que escaneó el NFC y actualiza el mapa en vivo"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            alerta_id = data.get('alerta_id')
+            lat = data.get('lat')
+            lon = data.get('lon')
+
+            if alerta_id and lat and lon:
+                from rutas.models import AlertaOperativa
+                alerta = AlertaOperativa.objects.get(id=alerta_id)
+                alerta.latitud = float(lat)
+                alerta.longitud = float(lon)
+                alerta.save()
+                return JsonResponse({'status': 'ok', 'msg': 'GPS actualizado en la Central'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'msg': str(e)}, status=400)
+            
+    return JsonResponse({'status': 'error'}, status=400)
