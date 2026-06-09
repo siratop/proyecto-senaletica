@@ -17,6 +17,7 @@ from usuarios.models import PerfilUsuario
 from django.core.mail import send_mail
 from django.contrib.auth.models import User 
 import threading
+
 # =========================================================
 # 1. FUNCIONES SATELITALES Y MATEMÁTICAS (Core)
 # =========================================================
@@ -54,15 +55,17 @@ def inicio_general(request):
     rutas = Ruta.objects.all()
     avisos_generales = AlertaOperativa.objects.filter(activa=True, tipo='general')
     
-    
     if request.user.is_staff:
         incidentes_mapa = AlertaOperativa.objects.filter(activa=True).exclude(tipo='general')
     else:
         # Si es un ciudadano normal, la lista va vacía y no ve nada
         incidentes_mapa = []
 
+    # OBTENER ALERTAS PARA MOSTRAR EN EL MAPA (INDEPENDIENTEMENTE DEL ROL)
+    # Reemplaza la lógica anterior para asegurar que los SOS se vean para todos
+    incidentes_mapa = AlertaOperativa.objects.filter(activa=True).exclude(tipo='general')
+
     campanas_activas = Campana.objects.filter(activa=True)
-    
     lista_patrocinadores = Patrocinador.objects.all()
     
     todas_paradas = []
@@ -85,7 +88,8 @@ def inicio_general(request):
                 'ruta': u.ruta_asignada.nombre if u.ruta_asignada else 'Desconocida'
             })
 
-    return render(request, 'rutas/inicio_general.html', {
+    # AHORA SÍ: El contexto está perfectamente alineado
+    contexto = {
         'perfil': perfil,
         'paradas': Parada.objects.all(),
         'paradas_json': json.dumps(todas_paradas),
@@ -95,7 +99,9 @@ def inicio_general(request):
         'incidentes_mapa': incidentes_mapa,
         'campanas': campanas_activas,
         'patrocinadores': lista_patrocinadores 
-    })
+    }
+
+    return render(request, 'rutas/inicio_general.html', contexto)
 
 @staff_member_required
 def panel_admin_amigable(request):

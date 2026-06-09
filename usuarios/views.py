@@ -346,7 +346,15 @@ def gestionar_alerta_sos(request, alerta_id, accion):
     if accion == 'resolver':
         alerta.activa = False
         alerta.save()
-        messages.success(request, f"¡Emergencia de {alerta.dependiente.nombre_completo} marcada como Resuelta!")
+        
+        # MAGIA: Detectamos si la alerta tiene una persona asignada o si viene de una parada
+        if alerta.dependiente:
+            nombre = alerta.dependiente.nombre_completo
+        else:
+            nombre = "la estación/parada"
+            
+        messages.success(request, f"¡Emergencia de {nombre} marcada como Resuelta!")
+        
     elif accion == 'eliminar':
         alerta.delete()
         messages.success(request, "El registro de la alerta ha sido eliminado.")
