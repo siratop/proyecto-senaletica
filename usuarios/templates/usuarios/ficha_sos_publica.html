@@ -63,8 +63,16 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         if (navigator.geolocation) {
+            
+            // Opciones obligatorias para forzar la antena GPS del teléfono
+            const opcionesGPS = {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0
+            };
+
             navigator.geolocation.getCurrentPosition(function(position) {
-                // Si el samaritano acepta compartir ubicación, enviamos las coordenadas al servidor
+                // El samaritano aceptó dar su ubicación
                 fetch("{% url 'actualizar_gps_alerta' %}", {
                     method: "POST",
                     headers: {
@@ -72,7 +80,7 @@
                         "X-CSRFToken": "{{ csrf_token }}"
                     },
                     body: JSON.stringify({
-                        alerta_id: {{ alerta_id }},
+                        alerta_id: "{{ alerta_id }}", // Comillas de seguridad añadidas
                         lat: position.coords.latitude,
                         lon: position.coords.longitude
                     })
@@ -80,15 +88,19 @@
                 .then(response => response.json())
                 .then(data => {
                     if(data.status === 'ok'){
-                        console.log("Ubicación de emergencia enviada exitosamente a la central.");
+                        console.log("Ubicación enviada a la central de Ciudad Guayana.");
                     }
                 })
-                .catch(error => console.error("Error enviando ubicación:", error));
+                .catch(error => console.error("Error de red:", error));
+
             }, function(error) {
-                console.log("El usuario denegó los permisos de GPS o hubo un error:", error.message);
-            });
+                // Si la persona le da a "Bloquear" o tiene el GPS apagado, le rogamos que lo active
+                alert("⚠️ IMPORTANTE: No pudimos detectar tu ubicación. Por favor, recarga la página y presiona 'Permitir' en el mensaje de ubicación para que los rescatistas sepan a dónde ir.");
+                console.log("Error de GPS:", error.message);
+            }, opcionesGPS);
+            
         } else {
-            console.log("Geolocalización no soportada por este navegador.");
+            console.log("Geolocalización no soportada.");
         }
     });
 </script>
