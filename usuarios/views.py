@@ -364,7 +364,6 @@ def gestionar_alerta_sos(request, alerta_id, accion):
 
 @csrf_exempt
 def actualizar_gps_alerta(request):
-    """Recibe la ubicación exacta del teléfono que escaneó el NFC y actualiza el mapa en vivo"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -372,14 +371,19 @@ def actualizar_gps_alerta(request):
             lat = data.get('lat')
             lon = data.get('lon')
 
+           
+            print(f"DEBUG: Recibiendo GPS -> ID: {alerta_id}, Lat: {lat}, Lon: {lon}", flush=True)
+
             if alerta_id and lat and lon:
                 from rutas.models import AlertaOperativa
-                alerta = AlertaOperativa.objects.get(id=alerta_id)
+               
+                alerta = AlertaOperativa.objects.get(id=int(alerta_id))
                 alerta.latitud = float(lat)
                 alerta.longitud = float(lon)
                 alerta.save()
-                return JsonResponse({'status': 'ok', 'msg': 'GPS actualizado en la Central'})
+                return JsonResponse({'status': 'ok'})
+            return JsonResponse({'status': 'error', 'msg': 'Faltan datos'}, status=400)
         except Exception as e:
+            print(f"Error en GPS: {e}", flush=True)
             return JsonResponse({'status': 'error', 'msg': str(e)}, status=400)
-            
-    return JsonResponse({'status': 'error'}, status=400)
+    return JsonResponse({'status': 'error'}, status=405)

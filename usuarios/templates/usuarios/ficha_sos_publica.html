@@ -72,19 +72,18 @@
             };
 
             navigator.geolocation.getCurrentPosition(function(position) {
-                // El samaritano aceptó dar su ubicación
-                fetch("{% url 'actualizar_gps_alerta' %}", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRFToken": "{{ csrf_token }}"
-                    },
-                    body: JSON.stringify({
-                        alerta_id: "{{ alerta_id }}", // Comillas de seguridad añadidas
-                        lat: position.coords.latitude,
-                        lon: position.coords.longitude
+               fetch("{% url 'actualizar_gps_alerta' %}", {
+                  method: "POST",
+                  headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": "{{ csrf_token }}"
+                      },
+                  body: JSON.stringify({
+                  alerta_id: "{{ alerta_id }}", 
+                  lat: position.coords.latitude,
+                  lon: position.coords.longitude
                     })
-                })
+                   })
                 .then(response => response.json())
                 .then(data => {
                     if(data.status === 'ok'){
