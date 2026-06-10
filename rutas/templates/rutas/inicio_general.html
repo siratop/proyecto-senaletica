@@ -145,6 +145,24 @@
     .carousel-dots { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 10; }
     .dot { width: 8px; height: 8px; background: rgba(255,255,255,0.6); border-radius: 50%; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
     .dot.active { background: #f59e0b; width: 20px; border-radius: 8px; }
+
+    /* NUEVA CLASE PARA EL BANNER */
+    .img-banner {
+        width: 100%;
+        height: 220px; /* Altura ideal para pantallas grandes */
+        object-fit: cover; /* Llena el espacio sin deformar */
+        display: block;
+    }
+
+    /* MAGIA RESPONSIVA PARA EL CELULAR */
+    @media (max-width: 768px) {
+        .img-banner {
+            height: auto; /* Anula los 220px para que se adapte al celular */
+            aspect-ratio: 16 / 9; /* Obliga a la foto a mantener formato rectangular */
+            object-fit: contain; /* Garantiza que se vea la imagen completa de borde a borde */
+            background-color: #f8fafc; /* Fondo gris claro en caso de sobrar un poco de espacio arriba/abajo */
+        }
+    }
 </style>
 
 <div class="carousel-container" id="promoCarousel">
@@ -152,7 +170,7 @@
         {% for campana in campanas %}
         <div class="carousel-slide">
             {% if campana.imagen_banner %}
-                <img src="{{ campana.imagen_banner.url }}" alt="{{ campana.nombre }}" style="width: 100%; height: 200px; object-fit: cover; display: block;">
+                <img src="{{ campana.imagen_banner.url }}" alt="{{ campana.nombre }}" class="img-banner">
             {% else %}
                 <div style="width: 100%; height: 200px; display: flex; align-items: center; justify-content: center; background:#f8fafc; color: #94a3b8; font-weight: bold; font-family: 'Urbanist', sans-serif;">
                     <i class="fa-solid fa-image" style="margin-right: 8px;"></i> {{ campana.nombre }}
