@@ -55,15 +55,21 @@ def inicio_general(request):
     rutas = Ruta.objects.all()
     avisos_generales = AlertaOperativa.objects.filter(activa=True, tipo='general')
     
-    if request.user.is_staff:
-        incidentes_mapa = AlertaOperativa.objects.filter(activa=True).exclude(tipo='general')
+    # --- FILTRO DE SEGURIDAD PARA ALERTAS EN EL MAPA ---
+    if request.user.is_authenticated:
+        # 1. Si es Superusuario, Staff o tiene rol de ADMINISTRADOR o ATENCION_CLIENTE, ve TODO
+        if request.user.is_superuser or request.user.is_staff or (perfil and perfil.rol in ['ADMINISTRADOR', 'ATENCION_CLIENTE']):
+            incidentes_mapa = AlertaOperativa.objects.filter(activa=True).exclude(tipo='general')
+        else:
+            # 2. Si es un ciudadano común autenticado, solo ve las alertas que él mismo creó
+            incidentes_mapa = AlertaOperativa.objects.filter(
+                activa=True, 
+                usuario_creador=request.user
+            ).exclude(tipo='general')
     else:
-        # Si es un ciudadano normal, la lista va vacía y no ve nada
-        incidentes_mapa = []
-
-    # OBTENER ALERTAS PARA MOSTRAR EN EL MAPA (INDEPENDIENTEMENTE DEL ROL)
-    # Reemplaza la lógica anterior para asegurar que los SOS se vean para todos
-    incidentes_mapa = AlertaOperativa.objects.filter(activa=True).exclude(tipo='general')
+        # 3. Si el usuario ni siquiera ha iniciado sesión (anónimo), no ve incidentes privados en el mapa
+        incidentes_mapa = AlertaOperativa.objects.none()
+    # ---------------------------------------------------
 
     campanas_activas = Campana.objects.filter(activa=True)
     lista_patrocinadores = Patrocinador.objects.all()
@@ -88,7 +94,6 @@ def inicio_general(request):
                 'ruta': u.ruta_asignada.nombre if u.ruta_asignada else 'Desconocida'
             })
 
-    # AHORA SÍ: El contexto está perfectamente alineado
     contexto = {
         'perfil': perfil,
         'paradas': Parada.objects.all(),
