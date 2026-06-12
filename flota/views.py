@@ -520,13 +520,16 @@ def api_buses_activos(request):
         data_buses = []
         
         for u in buses:
+         
+            estado_actual = getattr(u, 'estado', 'activo')
+            if str(estado_actual).lower() == 'inactivo':
+                continue # Pasa al siguiente autobús, ignorando este en el mapa
+            
             if u.latitud_actual and u.longitud_actual:
                 # 1. Buscamos el identificador del bus de forma segura
-                # Si no existe el campo 'placa', busca 'numero' o usa su ID
                 unidad_identificador = getattr(u, 'placa', getattr(u, 'numero', f"N° {u.id}"))
                 
                 # 2. Buscamos la relación con la ruta
-                # Intentamos con 'ruta' (lo más probable por tu unidad_set) o 'ruta_asignada'
                 ruta_obj = getattr(u, 'ruta', getattr(u, 'ruta_asignada', None))
                 ruta_nombre = ruta_obj.nombre if ruta_obj else 'Sin ruta'
                 ruta_id = ruta_obj.id if ruta_obj else None
@@ -551,5 +554,4 @@ def api_buses_activos(request):
         return JsonResponse({'buses': data_buses})
         
     except Exception as e:
-       
         return JsonResponse({'error': str(e), 'buses': []}, status=500)
