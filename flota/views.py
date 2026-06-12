@@ -155,41 +155,38 @@ def panel_chofer(request):
 
 @csrf_exempt
 def actualizar_gps(request):
-    """
-    Recibe la ubicación de la App Móvil.
-    NO usa @login_required porque la app se autentica con el token secreto.
-    """
+    """Recibe la ubicación de la App Móvil o la orden de apagado."""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             
-            # 1. Seguridad: Verificar que sea la App oficial
+            # 1. Seguridad
             if data.get('token') != "SENALETICA_SECRETO_2026":
                 return JsonResponse({'error': 'No autorizado'}, status=403)
                 
-            # 2. Buscar la unidad
             unidad_id = data.get('unidad_id')
-            if not unidad_id:
-                return JsonResponse({'error': 'Falta unidad_id'}, status=400)
-                
             unidad = Unidad.objects.filter(id=unidad_id).first()
             if not unidad:
                 return JsonResponse({'error': 'Unidad no encontrada'}, status=404)
 
-            # 3. MÁGIA DE APAGADO: Si manda inactivo, lo ocultamos y cortamos aquí
+            # ==========================================================
+            # EL APAGADOR: Forzamos el estado a 'inactiva' (femenino)
+            # ==========================================================
             if data.get('estado') == 'inactivo':
-                unidad.estado = 'inactivo'
+                unidad.estado = 'inactiva' 
                 unidad.save()
                 return JsonResponse({'status': 'Bus desconectado del mapa'})
 
-            # 4. Actualización normal de coordenadas
+            # ==========================================================
+            # SI ESTÁ TRANSMITIENDO: Actualiza coordenadas y fuerza a 'operativa'
+            # ==========================================================
             lat = data.get('latitud', data.get('lat'))
             lon = data.get('longitud', data.get('lon'))
             
             if lat and lon:
                 unidad.latitud_actual = lat
                 unidad.longitud_actual = lon
-                unidad.estado = 'activo' # Lo forzamos a activo mientras envíe
+                unidad.estado = 'operativa' 
                 unidad.ultima_actualizacion = timezone.now()
                 unidad.save()
                 return JsonResponse({'status': 'ok', 'msg': 'GPS actualizado'})
@@ -200,30 +197,28 @@ def actualizar_gps(request):
             
     return JsonResponse({'status': 'error', 'msg': 'Método no permitido'}, status=405)
 
-
 # =========================================================
 # API PARA EL MAPA WEB (Envío de datos a la pantalla)
 # =========================================================
 
 def api_buses_activos(request):
-    """API Pública: Envía los buses activos al mapa web en tiempo real."""
+    """API Pública: Envía al mapa web ÚNICAMENTE los buses rodando."""
     try:
         buses = Unidad.objects.all() 
         data_buses = []
         
         for u in buses:
-            # 1. Si está inactivo, lo saltamos por completo
-            estado_actual = getattr(u, 'estado', 'activo')
-            if str(estado_actual).lower() == 'inactivo':
-                continue 
+            # ==========================================================
+            # LA PUERTA VIP: Si no es 'operativa' o 'activo', NO ENTRA AL MAPA
+            # ==========================================================
+            estado_actual = str(getattr(u, 'estado', '')).lower()
+            if estado_actual not in ['operativa', 'activo']:
+                continue # Salta este bus, ignorándolo por completo
             
-            # 2. Si tiene coordenadas, lo empaquetamos
+            # Verificamos que tenga coordenadas válidas
             if u.latitud_actual and u.longitud_actual:
                 unidad_identificador = getattr(u, 'placa', getattr(u, 'numero', f"N° {u.id}"))
-                
                 ruta_obj = getattr(u, 'ruta', getattr(u, 'ruta_asignada', None))
-                ruta_nombre = ruta_obj.nombre if ruta_obj else 'Sin ruta'
-                ruta_id = ruta_obj.id if ruta_obj else None
                 
                 try:
                     lat = float(str(u.latitud_actual).replace(',', '.'))
@@ -236,8 +231,8 @@ def api_buses_activos(request):
                     'unidad': unidad_identificador, 
                     'lat': lat,
                     'lon': lon,
-                    'ruta_nombre': ruta_nombre,
-                    'ruta_id': ruta_id,
+                    'ruta_nombre': ruta_obj.nombre if ruta_obj else 'Sin ruta',
+                    'ruta_id': ruta_obj.id if ruta_obj else None,
                     'conductor': "Operador Activo" 
                 })
                 
