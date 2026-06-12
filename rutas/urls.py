@@ -72,5 +72,7 @@ urlpatterns = [
     path('unidades/eliminar/<int:unidad_id>/', views.eliminar_unidad, name='eliminar_unidad'),
     path('eliminar/<int:campana_id>/', views.eliminar_campana, name='eliminar_campana'),
     path('editar/<int:campana_id>/', views.editar_campana, name='editar_campana'),
-    
+
+    # Ruta para la API de la app del chofer
+    path('api/actualizar-gps/', views.actualizar_gps_unidad, name='actualizar_gps_unidad'),
 ]

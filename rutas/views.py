@@ -18,6 +18,7 @@ from django.core.mail import send_mail
 from django.contrib.auth.models import User 
 import threading
 
+
 # =========================================================
 # 1. FUNCIONES SATELITALES Y MATEMÁTICAS (Core)
 # =========================================================
@@ -617,3 +618,45 @@ def alerta_emergencia(request, parada_id):
     messages.success(request, "⚠️ ALERTA SOS ENVIADA: Nuestra central de emergencias ha sido notificada al instante.")
 
     return redirect('inicio_peaton', parada_id=parada.id)
+
+@csrf_exempt
+def actualizar_gps_unidad(request):
+    """
+    API para recibir las coordenadas en segundo plano desde la App del Chofer.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            
+            # 1. Seguridad básica: Un token secreto para que nadie más envíe datos falsos
+            token_recibido = data.get('token')
+            token_servidor = "SENALETICA_SECRETO_2026" # En el futuro lo puedes poner en variables de entorno (.env)
+            
+            if token_recibido != token_servidor:
+                return JsonResponse({'error': 'Acceso no autorizado'}, status=401)
+
+            # 2. Extraer los datos del autobús
+            unidad_id = data.get('unidad_id')
+            lat = data.get('latitud')
+            lon = data.get('longitud')
+
+            if not unidad_id or not lat or not lon:
+                return JsonResponse({'error': 'Faltan datos (unidad_id, latitud o longitud)'}, status=400)
+
+            # 3. Buscar la unidad en la base de datos y actualizar
+            unidad = Unidad.objects.get(id=unidad_id)
+            unidad.latitud_actual = lat
+            unidad.longitud_actual = lon
+            unidad.save()
+
+            return JsonResponse({
+                'status': 'ok', 
+                'msg': f'GPS actualizado para la unidad {unidad_id}'
+            })
+
+        except Unidad.DoesNotExist:
+            return JsonResponse({'error': 'La unidad especificada no existe'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': f'Error interno: {str(e)}'}, status=500)
+            
+    return JsonResponse({'error': 'Método no permitido. Usa POST.'}, status=405)
