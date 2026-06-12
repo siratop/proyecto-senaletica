@@ -257,7 +257,7 @@
                     <input type="checkbox" id="filtro-flota" checked style="width: 16px; height: 16px; accent-color: #d97706;"> 
                     🚌 Flota en Servicio
                 </label>
-                <select id="filtro-bus-especifico" onchange="actualizarFlotaVisual()" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 12px; outline: none; background: #f8fafc; margin-top: 5px;">
+                <select id="filtro-bus-especifico" onchange="actualizarFlotaEnMapa()" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 12px; outline: none; background: #f8fafc; margin-top: 5px;">
                     <option value="todos">Todas las unidades</option>
                 </select>
             </div>
@@ -265,7 +265,7 @@
             {% if user.is_staff %}
             <div style="margin-top: 5px; padding-top: 10px; border-top: 1px dashed #cbd5e1; background: #fffbeb; padding: 10px; border-radius: 6px;">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #92400e; font-weight: bold;">
-                    <input type="checkbox" id="filtro-admin-flota" onchange="actualizarFlotaVisual()" style="width: 16px; height: 16px; accent-color: #f59e0b;"> 
+                    <input type="checkbox" id="filtro-admin-flota" onchange="actualizarFlotaEnMapa()" style="width: 16px; height: 16px; accent-color: #f59e0b;"> 
                     👁️ Radar Global (Admin)
                 </label>
                 <p style="margin: 5px 0 0 0; font-size: 10px; color: #b45309; font-weight: normal; line-height: 1.2;">Ignora la geocerca y revela autobuses desviados o en zonas no autorizadas.</p>
@@ -571,7 +571,7 @@
     }
 
     // ==========================================
-    // CONTROLADOR DE FLOTA
+    // CONTROLADOR DE FLOTA ACTUALIZADO
     // ==========================================
     async function actualizarFlotaEnMapa() {
         let checkboxFlota = document.getElementById('filtro-flota');
@@ -579,7 +579,6 @@
 
         try {
             let urlAPI = '/flota/api/buses-activos/';
-            
             let params = new URLSearchParams();
             params.append('t', new Date().getTime()); 
             
@@ -592,12 +591,14 @@
             
             let response = await fetch(urlFinal, {
                 method: 'GET',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'same-origin' 
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
             }); 
             
             if (!response.ok) return;
             let data = await response.json();
+            
+            // Protección por si falla el formato del servidor
+            if (!data || !data.buses) return; 
 
             let selectorBus = document.getElementById('filtro-bus-especifico');
             let busSeleccionado = selectorBus ? selectorBus.value : "todos";
@@ -675,7 +676,7 @@
                 }
             });
         } catch(e) {
-            console.log("Sincronizando coordenadas con el satélite urbano...");
+            console.log("Esperando conexión o sin datos de flota...", e);
         }
     }
 
