@@ -20,5 +20,5 @@ urlpatterns = [
     path('api/leer-alertas/', views.leer_alertas_chofer, name='leer_alertas'),
     path('reportar-averia/<int:unidad_id>/', views.reportar_averia, name='reportar_averia'),
     path('api/actualizar-gps/', views.actualizar_ubicacion_chofer, name='actualizar_gps_bus'),
-    path('api/buses-activos-json/', views.api_buses_json, name='api_buses_json'),
+    path('api/buses-activos/', views.api_buses_activos, name='api_buses_activos'),
 ]
