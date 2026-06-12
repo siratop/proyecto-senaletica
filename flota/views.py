@@ -165,7 +165,7 @@ def actualizar_gps(request):
                 return JsonResponse({'error': 'No autorizado'}, status=403)
                 
             unidad_id = data.get('unidad_id')
-            unidad = Unidad.objects.filter(id=unidad_id).first()
+            unidad = Unidad.objects.filter(numero_unidad=unidad_id).first()
             if not unidad:
                 return JsonResponse({'error': 'Unidad no encontrada'}, status=404)
 
