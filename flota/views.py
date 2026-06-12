@@ -515,18 +515,41 @@ def api_buses_activos(request):
     return JsonResponse({'buses': data})
 
 def api_buses_activos(request):
-    
-    buses = Unidad.objects.all() 
-    data_buses = []
-    for u in buses:
-        if u.latitud_actual and u.longitud_actual:
-            data_buses.append({
-                'id': u.id,
-                'unidad': u.placa, 
-                'lat': float(str(u.latitud_actual).replace(',', '.')),
-                'lon': float(str(u.longitud_actual).replace(',', '.')),
-                'ruta_nombre': u.ruta_asignada.nombre if u.ruta_asignada else 'Sin ruta',
-                'ruta_id': u.ruta_asignada.id if u.ruta_asignada else None,
-                'conductor': "Operador Activo" 
-            })
-    return JsonResponse({'buses': data_buses})
+    try:
+        buses = Unidad.objects.all() 
+        data_buses = []
+        
+        for u in buses:
+            if u.latitud_actual and u.longitud_actual:
+                # 1. Buscamos el identificador del bus de forma segura
+                # Si no existe el campo 'placa', busca 'numero' o usa su ID
+                unidad_identificador = getattr(u, 'placa', getattr(u, 'numero', f"N° {u.id}"))
+                
+                # 2. Buscamos la relación con la ruta
+                # Intentamos con 'ruta' (lo más probable por tu unidad_set) o 'ruta_asignada'
+                ruta_obj = getattr(u, 'ruta', getattr(u, 'ruta_asignada', None))
+                ruta_nombre = ruta_obj.nombre if ruta_obj else 'Sin ruta'
+                ruta_id = ruta_obj.id if ruta_obj else None
+                
+                # 3. Limpiamos las coordenadas por si vienen con comas en vez de puntos
+                try:
+                    lat = float(str(u.latitud_actual).replace(',', '.'))
+                    lon = float(str(u.longitud_actual).replace(',', '.'))
+                except (ValueError, TypeError):
+                    continue 
+                
+                data_buses.append({
+                    'id': u.id,
+                    'unidad': unidad_identificador, 
+                    'lat': lat,
+                    'lon': lon,
+                    'ruta_nombre': ruta_nombre,
+                    'ruta_id': ruta_id,
+                    'conductor': "Operador Activo" 
+                })
+                
+        return JsonResponse({'buses': data_buses})
+        
+    except Exception as e:
+       
+        return JsonResponse({'error': str(e), 'buses': []}, status=500)
