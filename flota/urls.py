@@ -21,4 +21,5 @@ urlpatterns = [
     path('reportar-averia/<int:unidad_id>/', views.reportar_averia, name='reportar_averia'),
     path('api/actualizar-gps/', views.actualizar_ubicacion_chofer, name='actualizar_gps_bus'),
     path('api/buses-activos/', views.api_buses_activos, name='api_buses_activos'),
+    path('api/actualizar-gps/', views.actualizar_gps, name='actualizar_gps'),
 ]
