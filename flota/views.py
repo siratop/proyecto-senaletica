@@ -36,6 +36,19 @@ def calcular_distancia_metros(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
+def calcular_distancia_segmento(lat_bus, lon_bus, lat1, lon1, lat2, lon2):
+    """Calcula la distancia mínima entre un bus y la LÍNEA de la calle, no solo los clics"""
+    pasos = 10  # Divide la calle trazada en 10 puntos virtuales
+    min_dist = float('inf')
+    for i in range(pasos + 1):
+        frac = i / pasos
+        lat_inter = lat1 + (lat2 - lat1) * frac
+        lon_inter = lon1 + (lon2 - lon1) * frac
+        dist = calcular_distancia_metros(lat_bus, lon_bus, lat_inter, lon_inter)
+        if dist < min_dist:
+            min_dist = dist
+    return min_dist
+
 # =========================================================
 # GESTIÓN DE OPERADORES Y ROLES (Nivel de Usuario)
 # =========================================================
@@ -49,16 +62,10 @@ def gestionar_usuarios(request):
 
 @staff_member_required
 def editar_usuario(request, usuario_id):
-    """
-    Formulario administrativo amigable para modificar datos,
-    visualizar historial de accesos y cambiar el Rol de seguridad.
-    """
     usuario_edit = get_object_or_404(User, id=usuario_id)
-    # Vinculación relacional OneToOne estricta
     perfil_edit, created = PerfilUsuario.objects.get_or_create(usuario=usuario_edit)
 
     if request.method == 'POST':
-        # 1. Actualización en tabla nativa auth_user
         usuario_edit.username = request.POST.get('username')
         usuario_edit.email = request.POST.get('email')
         usuario_edit.first_name = request.POST.get('first_name')
@@ -66,7 +73,6 @@ def editar_usuario(request, usuario_id):
         usuario_edit.is_staff = request.POST.get('is_staff') == 'on'
         usuario_edit.save()
 
-        # 2. Persistencia del Rol en la tabla PerfilUsuario
         nuevo_rol = request.POST.get('rol')
         if nuevo_rol:
             perfil_edit.rol = nuevo_rol
@@ -78,7 +84,6 @@ def editar_usuario(request, usuario_id):
         'usuario_edit': usuario_edit,
         'perfil_edit': perfil_edit
     })
-
 
 # =========================================================
 # CONSOLAS DE CONTROL Y RUTEO (Dashboards)
@@ -97,15 +102,12 @@ def dashboard_router(request):
         rutas_activas = Ruta.objects.filter(activa=True)
         paradas_activas = Parada.objects.filter(estado='ACTIVA')
         
-        
         rutas_json = []
         for r in rutas_activas:
             if r.trazado:
                 try:
-                    
                     trazado_limpio = r.trazado.strip().replace("'", '"')
                     coords = json.loads(trazado_limpio)
-                    
                     rutas_json.append({
                         'id': r.id,
                         'nombre': r.nombre,
@@ -113,10 +115,8 @@ def dashboard_router(request):
                         'coordenadas': coords
                     })
                 except Exception as e:
-                 
-                    print(f"❌ Error de formato JSON en el trazado de la ruta '{r.nombre}': {e}")
+                    print(f"❌ Error JSON ruta '{r.nombre}': {e}")
 
-        # 2. Enviar las Paradas (Blindado contra comas latinas)
         paradas_json = []
         for p in paradas_activas:
             try:
@@ -128,7 +128,7 @@ def dashboard_router(request):
                     'lon': float(str(p.longitud).replace(',', '.'))
                 })
             except Exception as e:
-                print(f"❌ Error al convertir coordenadas de la parada '{p.nombre}': {e}")
+                pass
 
         return render(request, 'flota/panel_flota.html', {
             'flota': flota,
@@ -141,96 +141,123 @@ def dashboard_router(request):
 
 @login_required
 def panel_chofer(request):
-    """Valida la asignación física de un autobús antes de permitir telemetría"""
     unidad = Unidad.objects.filter(conductor=request.user).first()
-    
     if not unidad:
-        contexto = {
+        return render(request, 'mensaje_aviso.html', {
             'titulo': '⚠️ Acceso Restringido',
-            'mensaje': 'Su usuario actualmente no tiene ninguna unidad de transporte asignada. Por favor, solicite la vinculación de una placa a su nombre.'
-        }
-        return render(request, 'mensaje_aviso.html', contexto)
-
+            'mensaje': 'Su usuario no tiene unidad asignada.'
+        })
     return render(request, 'flota/panel.html', {'unidad': unidad})
 
-
 # =========================================================
-# TELEMETRÍA Y SERVICIOS API (JSON Real-Time)
+# TELEMETRÍA Y SERVICIOS API (Recepción desde la App)
 # =========================================================
 
 @csrf_exempt
-@login_required
 def actualizar_gps(request):
+    """
+    Recibe la ubicación de la App Móvil.
+    NO usa @login_required porque la app se autentica con el token secreto.
+    """
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            unidad = request.user.unidad
-            unidad.latitud = data.get('latitud')
-            unidad.longitud = data.get('longitud')
-            unidad.en_servicio = data.get('en_servicio', True)
-            unidad.save()
-            return JsonResponse({'status': 'ok', 'message': 'Telemetría GPS actualizada.'})
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+            
+            # 1. Seguridad: Verificar que sea la App oficial
+            if data.get('token') != "SENALETICA_SECRETO_2026":
+                return JsonResponse({'error': 'No autorizado'}, status=403)
+                
+            # 2. Buscar la unidad
+            unidad_id = data.get('unidad_id')
+            if not unidad_id:
+                return JsonResponse({'error': 'Falta unidad_id'}, status=400)
+                
+            unidad = Unidad.objects.filter(id=unidad_id).first()
+            if not unidad:
+                return JsonResponse({'error': 'Unidad no encontrada'}, status=404)
 
-@csrf_exempt
-@login_required
-def actualizar_gps_bus(request):
-    """Recibe la telemetría. Si el chofer apaga, borra el bus del radar."""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            # Soporta cualquier formato que envíe el JavaScript
+            # 3. MÁGIA DE APAGADO: Si manda inactivo, lo ocultamos y cortamos aquí
+            if data.get('estado') == 'inactivo':
+                unidad.estado = 'inactivo'
+                unidad.save()
+                return JsonResponse({'status': 'Bus desconectado del mapa'})
+
+            # 4. Actualización normal de coordenadas
             lat = data.get('latitud', data.get('lat'))
             lon = data.get('longitud', data.get('lon'))
-            en_servicio = data.get('en_servicio', True) 
-
-            unidad = Unidad.objects.filter(conductor=request.user).first()
-            if not unidad:
-                return JsonResponse({'status': 'error', 'msg': 'Sin unidad asignada'})
-
-            # 🛑 ELIMINADOR DE FANTASMAS: Si manda false, se apaga de la base de datos
-            if en_servicio is False or str(en_servicio).lower() == 'false':
-                unidad.estado = 'inactiva'
-                unidad.save()
-                return JsonResponse({'status': 'ok', 'msg': 'Transmisión finalizada'})
-
-            # Si sigue activo, actualiza posición
+            
             if lat and lon:
                 unidad.latitud_actual = lat
                 unidad.longitud_actual = lon
-                unidad.estado = 'operativa'
+                unidad.estado = 'activo' # Lo forzamos a activo mientras envíe
                 unidad.ultima_actualizacion = timezone.now()
                 unidad.save()
+                return JsonResponse({'status': 'ok', 'msg': 'GPS actualizado'})
                 
-            return JsonResponse({'status': 'ok'})
+            return JsonResponse({'status': 'error', 'msg': 'Faltan coordenadas'})
         except Exception as e:
-            return JsonResponse({'status': 'error', 'msg': str(e)}, status=400)
+            return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
+            
+    return JsonResponse({'status': 'error', 'msg': 'Método no permitido'}, status=405)
 
-@csrf_exempt
-@login_required
-def actualizar_ubicacion(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        unidad = Unidad.objects.filter(conductor=request.user).first()
-        if unidad:
-            unidad.latitud_actual = data['latitud']
-            unidad.longitud_actual = data['longitud']
-            unidad.save()
-            return JsonResponse({'status': 'ok'})
-    return JsonResponse({'status': 'error'}, status=400)
+
+# =========================================================
+# API PARA EL MAPA WEB (Envío de datos a la pantalla)
+# =========================================================
+
+def api_buses_activos(request):
+    """API Pública: Envía los buses activos al mapa web en tiempo real."""
+    try:
+        buses = Unidad.objects.all() 
+        data_buses = []
+        
+        for u in buses:
+            # 1. Si está inactivo, lo saltamos por completo
+            estado_actual = getattr(u, 'estado', 'activo')
+            if str(estado_actual).lower() == 'inactivo':
+                continue 
+            
+            # 2. Si tiene coordenadas, lo empaquetamos
+            if u.latitud_actual and u.longitud_actual:
+                unidad_identificador = getattr(u, 'placa', getattr(u, 'numero', f"N° {u.id}"))
+                
+                ruta_obj = getattr(u, 'ruta', getattr(u, 'ruta_asignada', None))
+                ruta_nombre = ruta_obj.nombre if ruta_obj else 'Sin ruta'
+                ruta_id = ruta_obj.id if ruta_obj else None
+                
+                try:
+                    lat = float(str(u.latitud_actual).replace(',', '.'))
+                    lon = float(str(u.longitud_actual).replace(',', '.'))
+                except (ValueError, TypeError):
+                    continue 
+                
+                data_buses.append({
+                    'id': u.id,
+                    'unidad': unidad_identificador, 
+                    'lat': lat,
+                    'lon': lon,
+                    'ruta_nombre': ruta_nombre,
+                    'ruta_id': ruta_id,
+                    'conductor': "Operador Activo" 
+                })
+                
+        return JsonResponse({'buses': data_buses})
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e), 'buses': []}, status=500)
+
+
+# =========================================================
+# VISTAS CLÁSICAS CRUD Y ALERTAS
+# =========================================================
 
 @login_required
 def api_buses_flota(request):
-    """API Privada para el dueño de la flota: Ve todos sus buses"""
-   
     unidades = Unidad.objects.filter(propietario_flota=request.user)
     data = []
     ahora = timezone.now()
     
     for u in unidades:
-        # Lógica de auto-apagado basada en el campo estado
         estado_real = u.estado
         if u.ultima_actualizacion and estado_real.lower() in ['operativa', 'activo']:
             if ahora - u.ultima_actualizacion > timedelta(minutes=2):
@@ -253,24 +280,17 @@ def api_buses_flota(request):
 
         data.append({
             'id': u.id,
-            'unidad': u.numero_unidad,
+            'unidad': getattr(u, 'numero_unidad', f"ID:{u.id}"),
             'estado': estado_real.lower(),
             'conductor_display': conductor_nombre,
             'lat': lat,
             'lon': lon,
             'actualizado': u.ultima_actualizacion.strftime("%H:%M:%S") if u.ultima_actualizacion else "--",
-            'ruta': u.ruta_asignada.nombre if u.ruta_asignada else "Sin Ruta",
+            'ruta': getattr(u, 'ruta_asignada', getattr(u, 'ruta', 'Sin Ruta')),
             'flota': nombre_empresa
         })
         
     return JsonResponse({'buses': data}, safe=False)
-
-
-
-
-# =========================================================
-# VISTAS CLÁSICAS CRUD (Gestión de Unidades de Transporte)
-# =========================================================
 
 @staff_member_required
 def listar_unidades(request):
@@ -324,14 +344,12 @@ def agregar_conductor_flota(request):
         tipo_registro = request.POST.get('tipo_registro')
         numero_unidad = request.POST.get('numero_unidad')
 
-        # Buscamos si la unidad ya existe
         unidad_existente = Unidad.objects.filter(numero_unidad=numero_unidad).first()
 
         if tipo_registro == 'nuevo':
             if unidad_existente:
                 messages.error(request, f"Error: La unidad {numero_unidad} ya está registrada.")
                 return redirect('dashboard_router')
-            
             
             nuevo_user = User.objects.create_user(username=request.POST.get('username'), password=request.POST.get('password'), first_name=request.POST.get('nombre'))
             PerfilUsuario.objects.create(usuario=nuevo_user, rol='conductor')
@@ -344,13 +362,11 @@ def agregar_conductor_flota(request):
                 user_existente = User.objects.get(username=username_existente)
                 
                 if unidad_existente:
-                    # Si la unidad existe, solo le cambiamos el conductor y dueño
                     unidad_existente.conductor = user_existente
                     unidad_existente.propietario_flota = request.user
                     unidad_existente.save()
                     messages.success(request, f"La unidad {numero_unidad} ahora pertenece a tu flota con el conductor {username_existente}.")
                 else:
-                    # Si no existe, creamos el registro de unidad nuevo
                     Unidad.objects.create(numero_unidad=numero_unidad, conductor=user_existente, propietario_flota=request.user, estado='inactiva')
                     messages.success(request, "Unidad creada y conductor vinculado.")
                     
@@ -361,71 +377,19 @@ def agregar_conductor_flota(request):
 
 @login_required
 def eliminar_conductor_flota(request, unidad_id):
-    """Desvincula al chofer y elimina la unidad de la flota"""
     if request.method == 'POST' and request.user.perfil.rol == 'flota':
         unidad = Unidad.objects.filter(id=unidad_id, propietario_flota=request.user).first()
-        
         if unidad:
             chofer = unidad.conductor
             unidad.delete() 
-            
             if chofer:
                 chofer.delete() 
-                
             messages.success(request, "Conductor y unidad eliminados de su flota.")
-            
     return redirect('dashboard_router') 
 
 @login_required
-def actualizar_ubicacion_chofer(request):
-    """Recibe el GPS del chofer, el aviso de apagado y registra el tiempo trabajado"""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            lat = data.get('latitud')
-            lon = data.get('longitud')
-            en_servicio = data.get('en_servicio') 
-
-            unidad = Unidad.objects.filter(conductor=request.user).first()
-            if unidad:
-                # Si viene lat y lon válidos, los guardamos
-                if lat and lon and lat != 0:
-                    unidad.latitud_actual = lat
-                    unidad.longitud_actual = lon
-                
-                # --- LÓGICA DE ESTADÍSTICAS Y APAGADO INMEDIATO ---
-                if en_servicio:
-                    unidad.estado = 'operativa'
-                    # Verificamos si ya hay una sesión contando el tiempo
-                    sesion_abierta = RegistroSesion.objects.filter(unidad=unidad, hora_fin__isnull=True).first()
-                    if not sesion_abierta:
-                        # Si no hay, creamos una para empezar a contar los minutos
-                        RegistroSesion.objects.create(unidad=unidad)
-                else:
-                    unidad.estado = 'inactiva'
-                    # Si mandó a apagar, buscamos la sesión abierta y la cerramos
-                    sesion_abierta = RegistroSesion.objects.filter(unidad=unidad, hora_fin__isnull=True).first()
-                    if sesion_abierta:
-                        sesion_abierta.hora_fin = timezone.now()
-                        sesion_abierta.save()
-                # --------------------------------------------------
-                
-                unidad.ultima_actualizacion = timezone.now()
-                unidad.save()
-                
-                return JsonResponse({'status': 'ok'})
-        except Exception as e:
-            # Imprimimos el error en consola para saber si algo falla
-            print(f"Error en actualización de chofer: {e}") 
-            pass
-            
-    return JsonResponse({'status': 'error'})
-
-@login_required
 def enviar_mensaje_chofer(request, unidad_id):
-    """El panel de flota envía un mensaje a un bus específico"""
     if request.method == 'POST':
-        import json
         data = json.loads(request.body)
         texto = data.get('mensaje', '')
         if texto:
@@ -435,30 +399,21 @@ def enviar_mensaje_chofer(request, unidad_id):
 
 @login_required
 def leer_alertas_chofer(request):
-    """El celular del chofer pregunta cada 15 segundos si hay mensajes nuevos"""
     unidad = Unidad.objects.filter(conductor=request.user).first()
     if unidad:
-   
         mensaje = MensajeFlota.objects.filter(unidad=unidad, leido=False).order_by('fecha_envio').first()
         if mensaje:
             mensaje.leido = True 
             mensaje.save()
             return JsonResponse({'hay_alerta': True, 'mensaje': mensaje.mensaje})
-            
     return JsonResponse({'hay_alerta': False})
 
 @login_required
 def reportar_averia(request, unidad_id):
-    """Recibe la alerta del chofer, marca el bus como averiado y lo saca del mapa"""
     if request.method == 'POST':
-       
         unidad = Unidad.objects.filter(id=unidad_id, conductor=request.user).first()
-        
         if unidad:
-            # 1. Cambiamos el estado para que el mapa lo oculte
             unidad.estado = 'averiada' 
-            
-            # 2. Cerramos su sesión de trabajo si estaba activa
             sesion_abierta = RegistroSesion.objects.filter(unidad=unidad, hora_fin__isnull=True).first()
             if sesion_abierta:
                 sesion_abierta.hora_fin = timezone.now()
@@ -466,92 +421,4 @@ def reportar_averia(request, unidad_id):
                 
             unidad.ultima_actualizacion = timezone.now()
             unidad.save()
-            
-    # Al terminar, recargamos la página del chofer
     return redirect('dashboard_router')
-
-# 1. Agrega esta función debajo de calcular_distancia_metros
-def calcular_distancia_segmento(lat_bus, lon_bus, lat1, lon1, lat2, lon2):
-    """Calcula la distancia mínima entre un bus y la LÍNEA de la calle, no solo los clics"""
-    pasos = 10  # Divide la calle trazada en 10 puntos virtuales
-    min_dist = float('inf')
-    for i in range(pasos + 1):
-        frac = i / pasos
-        lat_inter = lat1 + (lat2 - lat1) * frac
-        lon_inter = lon1 + (lon2 - lon1) * frac
-        dist = calcular_distancia_metros(lat_bus, lon_bus, lat_inter, lon_inter)
-        if dist < min_dist:
-            min_dist = dist
-    return min_dist
-
-
-def api_buses_activos(request):
-    """API Pública: Envía los buses activos. El filtrado estricto lo hace el frontend."""
-    
-    # Solo buscamos buses que estén operativos y tengan GPS válido
-    buses = Unidad.objects.filter(estado__in=['operativa', 'activo'], latitud_actual__isnull=False, longitud_actual__isnull=False)
-
-    data = []
-
-    for bus in buses:
-        try:
-            lat_bus = float(str(bus.latitud_actual).replace(',', '.'))
-            lon_bus = float(str(bus.longitud_actual).replace(',', '.'))
-        except (ValueError, TypeError):
-            continue
-
-      
-        
-        data.append({
-            'id': bus.id,
-            'unidad': bus.numero_unidad,
-            'lat': lat_bus,
-            'lon': lon_bus,
-            'conductor': bus.conductor.username if bus.conductor else "Desconocido",
-            'ruta_nombre': bus.ruta_asignada.nombre if bus.ruta_asignada else "General",
-            'ruta_id': bus.ruta_asignada.id if bus.ruta_asignada else "todas"
-        })
-            
-    return JsonResponse({'buses': data})
-
-def api_buses_activos(request):
-    try:
-        buses = Unidad.objects.all() 
-        data_buses = []
-        
-        for u in buses:
-         
-            estado_actual = getattr(u, 'estado', 'activo')
-            if str(estado_actual).lower() == 'inactivo':
-                continue # Pasa al siguiente autobús, ignorando este en el mapa
-            
-            if u.latitud_actual and u.longitud_actual:
-                # 1. Buscamos el identificador del bus de forma segura
-                unidad_identificador = getattr(u, 'placa', getattr(u, 'numero', f"N° {u.id}"))
-                
-                # 2. Buscamos la relación con la ruta
-                ruta_obj = getattr(u, 'ruta', getattr(u, 'ruta_asignada', None))
-                ruta_nombre = ruta_obj.nombre if ruta_obj else 'Sin ruta'
-                ruta_id = ruta_obj.id if ruta_obj else None
-                
-                # 3. Limpiamos las coordenadas por si vienen con comas en vez de puntos
-                try:
-                    lat = float(str(u.latitud_actual).replace(',', '.'))
-                    lon = float(str(u.longitud_actual).replace(',', '.'))
-                except (ValueError, TypeError):
-                    continue 
-                
-                data_buses.append({
-                    'id': u.id,
-                    'unidad': unidad_identificador, 
-                    'lat': lat,
-                    'lon': lon,
-                    'ruta_nombre': ruta_nombre,
-                    'ruta_id': ruta_id,
-                    'conductor': "Operador Activo" 
-                })
-                
-        return JsonResponse({'buses': data_buses})
-        
-    except Exception as e:
-        return JsonResponse({'error': str(e), 'buses': []}, status=500)
