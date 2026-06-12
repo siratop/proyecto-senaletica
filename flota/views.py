@@ -422,3 +422,41 @@ def reportar_averia(request, unidad_id):
             unidad.ultima_actualizacion = timezone.now()
             unidad.save()
     return redirect('dashboard_router')
+
+@csrf_exempt
+@login_required
+def actualizar_ubicacion_chofer(request):
+    """Recibe el GPS desde el panel web del chofer y registra el tiempo trabajado"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            lat = data.get('latitud')
+            lon = data.get('longitud')
+            en_servicio = data.get('en_servicio') 
+
+            unidad = Unidad.objects.filter(conductor=request.user).first()
+            if unidad:
+                if lat and lon and lat != 0:
+                    unidad.latitud_actual = lat
+                    unidad.longitud_actual = lon
+                
+                if en_servicio:
+                    unidad.estado = 'operativa'
+                    sesion_abierta = RegistroSesion.objects.filter(unidad=unidad, hora_fin__isnull=True).first()
+                    if not sesion_abierta:
+                        RegistroSesion.objects.create(unidad=unidad)
+                else:
+                    unidad.estado = 'inactiva'
+                    sesion_abierta = RegistroSesion.objects.filter(unidad=unidad, hora_fin__isnull=True).first()
+                    if sesion_abierta:
+                        sesion_abierta.hora_fin = timezone.now()
+                        sesion_abierta.save()
+                
+                unidad.ultima_actualizacion = timezone.now()
+                unidad.save()
+                return JsonResponse({'status': 'ok'})
+        except Exception as e:
+            print(f"Error en actualización web de chofer: {e}") 
+            pass
+            
+    return JsonResponse({'status': 'error'})
