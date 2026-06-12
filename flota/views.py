@@ -514,16 +514,19 @@ def api_buses_activos(request):
             
     return JsonResponse({'buses': data})
 
-def api_buses_json(request):
-    """Devuelve la lista de buses activos en formato JSON para que el mapa los lea."""
-    buses = Unidad.objects.filter(estado__in=['operativa', 'activo'])
-    data = []
+def api_buses_activos(request):
+    
+    buses = Unidad.objects.all() 
+    data_buses = []
     for u in buses:
         if u.latitud_actual and u.longitud_actual:
-            data.append({
+            data_buses.append({
                 'id': u.id,
+                'unidad': u.placa, 
                 'lat': float(str(u.latitud_actual).replace(',', '.')),
                 'lon': float(str(u.longitud_actual).replace(',', '.')),
-                'ruta': u.ruta_asignada.nombre if u.ruta_asignada else 'Desconocida'
+                'ruta_nombre': u.ruta_asignada.nombre if u.ruta_asignada else 'Sin ruta',
+                'ruta_id': u.ruta_asignada.id if u.ruta_asignada else None,
+                'conductor': "Operador Activo" 
             })
-    return JsonResponse(data, safe=False)
+    return JsonResponse({'buses': data_buses})
