@@ -22,13 +22,24 @@
                     <th style="padding: 12px;">Tipo de Alerta</th>
                     <th style="padding: 12px;">Mensaje Público</th>
                     <th style="padding: 12px;">Estado</th>
-                    <th style="padding: 12px;">Acciones</th> </tr>
+                    <th style="padding: 12px;">Acciones</th> 
+                </tr>
             </thead>
             <tbody>
                 {% for alerta in alertas %}
                 <tr style="border-bottom: 1px solid #f8fafc; font-size: 14px;">
                     <td style="padding: 12px; font-weight: bold; color: #334155;">{{ alerta.get_tipo_display }}</td>
-                    <td style="padding: 12px; color: #64748b;">{{ alerta.mensaje }}</td>
+                    
+                    <td style="padding: 12px; color: #64748b;">
+                        {{ alerta.mensaje }}
+                        <br>
+                        <span style="font-size: 11px; color: #94a3b8; display: block; margin-top: 5px;">
+                            <i class="fa-regular fa-calendar"></i> 
+                            <strong>{{ alerta.fecha_creacion|date:"l, d \d\e F \d\e Y" }}</strong> 
+                            a las <strong>{{ alerta.fecha_creacion|date:"h:i A" }}</strong>
+                        </span>
+                    </td>
+
                     <td style="padding: 12px;">
                         {% if alerta.activa %}
                             <span style="background: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">Activa</span>
