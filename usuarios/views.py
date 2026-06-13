@@ -18,7 +18,7 @@ from django.db import IntegrityError
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-from .models import PerfilNFC, Reporte
+from .models import Dependiente, PerfilUsuario
 # =========================================================
 # 1. REGISTRO Y GESTIÓN DE CUENTAS
 # =========================================================
@@ -59,8 +59,10 @@ def dashboard_ciudadano(request):
     """Panel de Control Nivel 1: El ciudadano gestiona su cuenta y pulseras NFC"""
     mis_dependientes = Dependiente.objects.filter(tutor=request.user)
     
-  
-    mis_reportes = Sugerencia.objects.filter(usuario=request.user).order_by('-id')
+    try:
+        mis_reportes = request.user.alertaoperativa_set.all().order_by('-id')
+    except AttributeError:
+        mis_reportes = []
 
     contexto = {
         'dependientes': mis_dependientes,
