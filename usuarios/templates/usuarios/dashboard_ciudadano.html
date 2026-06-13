@@ -15,8 +15,8 @@
                 <strong style="display: block; color: #0f172a; font-size: 16px;">{{ dep.nombre_completo }}</strong>
                 <span style="font-size: 13px; color: #64748b;">Relación: {{ dep.get_relacion_display }}</span>
             </div>
-            <a href="{% url 'ficha_sos_publica' dep.token_nfc %}" style="background: white; border: 1px solid #0d9488; color: #0d9488; padding: 8px 15px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold;">
-                <i class="fa-solid fa-link"></i> Ver Ficha SOS
+            <a href="{% url 'ficha_sos_publica' dep.token_nfc %}" style="background: white; border: 1px solid #940d18; color: #940d0d; padding: 8px 15px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold;">
+                <i class="fa-solid fa-link"></i> Ver Ficha SOS (!precaución! Va Generar Una Alarta)
             </a>
         </div>
         {% empty %}
@@ -41,7 +41,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                         <strong style="color: #334155; font-size: 14px;">
                             <i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b; margin-right: 5px;"></i>
-                            Alerta Reportada
+                            {{ reporte.get_tipo_display }}
                         </strong>
                         
                         <span style="font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 12px; 
@@ -56,7 +56,7 @@
                     </p>
 
                     <span style="font-size: 11px; color: #94a3b8; display: block; border-top: 1px solid #e2e8f0; padding-top: 8px;">
-                        <i class="fa-regular fa-calendar"></i> Generado el: <strong>{{ reporte.fecha|date:"l, d \d\e F \d\e Y" }}</strong> a las <strong>{{ reporte.fecha|date:"h:i A" }}</strong>
+                        <i class="fa-regular fa-calendar"></i> Generado el: <strong>{{ reporte.fecha_creacion|date:"l, d \d\e F \d\e Y" }}</strong> a las <strong>{{ reporte.fecha_creacion|date:"h:i A" }}</strong>
                     </span>
                     
                 </div>

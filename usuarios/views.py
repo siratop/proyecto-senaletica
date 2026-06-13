@@ -63,26 +63,14 @@ def dashboard_ciudadano(request):
     """Panel de Control Nivel 1: El ciudadano gestiona su cuenta y pulseras NFC"""
     mis_dependientes = Dependiente.objects.filter(tutor=request.user)
     
-    mis_reportes = []
-    
-    # Solo buscamos si el modelo existe y si el usuario tiene relación con él
-    if AlertaOperativa:
-        try:
-            # Buscamos si el modelo AlertaOperativa tiene una columna 'usuario'
-            mis_reportes = AlertaOperativa.objects.filter(usuario=request.user).order_by('-id')
-        except Exception:
-            # Si la columna no se llama 'usuario', intentamos con la relación inversa de Django
-            try:
-                mis_reportes = request.user.alertaoperativa_set.all().order_by('-id')
-            except AttributeError:
-                pass
+    # Filtramos usando "usuario_creador" y ordenamos por la "fecha_creacion" más reciente
+    mis_reportes = AlertaOperativa.objects.filter(usuario_creador=request.user).order_by('-fecha_creacion')
 
     contexto = {
         'dependientes': mis_dependientes,
         'reportes': mis_reportes
     }
     return render(request, 'usuarios/dashboard_ciudadano.html', contexto)
-
 class DependienteCreateView(CreateView):
     """Formulario para añadir un niño o adulto mayor al núcleo familiar"""
     model = Dependiente
