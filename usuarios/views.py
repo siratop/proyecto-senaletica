@@ -19,6 +19,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 from .models import Dependiente, PerfilUsuario
+from django.db.models import Q
 try:
     from rutas.models import AlertaOperativa
 except ImportError:
@@ -57,14 +58,16 @@ class PerfilUsuarioCreateView(CreateView):
 # =========================================================
 # 2. PANEL DEL CIUDADANO (NIVEL 1) Y CONTROL PARENTAL
 # =========================================================
-
 @login_required
 def dashboard_ciudadano(request):
     """Panel de Control Nivel 1: El ciudadano gestiona su cuenta y pulseras NFC"""
     mis_dependientes = Dependiente.objects.filter(tutor=request.user)
     
-    # Filtramos usando "usuario_creador" y ordenamos por la "fecha_creacion" más reciente
-    mis_reportes = AlertaOperativa.objects.filter(usuario_creador=request.user).order_by('-fecha_creacion')
+    # LA MAGIA: Buscamos alertas creadas por el usuario (tráfico, etc) 
+    # O (|) alertas que pertenezcan a los dependientes de este usuario (SOS NFC)
+    mis_reportes = AlertaOperativa.objects.filter(
+        Q(usuario_creador=request.user) | Q(dependiente__tutor=request.user)
+    ).order_by('-fecha_creacion')
 
     contexto = {
         'dependientes': mis_dependientes,
