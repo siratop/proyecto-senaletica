@@ -6,7 +6,7 @@ from django.views.generic import CreateView, ListView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 import datetime
 from django.contrib.admin.views.decorators import staff_member_required
-
+from rutas.models import AlertaOperativa
 from rutas.models import Sugerencia
 from .models import Dependiente, RegistroActividad, TarjetaNFC, PerfilUsuario, SolicitudOperador
 from .forms import RegistroInclusivoForm
@@ -59,17 +59,15 @@ def dashboard_ciudadano(request):
     """Panel de Control Nivel 1: El ciudadano gestiona su cuenta y pulseras NFC"""
     mis_dependientes = Dependiente.objects.filter(tutor=request.user)
     
-    try:
-        mis_reportes = request.user.alertaoperativa_set.all().order_by('-id')
-    except AttributeError:
-        mis_reportes = []
+    # Buscamos las alertas directamente en la base de datos
+    # NOTA: Si te da un error, cambia "usuario=request.user" por "user=request.user"
+    mis_reportes = AlertaOperativa.objects.filter(usuario=request.user).order_by('-id')
 
     contexto = {
         'dependientes': mis_dependientes,
-        'reportes': mis_reportes  
+        'reportes': mis_reportes
     }
     return render(request, 'usuarios/dashboard_ciudadano.html', contexto)
-
 class DependienteCreateView(CreateView):
     """Formulario para añadir un niño o adulto mayor al núcleo familiar"""
     model = Dependiente
