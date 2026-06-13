@@ -30,16 +30,47 @@
         <a href="{% url 'crear_dependiente' %}" style="background: #0d9488; color: white; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px;">
             + Añadir Familiar / Pulsera
         </a>
-        <div class="mis-alertas">
-    <h3>Mis Reportes Activos</h3>
-    {% for alerta in user.alertaoperativa_set.all %}
-        {% if alerta.activa %}
-            <div class="card-alerta">
-                {{ alerta.mensaje }} - <span class="badge">Pendiente</span>
+        
+        <h3 style="font-weight: 800; color: #1f2937; margin-top: 30px; margin-bottom: 15px; font-size: 18px;">Mis Reportes Activos</h3>
+
+        {% if reportes %}
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+                {% for reporte in reportes %}
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <strong style="color: #334155; font-size: 14px;">
+                            <i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b; margin-right: 5px;"></i>
+                            {{ reporte.get_tipo_display|default:reporte.tipo }}
+                        </strong>
+                        
+                        <span style="font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 12px; 
+                            {% if reporte.estado == 'resuelto' %} background: #ecfdf5; color: #10b981;
+                            {% elif reporte.estado == 'en_proceso' %} background: #fffbeb; color: #d97706;
+                            {% else %} background: #f1f5f9; color: #64748b; {% endif %}">
+                            {{ reporte.estado|default:"Enviado"|title }}
+                        </span>
+                    </div>
+
+                    <p style="margin: 0 0 10px 0; font-size: 13px; color: #475569;">
+                        <strong>Sector:</strong> {{ reporte.sector }} <br>
+                        {{ reporte.detalles }}
+                    </p>
+
+                    <span style="font-size: 11px; color: #94a3b8; display: block; border-top: 1px solid #e2e8f0; padding-top: 8px;">
+                        <i class="fa-regular fa-calendar"></i> Registrado el: {{ reporte.fecha_creacion|date:"d M Y, h:i a" }}
+                    </span>
+                    
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div style="background: #f1f5f9; padding: 20px; text-align: center; border-radius: 8px; color: #64748b; margin-bottom: 20px; border: 1px dashed #cbd5e1;">
+                <i class="fa-solid fa-inbox" style="font-size: 24px; color: #94a3b8; margin-bottom: 10px;"></i>
+                <p style="margin: 0; font-size: 14px;">Aún no has generado ningún reporte ciudadano.</p>
             </div>
         {% endif %}
-    {% endfor %}
-</div>
+
         <a href="{% url 'inicio_general' %}" style="background: #f1f5f9; color: #475569; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px;">
             <i class="fa-solid fa-arrow-left"></i> Volver al inicio
         </a>

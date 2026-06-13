@@ -6,6 +6,8 @@ from django.views.generic import CreateView, ListView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 import datetime
 from django.contrib.admin.views.decorators import staff_member_required
+
+from rutas.models import Sugerencia
 from .models import Dependiente, RegistroActividad, TarjetaNFC, PerfilUsuario, SolicitudOperador
 from .forms import RegistroInclusivoForm
 from django.utils import timezone
@@ -16,6 +18,7 @@ from django.db import IntegrityError
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
+from .models import PerfilNFC, Reporte
 # =========================================================
 # 1. REGISTRO Y GESTIÓN DE CUENTAS
 # =========================================================
@@ -55,8 +58,13 @@ class PerfilUsuarioCreateView(CreateView):
 def dashboard_ciudadano(request):
     """Panel de Control Nivel 1: El ciudadano gestiona su cuenta y pulseras NFC"""
     mis_dependientes = Dependiente.objects.filter(tutor=request.user)
+    
+  
+    mis_reportes = Sugerencia.objects.filter(usuario=request.user).order_by('-id')
+
     contexto = {
-        'dependientes': mis_dependientes
+        'dependientes': mis_dependientes,
+        'reportes': mis_reportes  
     }
     return render(request, 'usuarios/dashboard_ciudadano.html', contexto)
 
