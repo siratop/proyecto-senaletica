@@ -44,17 +44,36 @@
         </div>
 
     </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 30px; margin-bottom: 30px;">
+        
+        <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+            <h4 style="margin: 0 0 20px 0; color: #334155; font-size: 16px; font-weight: bold;">🚌 Rutas con Mayor Flujo de Unidades</h4>
+            <div style="position: relative; width: 100%; height: 250px;">
+                <canvas id="chartRutas"></canvas>
+            </div>
+        </div>
+
+        <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+            <h4 style="margin: 0 0 20px 0; color: #334155; font-size: 16px; font-weight: bold;">🚏 Paradas Más Consultadas (Demanda de Usuarios)</h4>
+            <div style="position: relative; width: 100%; height: 250px;">
+                <canvas id="chartParadas"></canvas>
+            </div>
+        </div>
+
+    </div>
+
 </div>
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         
-        // 1. CONFIGURACIÓN DEL GRÁFICO (Chart.js)
-        const ctx = document.getElementById('chartAlertas').getContext('2d');
+        // 1. CONFIGURACIÓN DEL GRÁFICO DE ALERTAS (Chart.js)
+        const ctxAlertas = document.getElementById('chartAlertas').getContext('2d');
         const labelsData = JSON.parse('{{ chart_labels|safe }}');
         const valuesData = JSON.parse('{{ chart_data|safe }}');
 
-        new Chart(ctx, {
+        new Chart(ctxAlertas, {
             type: 'doughnut',
             data: {
                 labels: labelsData,
@@ -75,19 +94,13 @@
         });
 
         // 2. CONFIGURACIÓN DEL MAPA DE CALOR (Leaflet + Leaflet.heat)
-        // Centramos el mapa en Ciudad Guayana (Alta Vista / Puerto Ordaz)
         const mapa = L.map('mapaCalor').setView([8.2965, -62.7212], 13);
-
-        // Capa de mapa clara y elegante
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         }).addTo(mapa);
 
-        // Recuperamos los puntos calculados por la vista de Django
         const puntosGps = JSON.parse('{{ puntos_calor_json|safe }}');
-
         if (puntosGps.length > 0) {
-            // Inicializamos la capa de calor estableciendo el radio de dispersión y la opacidad básica
             const capaCalor = L.heatLayer(puntosGps, {
                 radius: 25,
                 blur: 15,
@@ -97,6 +110,48 @@
         } else {
             console.log("No hay coordenadas suficientes para dibujar mapas de calor.");
         }
+
+        // 3. GRÁFICO DE RUTAS (Barras Verticales)
+        const ctxRutas = document.getElementById('chartRutas').getContext('2d');
+        new Chart(ctxRutas, {
+            type: 'bar',
+            data: {
+                labels: JSON.parse('{{ rutas_labels|safe }}'),
+                datasets: [{
+                    label: 'Buses Activos',
+                    data: JSON.parse('{{ rutas_data|safe }}'),
+                    backgroundColor: '#10b981', // Verde esmeralda
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // 4. GRÁFICO DE PARADAS (Barras Horizontales)
+        const ctxParadas = document.getElementById('chartParadas').getContext('2d');
+        new Chart(ctxParadas, {
+            type: 'bar', 
+            data: {
+                labels: JSON.parse('{{ paradas_labels|safe }}'),
+                datasets: [{
+                    label: 'Escaneos QR / Consultas',
+                    data: JSON.parse('{{ paradas_data|safe }}'),
+                    backgroundColor: '#6366f1', // Indigo
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y', // Muestra las barras de manera horizontal para que los nombres largos quepan mejor
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+        
     });
 </script>
 

@@ -666,8 +666,11 @@ def actualizar_gps_unidad(request):
 @login_required
 def panel_estadistico_inteligente(request):
     """Genera métricas clave, datos para gráficos y coordenadas para mapas de calor"""
+    
+    # SEGURIDAD: Expulsar si no es administrador
     if not request.user.is_staff:
         return redirect('dashboard_ciudadano')
+        
     # 1. Métricas de tarjetas básicas
     total_alertas = AlertaOperativa.objects.count()
     alertas_activas = AlertaOperativa.objects.filter(activa=True).count()
@@ -703,11 +706,19 @@ def panel_estadistico_inteligente(request):
         try:
             lat = float(alerta.latitud)
             lon = float(alerta.longitud)
-            # La intensidad de calor puede ser mayor (1.0) si la alerta está activa, o menor (0.5) si está resuelta
+            # La intensidad de calor puede ser mayor (1.0) si la alerta está activa, o menor (0.4) si está resuelta
             intensidad = 1.0 if alerta.activa else 0.4
             puntos_calor.append([lat, lon, intensidad])
         except ValueError:
             continue # Ignora registros con datos GPS corruptos
+            
+    # 4. NUEVAS MÉTRICAS: Rutas y Paradas (Estructura base)
+    # Estos son datos de ejemplo. Luego los reemplazaremos con las consultas a tu base de datos real.
+    rutas_labels = ['Ruta Alta Vista', 'Ruta Unare', 'Ruta San Félix', 'Ruta Castillito']
+    rutas_data = [15, 12, 8, 5]
+    
+    paradas_labels = ['Parada Orinokia', 'Parada CTE Cachamay', 'Parada Plaza Hierro', 'Parada UNEG']
+    paradas_data = [340, 215, 180, 95]
             
     contexto = {
         'total_alertas': total_alertas,
@@ -715,7 +726,13 @@ def panel_estadistico_inteligente(request):
         'alertas_resueltas': alertas_resueltas,
         'chart_labels': json.dumps(chart_labels),
         'chart_data': json.dumps(chart_data),
-        'puntos_calor_json': json.dumps(puntos_calor)  # Enviamos el JSON al mapa
+        'puntos_calor_json': json.dumps(puntos_calor),
+        
+        # NUEVAS VARIABLES ENVIADAS AL HTML:
+        'rutas_labels': json.dumps(rutas_labels),
+        'rutas_data': json.dumps(rutas_data),
+        'paradas_labels': json.dumps(paradas_labels),
+        'paradas_data': json.dumps(paradas_data),
     }
     
     return render(request, 'panel_estadistico.html', contexto)
