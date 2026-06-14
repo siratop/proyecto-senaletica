@@ -668,6 +668,9 @@ def panel_estadistico_inteligente(request):
     if not request.user.is_staff:
         return redirect('dashboard_ciudadano')
         
+    # ==========================================
+    # 1. MÉTRICAS BÁSICAS Y GRÁFICO DE ALERTAS
+    # ==========================================
     total_alertas = AlertaOperativa.objects.count()
     alertas_activas = AlertaOperativa.objects.filter(activa=True).count()
     alertas_resueltas = AlertaOperativa.objects.filter(activa=False).count()
@@ -677,44 +680,76 @@ def panel_estadistico_inteligente(request):
     
     chart_labels = [labels_map.get(item['tipo'], item['tipo']) for item in conteo_por_tipo]
     chart_data = [item['total'] for item in conteo_por_tipo]
-        
-    # 1. Coordenadas reales de ALERTAS
+
+    # ==========================================
+    # 2. CAPAS DEL MAPA DE CALOR (DATOS REALES)
+    # ==========================================
+    
+    # Capa Roja: Alertas
     alertas_con_gps = AlertaOperativa.objects.filter(latitud__isnull=False, longitud__isnull=False).exclude(latitud="", longitud="")
     puntos_alertas = []
     for alerta in alertas_con_gps:
         try:
-            puntos_alertas.append([float(alerta.latitud), float(alerta.longitud), 1.0 if alerta.activa else 0.4])
+            # Reemplazamos coma por punto para evitar fallos matemáticos
+            lat = float(str(alerta.latitud).replace(',', '.'))
+            lon = float(str(alerta.longitud).replace(',', '.'))
+            puntos_alertas.append([lat, lon, 1.0 if alerta.activa else 0.4])
         except ValueError:
             continue
 
-    # -------------------------------------------------------------------------
-    # ⚠️ ZONA DE DATOS DE PRUEBA (Para conectar con tu BD real después)
-    # -------------------------------------------------------------------------
-    
-    # 2. Coordenadas de prueba para BUSES (Mancha de calor azul)
-    puntos_buses_mock = [
-        [8.2980, -62.7200, 0.8], [8.2990, -62.7210, 0.9], [8.2970, -62.7190, 0.7], # Alta Vista
-        [8.2850, -62.7300, 0.6], [8.2860, -62.7310, 0.5]  # Unare
-    ]
-    
-    # 3. Coordenadas de prueba para PARADAS (Mancha de calor verde)
-    puntos_paradas_mock = [
-        [8.2950, -62.7250, 1.0], [8.2960, -62.7260, 0.9] # Parada Orinokia (Mucha demanda)
-    ]
+    # Capa Azul: Buses Activos (Unidades)
+    buses_activos = Unidad.objects.filter(estado__in=['operativa', 'activo'], latitud_actual__isnull=False, longitud_actual__isnull=False)
+    puntos_buses = []
+    for bus in buses_activos:
+        try:
+            lat = float(str(bus.latitud_actual).replace(',', '.'))
+            lon = float(str(bus.longitud_actual).replace(',', '.'))
+            puntos_buses.append([lat, lon, 0.9])
+        except ValueError:
+            continue
 
-    rutas_labels = ['Ruta Alta Vista', 'Ruta Unare', 'Ruta San Félix', 'Ruta Castillito']
-    rutas_data = [15, 12, 8, 5]
-    paradas_labels = ['Parada Orinokia', 'Parada CTE', 'Parada Plaza Hierro', 'Parada UNEG']
-    paradas_data = [340, 215, 180, 95]
+    # Capa Verde: Paradas Registradas
+    paradas = Parada.objects.filter(latitud__isnull=False, longitud__isnull=False)
+    puntos_paradas = []
+    for parada in paradas:
+        try:
+            lat = float(str(parada.latitud).replace(',', '.'))
+            lon = float(str(parada.longitud).replace(',', '.'))
+            puntos_paradas.append([lat, lon, 0.7])
+        except ValueError:
+            continue
+
+    # ==========================================
+    # 3. GRÁFICOS INFERIORES: RUTAS (REAL)
+    # ==========================================
+    rutas_conteo = {}
+    todas_las_unidades = Unidad.objects.all()
+    for u in todas_las_unidades:
+        # Buscamos de forma segura a qué ruta pertenece el bus (como lo tienes en tu código)
+        ruta_obj = getattr(u, 'ruta', getattr(u, 'ruta_asignada', None))
+        if ruta_obj:
+            rutas_conteo[ruta_obj.nombre] = rutas_conteo.get(ruta_obj.nombre, 0) + 1
+
+    rutas_labels = list(rutas_conteo.keys())
+    rutas_data = list(rutas_conteo.values())
+
+    # ==========================================
+    # 4. GRÁFICOS INFERIORES: PARADAS
+    # ==========================================
+    # IMPORTANTE: Como en tu código actual no hay un contador de "cuántas veces se escanea un QR", 
+    # mostraré las 5 primeras paradas con un dato fijo por ahora, para que el gráfico no se rompa.
+    # ¡Me avisas si tienes un modelo de "ConsultasQR" para conectarlo!
+    paradas_labels = [p.nombre for p in Parada.objects.all()[:5]]
+    paradas_data = [120, 95, 80, 60, 45] # Datos fijos temporales
             
     contexto = {
         'total_alertas': total_alertas, 'alertas_activas': alertas_activas, 'alertas_resueltas': alertas_resueltas,
         'chart_labels': json.dumps(chart_labels), 'chart_data': json.dumps(chart_data),
         
-        # Enviamos las 3 capas al mapa
+        # Las 3 capas reales para el mapa:
         'puntos_alertas_json': json.dumps(puntos_alertas),
-        'puntos_buses_json': json.dumps(puntos_buses_mock),
-        'puntos_paradas_json': json.dumps(puntos_paradas_mock),
+        'puntos_buses_json': json.dumps(puntos_buses),
+        'puntos_paradas_json': json.dumps(puntos_paradas),
         
         'rutas_labels': json.dumps(rutas_labels), 'rutas_data': json.dumps(rutas_data),
         'paradas_labels': json.dumps(paradas_labels), 'paradas_data': json.dumps(paradas_data),
