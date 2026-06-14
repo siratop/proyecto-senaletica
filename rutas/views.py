@@ -17,6 +17,7 @@ from usuarios.models import PerfilUsuario
 from django.core.mail import send_mail
 from django.contrib.auth.models import User 
 import threading
+from django.db.models import Count
 
 
 # =========================================================
@@ -660,3 +661,61 @@ def actualizar_gps_unidad(request):
             return JsonResponse({'error': f'Error interno: {str(e)}'}, status=500)
             
     return JsonResponse({'error': 'Método no permitido. Usa POST.'}, status=405)
+
+
+@login_required
+def panel_estadistico_inteligente(request):
+    """Genera métricas clave, datos para gráficos y coordenadas para mapas de calor"""
+    if not request.user.is_staff:
+        return redirect('dashboard_ciudadano')
+    # 1. Métricas de tarjetas básicas
+    total_alertas = AlertaOperativa.objects.count()
+    alertas_activas = AlertaOperativa.objects.filter(activa=True).count()
+    alertas_resueltas = AlertaOperativa.objects.filter(activa=False).count()
+    
+    # 2. Datos para el gráfico: Contamos cuántas alertas hay de cada tipo
+    conteo_por_tipo = AlertaOperativa.objects.values('tipo').annotate(total=Count('tipo'))
+    
+    # Mapeamos los tipos técnicos a nombres amigables para el gráfico
+    labels_map = {
+        'general': '📢 Avisos Generales',
+        'trafico': '🚗 Congestión / Tráfico',
+        'incidente': '⚠️ Accidentes / Vías Cerradas'
+    }
+    
+    chart_labels = []
+    chart_data = []
+    for item in conteo_por_tipo:
+        nombre_amigable = labels_map.get(item['tipo'], item['tipo'])
+        chart_labels.append(nombre_amigable)
+        chart_data.append(item['total'])
+        
+    # 3. Extracción de coordenadas geoespaciales para el mapa de calor
+    # Filtramos las alertas que tengan latitud y longitud válidas
+    alertas_con_gps = AlertaOperativa.objects.filter(
+        latitud__isnull=False, 
+        longitud__isnull=False
+    ).exclude(latitud="", longitud="")
+    
+    # Construimos una lista pura de coordenadas: [lat, lon, intensidad]
+    puntos_calor = []
+    for alerta in alertas_con_gps:
+        try:
+            lat = float(alerta.latitud)
+            lon = float(alerta.longitud)
+            # La intensidad de calor puede ser mayor (1.0) si la alerta está activa, o menor (0.5) si está resuelta
+            intensidad = 1.0 if alerta.activa else 0.4
+            puntos_calor.append([lat, lon, intensidad])
+        except ValueError:
+            continue # Ignora registros con datos GPS corruptos
+            
+    contexto = {
+        'total_alertas': total_alertas,
+        'alertas_activas': alertas_activas,
+        'alertas_resueltas': alertas_resueltas,
+        'chart_labels': json.dumps(chart_labels),
+        'chart_data': json.dumps(chart_data),
+        'puntos_calor_json': json.dumps(puntos_calor)  # Enviamos el JSON al mapa
+    }
+    
+    return render(request, 'control_flota/panel_estadistico.html', contexto)

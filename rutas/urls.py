@@ -75,4 +75,6 @@ urlpatterns = [
 
     # Ruta para la API de la app del chofer
     path('api/actualizar-gps/', views.actualizar_gps_unidad, name='actualizar_gps_unidad'),
+
+    path('centro-de-control/analitica/', views.panel_estadistico_inteligente, name='panel_estadistico_inteligente'),
 ]
