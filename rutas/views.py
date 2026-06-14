@@ -718,4 +718,4 @@ def panel_estadistico_inteligente(request):
         'puntos_calor_json': json.dumps(puntos_calor)  # Enviamos el JSON al mapa
     }
     
-    return render(request, 'control_flota/panel_estadistico.html', contexto)
+    return render(request, 'panel_estadistico.html', contexto)
