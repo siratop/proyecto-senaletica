@@ -665,74 +665,58 @@ def actualizar_gps_unidad(request):
 
 @login_required
 def panel_estadistico_inteligente(request):
-    """Genera métricas clave, datos para gráficos y coordenadas para mapas de calor"""
-    
-    # SEGURIDAD: Expulsar si no es administrador
     if not request.user.is_staff:
         return redirect('dashboard_ciudadano')
         
-    # 1. Métricas de tarjetas básicas
     total_alertas = AlertaOperativa.objects.count()
     alertas_activas = AlertaOperativa.objects.filter(activa=True).count()
     alertas_resueltas = AlertaOperativa.objects.filter(activa=False).count()
     
-    # 2. Datos para el gráfico: Contamos cuántas alertas hay de cada tipo
     conteo_por_tipo = AlertaOperativa.objects.values('tipo').annotate(total=Count('tipo'))
+    labels_map = {'general': '📢 Avisos Generales', 'trafico': '🚗 Congestión / Tráfico', 'incidente': '⚠️ Accidentes / Vías Cerradas'}
     
-    # Mapeamos los tipos técnicos a nombres amigables para el gráfico
-    labels_map = {
-        'general': '📢 Avisos Generales',
-        'trafico': '🚗 Congestión / Tráfico',
-        'incidente': '⚠️ Accidentes / Vías Cerradas'
-    }
-    
-    chart_labels = []
-    chart_data = []
-    for item in conteo_por_tipo:
-        nombre_amigable = labels_map.get(item['tipo'], item['tipo'])
-        chart_labels.append(nombre_amigable)
-        chart_data.append(item['total'])
+    chart_labels = [labels_map.get(item['tipo'], item['tipo']) for item in conteo_por_tipo]
+    chart_data = [item['total'] for item in conteo_por_tipo]
         
-    # 3. Extracción de coordenadas geoespaciales para el mapa de calor
-    # Filtramos las alertas que tengan latitud y longitud válidas
-    alertas_con_gps = AlertaOperativa.objects.filter(
-        latitud__isnull=False, 
-        longitud__isnull=False
-    ).exclude(latitud="", longitud="")
-    
-    # Construimos una lista pura de coordenadas: [lat, lon, intensidad]
-    puntos_calor = []
+    # 1. Coordenadas reales de ALERTAS
+    alertas_con_gps = AlertaOperativa.objects.filter(latitud__isnull=False, longitud__isnull=False).exclude(latitud="", longitud="")
+    puntos_alertas = []
     for alerta in alertas_con_gps:
         try:
-            lat = float(alerta.latitud)
-            lon = float(alerta.longitud)
-            # La intensidad de calor puede ser mayor (1.0) si la alerta está activa, o menor (0.4) si está resuelta
-            intensidad = 1.0 if alerta.activa else 0.4
-            puntos_calor.append([lat, lon, intensidad])
+            puntos_alertas.append([float(alerta.latitud), float(alerta.longitud), 1.0 if alerta.activa else 0.4])
         except ValueError:
-            continue # Ignora registros con datos GPS corruptos
-            
-    # 4. NUEVAS MÉTRICAS: Rutas y Paradas (Estructura base)
-    # Estos son datos de ejemplo. Luego los reemplazaremos con las consultas a tu base de datos real.
+            continue
+
+    # -------------------------------------------------------------------------
+    # ⚠️ ZONA DE DATOS DE PRUEBA (Para conectar con tu BD real después)
+    # -------------------------------------------------------------------------
+    
+    # 2. Coordenadas de prueba para BUSES (Mancha de calor azul)
+    puntos_buses_mock = [
+        [8.2980, -62.7200, 0.8], [8.2990, -62.7210, 0.9], [8.2970, -62.7190, 0.7], # Alta Vista
+        [8.2850, -62.7300, 0.6], [8.2860, -62.7310, 0.5]  # Unare
+    ]
+    
+    # 3. Coordenadas de prueba para PARADAS (Mancha de calor verde)
+    puntos_paradas_mock = [
+        [8.2950, -62.7250, 1.0], [8.2960, -62.7260, 0.9] # Parada Orinokia (Mucha demanda)
+    ]
+
     rutas_labels = ['Ruta Alta Vista', 'Ruta Unare', 'Ruta San Félix', 'Ruta Castillito']
     rutas_data = [15, 12, 8, 5]
-    
-    paradas_labels = ['Parada Orinokia', 'Parada CTE Cachamay', 'Parada Plaza Hierro', 'Parada UNEG']
+    paradas_labels = ['Parada Orinokia', 'Parada CTE', 'Parada Plaza Hierro', 'Parada UNEG']
     paradas_data = [340, 215, 180, 95]
             
     contexto = {
-        'total_alertas': total_alertas,
-        'alertas_activas': alertas_activas,
-        'alertas_resueltas': alertas_resueltas,
-        'chart_labels': json.dumps(chart_labels),
-        'chart_data': json.dumps(chart_data),
-        'puntos_calor_json': json.dumps(puntos_calor),
+        'total_alertas': total_alertas, 'alertas_activas': alertas_activas, 'alertas_resueltas': alertas_resueltas,
+        'chart_labels': json.dumps(chart_labels), 'chart_data': json.dumps(chart_data),
         
-        # NUEVAS VARIABLES ENVIADAS AL HTML:
-        'rutas_labels': json.dumps(rutas_labels),
-        'rutas_data': json.dumps(rutas_data),
-        'paradas_labels': json.dumps(paradas_labels),
-        'paradas_data': json.dumps(paradas_data),
+        # Enviamos las 3 capas al mapa
+        'puntos_alertas_json': json.dumps(puntos_alertas),
+        'puntos_buses_json': json.dumps(puntos_buses_mock),
+        'puntos_paradas_json': json.dumps(puntos_paradas_mock),
+        
+        'rutas_labels': json.dumps(rutas_labels), 'rutas_data': json.dumps(rutas_data),
+        'paradas_labels': json.dumps(paradas_labels), 'paradas_data': json.dumps(paradas_data),
     }
-    
     return render(request, 'panel_estadistico.html', contexto)
