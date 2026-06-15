@@ -816,3 +816,16 @@ def registrar_reporte_waze(request):
             return JsonResponse({'status': 'error', 'msg': f'Error del servidor: {str(e)}'})
             
     return JsonResponse({'status': 'error', 'msg': 'Método no permitido'})
+
+@login_required
+def buzon_reportes(request):
+    """Bandeja de entrada para que el administrador lea el feedback de la comunidad"""
+    # Seguridad: Solo personal autorizado
+    if not request.user.is_staff:
+        return redirect('dashboard_ciudadano')
+        
+    # Traemos todos los reportes ordenados por fecha (los más recientes primero)
+    # Seleccionamos también las rutas y paradas relacionadas para que la base de datos no se sature
+    reportes = ReporteRapido.objects.select_related('usuario', 'ruta', 'parada').all().order_by('-fecha_creacion')
+    
+    return render(request, 'buzon_reportes.html', {'reportes': reportes})    

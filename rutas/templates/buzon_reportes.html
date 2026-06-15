@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div style="max-width: 1100px; margin: 30px auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <div>
+            <h2 style="color: #1e293b; margin: 0; font-size: 28px; font-weight: 800;">📥 Buzón de Reportes Comunitarios</h2>
+            <p style="color: #64748b; margin: 5px 0 0 0;">Historial en tiempo real del feedback enviado por los ciudadanos en las calles.</p>
+        </div>
+        <a href="{% url 'panel_estadistico_inteligente' %}" style="background: #e2e8f0; color: #334155; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">
+            ← Volver al Panel
+        </a>
+    </div>
+
+    <div style="background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                    <th style="padding: 15px 20px; color: #475569; font-size: 13px; text-transform: uppercase;">Fecha y Hora</th>
+                    <th style="padding: 15px 20px; color: #475569; font-size: 13px; text-transform: uppercase;">Ciudadano</th>
+                    <th style="padding: 15px 20px; color: #475569; font-size: 13px; text-transform: uppercase;">Incidencia Detectada</th>
+                    <th style="padding: 15px 20px; color: #475569; font-size: 13px; text-transform: uppercase;">Ubicación (Ruta / Parada)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for reporte in reportes %}
+                <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.backgroundColor='#f8fafc'" onmouseout="this.style.backgroundColor='transparent'">
+                    
+                    <td style="padding: 15px 20px; font-size: 14px; color: #334155; font-weight: 600;">
+                        {{ reporte.fecha_creacion|date:"d M Y" }} <br>
+                        <span style="font-size: 12px; color: #94a3b8; font-weight: normal;">{{ reporte.fecha_creacion|time:"h:i A" }}</span>
+                    </td>
+                    
+                    <td style="padding: 15px 20px; font-size: 14px; color: #334155;">
+                        <i class="fa-solid fa-user" style="color: #cbd5e1; margin-right: 5px;"></i> {{ reporte.usuario.username }}
+                    </td>
+                    
+                    <td style="padding: 15px 20px; font-size: 14px; font-weight: bold;">
+                        {% if reporte.tipo == 'bus_lleno' %}
+                            <span style="color: #c2410c; background: #fff7ed; padding: 5px 10px; border-radius: 20px; border: 1px solid #ffedd5;">{{ reporte.get_tipo_display }}</span>
+                        {% elif reporte.tipo == 'trafico' %}
+                            <span style="color: #b91c1c; background: #fef2f2; padding: 5px 10px; border-radius: 20px; border: 1px solid #fee2e2;">{{ reporte.get_tipo_display }}</span>
+                        {% elif reporte.tipo == 'parada_sucia' %}
+                            <span style="color: #15803d; background: #f0fdf4; padding: 5px 10px; border-radius: 20px; border: 1px solid #dcfce7;">{{ reporte.get_tipo_display }}</span>
+                        {% else %}
+                            {{ reporte.get_tipo_display }}
+                        {% endif %}
+                    </td>
+                    
+                    <td style="padding: 15px 20px; font-size: 14px; color: #334155;">
+                        {% if reporte.ruta %}
+                            <i class="fa-solid fa-route" style="color: #3b82f6; margin-right: 5px;"></i> {{ reporte.ruta.nombre }}
+                        {% elif reporte.parada %}
+                            <i class="fa-solid fa-map-pin" style="color: #10b981; margin-right: 5px;"></i> {{ reporte.parada.nombre }}
+                        {% else %}
+                            <span style="color: #94a3b8;">No especificada</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="padding: 40px; text-align: center; color: #94a3b8;">
+                        <i class="fa-regular fa-folder-open" style="font-size: 30px; margin-bottom: 10px; display: block;"></i>
+                        Aún no hay reportes de la comunidad en el sistema.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
