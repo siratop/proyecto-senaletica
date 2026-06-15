@@ -8,9 +8,19 @@
             <h2 style="color: #1e293b; margin: 0; font-size: 28px; font-weight: 800;">📥 Buzón de Reportes Comunitarios</h2>
             <p style="color: #64748b; margin: 5px 0 0 0;">Historial en tiempo real del feedback enviado por los ciudadanos en las calles.</p>
         </div>
-        <a href="{% url 'panel_estadistico_inteligente' %}" style="background: #e2e8f0; color: #334155; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">
-            ← Volver al Panel
-        </a>
+        
+        <div style="display: flex; gap: 10px;">
+            <form action="{% url 'limpiar_buzon_waze' %}" method="POST" onsubmit="return confirm('⚠️ ¿Estás totalmente seguro de vaciar el buzón? Se borrarán todos los reportes actuales.');">
+                {% csrf_token %}
+                <button type="submit" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 10px 15px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer;">
+                    <i class="fa-solid fa-broom"></i> Limpiar Buzón
+                </button>
+            </form>
+
+            <a href="{% url 'panel_estadistico_inteligente' %}" style="background: #e2e8f0; color: #334155; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: flex; align-items: center;">
+                ← Volver al Panel
+            </a>
+        </div>
     </div>
 
     <div style="background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; overflow: hidden;">
@@ -21,6 +31,7 @@
                     <th style="padding: 15px 20px; color: #475569; font-size: 13px; text-transform: uppercase;">Ciudadano</th>
                     <th style="padding: 15px 20px; color: #475569; font-size: 13px; text-transform: uppercase;">Incidencia Detectada</th>
                     <th style="padding: 15px 20px; color: #475569; font-size: 13px; text-transform: uppercase;">Ubicación (Ruta / Parada)</th>
+                    <th style="padding: 15px 20px; color: #475569; font-size: 13px; text-transform: uppercase; text-align: center;">Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -57,10 +68,19 @@
                             <span style="color: #94a3b8;">No especificada</span>
                         {% endif %}
                     </td>
+
+                    <td style="padding: 15px 20px; text-align: center;">
+                        <form action="{% url 'eliminar_reporte_waze' reporte.id %}" method="POST" onsubmit="return confirm('¿Eliminar este reporte individual?');">
+                            {% csrf_token %}
+                            <button type="submit" style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 16px; transition: 0.2s;" onmouseover="this.style.color='#b91c1c'" onmouseout="this.style.color='#ef4444'" title="Borrar reporte">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </form>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" style="padding: 40px; text-align: center; color: #94a3b8;">
+                    <td colspan="5" style="padding: 40px; text-align: center; color: #94a3b8;">
                         <i class="fa-regular fa-folder-open" style="font-size: 30px; margin-bottom: 10px; display: block;"></i>
                         Aún no hay reportes de la comunidad en el sistema.
                     </td>

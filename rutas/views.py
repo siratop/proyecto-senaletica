@@ -828,4 +828,29 @@ def buzon_reportes(request):
     # Seleccionamos también las rutas y paradas relacionadas para que la base de datos no se sature
     reportes = ReporteRapido.objects.select_related('usuario', 'ruta', 'parada').all().order_by('-fecha_creacion')
     
-    return render(request, 'buzon_reportes.html', {'reportes': reportes})    
+    return render(request, 'buzon_reportes.html', {'reportes': reportes})   
+
+@login_required
+def eliminar_reporte_waze(request, reporte_id):
+    """Elimina un solo reporte del radar comunitario"""
+    if not request.user.is_staff:
+        return redirect('dashboard_ciudadano')
+        
+    if request.method == 'POST':
+        reporte = get_object_or_404(ReporteRapido, id=reporte_id)
+        reporte.delete()
+        messages.success(request, "Reporte eliminado correctamente.")
+        
+    return redirect('buzon_reportes')
+
+@login_required
+def limpiar_buzon_waze(request):
+    """Vacia por completo la tabla de reportes rápidos"""
+    if not request.user.is_staff:
+        return redirect('dashboard_ciudadano')
+        
+    if request.method == 'POST':
+        ReporteRapido.objects.all().delete()
+        messages.success(request, "El buzón ha sido limpiado por completo.")
+        
+    return redirect('buzon_reportes') 

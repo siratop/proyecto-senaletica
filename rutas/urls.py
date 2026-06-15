@@ -79,4 +79,6 @@ urlpatterns = [
     path('centro-de-control/analitica/', views.panel_estadistico_inteligente, name='panel_estadistico_inteligente'),
     path('api/reporte-waze/', views.registrar_reporte_waze, name='registrar_reporte_waze'),
     path('centro-de-control/radar-comunitario/', views.buzon_reportes, name='buzon_reportes'),
+    path('centro-de-control/radar-comunitario/eliminar/<int:reporte_id>/', views.eliminar_reporte_waze, name='eliminar_reporte_waze'),
+    path('centro-de-control/radar-comunitario/limpiar/', views.limpiar_buzon_waze, name='limpiar_buzon_waze'),
 ]

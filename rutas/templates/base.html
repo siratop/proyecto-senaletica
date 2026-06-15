@@ -81,13 +81,13 @@
 </head>
 <body>
     
-    <header class="global-header">
+ <header class="global-header" style="display: flex; justify-content: flex-end; padding: 15px 20px;">
         
-        
-        <button id="btn-contraste" onclick="toggleContraste()" style="background: #1e293b; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; transition: 0.2s;">
-            <i class="fa-solid fa-circle-half-stroke" style="margin-right: 5px; color: #fffbd5;"></i> Alto Contraste
-        </button>
-    </header>
+    <button id="btn-contraste" onclick="toggleContraste()" style="background: #1e293b; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; transition: 0.2s;">
+        <i class="fa-solid fa-circle-half-stroke" style="margin-right: 5px; color: #fffbd5;"></i> Alto Contraste
+    </button>
+
+</header>
 
     {% include 'includes/navbar.html' %}
 
@@ -105,8 +105,47 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">
-        SeñalÉtica+ © 2026 | Guayana | UNEG
+  <footer style="background-color: #1e293b; color: #cbd5e1; padding: 40px 20px 20px; margin-top: 50px; font-family: 'Inter', sans-serif; border-top: 4px solid #0d9488;">
+        <div style="max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; border-bottom: 1px solid #334155; padding-bottom: 30px; margin-bottom: 20px;">
+
+            <div>
+                <h4 style="color: #ffffff; font-size: 16px; margin-bottom: 15px; font-weight: bold;">
+                    <i class="fa-solid fa-wheelchair" style="color: #0d9488; margin-right: 8px;"></i> Accesibilidad e Inclusión
+                </h4>
+                <p style="font-size: 13px; line-height: 1.6; margin: 0 0 10px 0; text-align: justify;">
+                    SeñalÉtica+ garantiza el derecho a la movilidad universal. Promovemos el cumplimiento estricto de la <strong>Ley para las Personas con Discapacidad</strong> (Arts. 31 y 35), garantizando trato preferencial, asientos reservados y tarifas exoneradas para adultos mayores, mujeres embarazadas y ciudadanos con movilidad reducida.
+                </p>
+            </div>
+
+            <div>
+                <h4 style="color: #ffffff; font-size: 16px; margin-bottom: 15px; font-weight: bold;">
+                    <i class="fa-solid fa-truck-medical" style="color: #ef4444; margin-right: 8px;"></i> Emergencias (Caroní)
+                </h4>
+                <p style="font-size: 12px; color: #94a3b8; margin-top: -10px; margin-bottom: 10px;">Líneas directas en San Félix y Puerto Ordaz:</p>
+                <ul style="list-style: none; padding: 0; margin: 0; font-size: 13px; line-height: 1.8;">
+                    <li><strong style="color: #ffffff;">VEN 911:</strong> Sistema Nacional de Emergencias</li>
+                    <li><strong style="color: #ffffff;">Protección Civil Caroní:</strong> 0286-931.47.67</li>
+                    <li><strong style="color: #ffffff;">Bomberos Municipales:</strong> 0286-931.41.22</li>
+                    <li><strong style="color: #ffffff;">Policía Municipal (Patrulleros):</strong> 0286-951.55.55</li>
+                </ul>
+            </div>
+
+            <div>
+                <h4 style="color: #ffffff; font-size: 16px; margin-bottom: 15px; font-weight: bold;">
+                    <i class="fa-solid fa-scale-balanced" style="color: #fbbf24; margin-right: 8px;"></i> Marco Legal y Ético
+                </h4>
+                <p style="font-size: 13px; line-height: 1.6; margin: 0; text-align: justify;">
+                    Plataforma desarrollada bajo estrictos lineamientos académicos para la <strong>Universidad Nacional Experimental de Guayana (UNEG)</strong>. El uso indebido de los reportes comunitarios y el sistema SOS está sujeto a sanciones.
+                </p>
+                <p style="font-size: 12px; color: #94a3b8; margin-top: 10px;">
+                    <i class="fa-solid fa-shield-halved"></i> Datos protegidos por privacidad ciudadana.
+                </p>
+            </div>
+        </div>
+
+        <div style="text-align: center; font-size: 12px; color: #64748b;">
+            <strong>SeñalÉtica+ © 2026</strong> | Ciudad Guayana, Estado Bolívar, Venezuela. Todos los derechos reservados.
+        </div>
     </footer>
 
     <script>
