@@ -237,10 +237,10 @@
         document.getElementById('gps-precision').innerText = "Señal perdida. Buscando...";
     }
 
-    // 4. COMUNICACIÓN CON EL SERVIDOR (Backend y Alertas)
+  // 4. COMUNICACIÓN CON EL SERVIDOR (Backend y Alertas)
     function enviarBackend(lat, lng, activo) {
-        // Apuntamos a la ruta oficial registrada en urls.py
-        fetch("{% url 'actualizar_gps_bus' %}", {
+       
+        fetch("{% url 'actualizar_ubicacion_chofer' %}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
