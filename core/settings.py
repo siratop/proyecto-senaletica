@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os # Importado para rutas de media
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,6 +31,7 @@ ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '*']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne', # Servidor ASGI para WebSockets
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -71,7 +73,11 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'core.wsgi.application'
+# Comentamos el viejo motor sincrónico (HTTP normal)
+# WSGI_APPLICATION = 'core.wsgi.application'
+
+# Activamos el nuevo motor asincrónico (WebSockets + HTTP)
+ASGI_APPLICATION = 'core.asgi.application'
 
 
 # Database
@@ -89,7 +95,7 @@ DATABASES = {
 }
 
 
-# Password validation
+
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -128,11 +134,11 @@ STATICFILES_DIRS = [
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-LOGIN_REDIRECT_URL = 'inicio_general'  # A dónde va al iniciar sesión
-LOGOUT_REDIRECT_URL = 'inicio_general'      # A dónde va al cerrar sesión
+LOGIN_REDIRECT_URL = 'inicio_general' 
+LOGOUT_REDIRECT_URL = 'inicio_general'     
 LOGIN_URL = 'login'
 
-import os
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -146,4 +152,16 @@ EMAIL_USE_SSL = True  # Activamos SSL
 EMAIL_USE_TLS = False # Desactivamos TLS
 EMAIL_HOST_USER = 'francisco.fonseca.farias@gmail.com' 
 EMAIL_HOST_PASSWORD = 'mtfuffohzpdzdjpa'
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER 
+
+# ==========================================
+# CONFIGURACIÓN DE DJANGO CHANNELS Y REDIS (WEBSOCKETS)
+# ==========================================
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
