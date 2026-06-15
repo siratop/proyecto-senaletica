@@ -116,3 +116,20 @@ class Campana(models.Model):
 
     def __str__(self):
         return self.nombre    
+    
+
+class ReporteRapido(models.Model):
+    TIPO_REPORTES = [
+        ('bus_lleno', '🚌 Bus Lleno / Sin Puestos'),
+        ('trafico', '🚗 Retraso por Tráfico'),
+        ('parada_sucia', '🚏 Parada en Mal Estado / Sucia'),
+    ]
+
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    tipo = models.CharField(max_length=20, choices=TIPO_REPORTES)
+    ruta = models.ForeignKey('Ruta', on_delete=models.CASCADE, null=True, blank=True)
+    parada = models.ForeignKey('Parada', on_delete=models.CASCADE, null=True, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.fecha_creacion.strftime('%H:%M')}"    

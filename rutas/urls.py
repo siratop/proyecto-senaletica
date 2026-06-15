@@ -77,4 +77,5 @@ urlpatterns = [
     path('api/actualizar-gps/', views.actualizar_gps_unidad, name='actualizar_gps_unidad'),
 
     path('centro-de-control/analitica/', views.panel_estadistico_inteligente, name='panel_estadistico_inteligente'),
+    path('api/reporte-waze/', views.registrar_reporte_waze, name='registrar_reporte_waze'),
 ]

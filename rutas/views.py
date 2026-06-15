@@ -18,7 +18,9 @@ from django.core.mail import send_mail
 from django.contrib.auth.models import User 
 import threading
 from django.db.models import Count
-
+from django.utils import timezone
+from datetime import timedelta
+from .models import ReporteRapido
 
 # =========================================================
 # 1. FUNCIONES SATELITALES Y MATEMÁTICAS (Core)
@@ -755,3 +757,63 @@ def panel_estadistico_inteligente(request):
         'paradas_labels': json.dumps(paradas_labels), 'paradas_data': json.dumps(paradas_data),
     }
     return render(request, 'panel_estadistico.html', contexto)
+
+@login_required
+@csrf_exempt # Permite que JavaScript envíe datos de forma segura
+def registrar_reporte_waze(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            tipo_reporte = data.get('tipo') # 'bus_lleno', 'trafico', etc.
+            ruta_id = data.get('ruta_id')
+            parada_id = data.get('parada_id')
+
+            ruta_obj = Ruta.objects.filter(id=ruta_id).first() if ruta_id else None
+            parada_obj = Parada.objects.filter(id=parada_id).first() if parada_id else None
+
+            # 1. Guardamos el reporte del usuario actual
+            ReporteRapido.objects.create(
+                usuario=request.user,
+                tipo=tipo_reporte,
+                ruta=ruta_obj,
+                parada=parada_obj
+            )
+
+            # 2. REGLA WAZE: Contamos cuántos reportes similares hay en los últimos 15 minutos
+            hace_15_minutos = timezone.now() - timedelta(minutes=15)
+            
+            conteo_reportes = ReporteRapido.objects.filter(
+                tipo=tipo_reporte,
+                ruta=ruta_obj,
+                parada=parada_obj,
+                fecha_creacion__gte=hace_15_minutos
+            ).count()
+
+            # 3. Si se acumulan 3 o más reportes, disparamos la Alerta Operativa automáticamente
+            if conteo_reportes >= 3:
+                mensaje_alerta = ""
+                tipo_alerta_global = "trafico"
+
+                if tipo_reporte == 'bus_lleno' and ruta_obj:
+                    mensaje_alerta = f"⚠️ Comunidad reporta: Unidades de la {ruta_obj.nombre} se encuentran saturadas (Buses llenos)."
+                elif tipo_reporte == 'trafico' and ruta_obj:
+                    mensaje_alerta = f"🚗 Retraso vial crítico detectado en el trayecto de la {ruta_obj.nombre}."
+                elif tipo_reporte == 'parada_sucia' and parada_obj:
+                    tipo_alerta_global = "general"
+                    mensaje_alerta = f"📢 Reporte de mantenimiento: Incidencias en la infraestructura de la {parada_obj.nombre}."
+
+                if mensaje_alerta:
+                    # Buscamos si ya existe una alerta igual activa para no duplicarla
+                    alerta_existente = AlertaOperativa.objects.filter(mensaje=mensaje_alerta, activa=True).exists()
+                    if not alerta_existente:
+                        AlertaOperativa.objects.create(
+                            tipo=tipo_alerta_global,
+                            mensaje=mensaje_alerta,
+                            activa=True
+                        )
+
+            return JsonResponse({'status': 'ok', 'msg': 'Reporte procesado por la comunidad.'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
+            
+    return JsonResponse({'status': 'error', 'msg': 'Método no permitido'}, status=405)
