@@ -56,7 +56,7 @@
             <input type="checkbox" id="chk-buses" checked onchange="toggleCapaBuses()" style="accent-color: #10b981;"> Mostrar Buses
         </label>
 <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; margin-top: 15px;">
-    <h5 style="margin: 0 0 10px 0; color: #1e293b; font-size: 14px; font-weight: bold;"><i class="fa-solid fa-users" style="color: #0d9488;"></i> Reporte Comunitario (Estilo Waze)</h5>
+    <h5 style="margin: 0 0 10px 0; color: #1e293b; font-size: 14px; font-weight: bold;"><i class="fa-solid fa-users" style="color: #0d9488;"></i> Reporte Comunitario </h5>
     <p style="font-size: 11px; color: #64748b; margin: -5px 0 10px 0;">Ayuda a otros usuarios reportando el estado actual del servicio.</p>
     
     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -347,7 +347,7 @@ function enviarReporteWaze(tipoReporte, rutaId, paradaId) {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRFToken": "{{ csrf_token }}" // Django requiere el token de seguridad
+            "X-CSRFToken": "{{ csrf_token }}" 
         },
         body: JSON.stringify({
             tipo: tipoReporte,
@@ -355,16 +355,26 @@ function enviarReporteWaze(tipoReporte, rutaId, paradaId) {
             parada_id: paradaId ? parseInt(paradaId) : null
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        // Verificamos si Django devolvió un error 500 antes de intentar leer el JSON
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.status === 'ok') {
             alert("📢 ¡Gracias! Tu reporte ha sido sumado al radar comunitario.");
         } else {
-            alert("Error al procesar el reporte.");
+            // AHORA MOSTRARÁ EL ERROR REAL DEL SERVIDOR
+            alert("⚠️ " + data.msg); 
         }
     })
-    .catch(error => console.error("Error en el reporte Waze:", error));
-}    
+    .catch(error => {
+        alert("Error de conexión. Verifica la consola del navegador para más detalles.");
+        console.error("Fallo crítico en AJAX:", error);
+    });
+}
 
 </script>
 {% endblock %}

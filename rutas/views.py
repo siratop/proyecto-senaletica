@@ -758,20 +758,23 @@ def panel_estadistico_inteligente(request):
     }
     return render(request, 'panel_estadistico.html', contexto)
 
-@login_required
-@csrf_exempt # Permite que JavaScript envíe datos de forma segura
+@csrf_exempt # Quitamos el @login_required de aquí arriba
 def registrar_reporte_waze(request):
     if request.method == 'POST':
+        # Validación elegante para AJAX: Si no ha iniciado sesión, le avisamos
+        if not request.user.is_authenticated:
+            return JsonResponse({'status': 'error', 'msg': 'Debes iniciar sesión para ayudar con reportes comunitarios.'})
+
         try:
             data = json.loads(request.body)
-            tipo_reporte = data.get('tipo') # 'bus_lleno', 'trafico', etc.
+            tipo_reporte = data.get('tipo')
             ruta_id = data.get('ruta_id')
             parada_id = data.get('parada_id')
 
             ruta_obj = Ruta.objects.filter(id=ruta_id).first() if ruta_id else None
             parada_obj = Parada.objects.filter(id=parada_id).first() if parada_id else None
 
-            # 1. Guardamos el reporte del usuario actual
+            # 1. Guardamos el reporte
             ReporteRapido.objects.create(
                 usuario=request.user,
                 tipo=tipo_reporte,
@@ -779,9 +782,8 @@ def registrar_reporte_waze(request):
                 parada=parada_obj
             )
 
-            # 2. REGLA WAZE: Contamos cuántos reportes similares hay en los últimos 15 minutos
+            # 2. Lógica Waze (3 reportes en 15 min)
             hace_15_minutos = timezone.now() - timedelta(minutes=15)
-            
             conteo_reportes = ReporteRapido.objects.filter(
                 tipo=tipo_reporte,
                 ruta=ruta_obj,
@@ -789,7 +791,7 @@ def registrar_reporte_waze(request):
                 fecha_creacion__gte=hace_15_minutos
             ).count()
 
-            # 3. Si se acumulan 3 o más reportes, disparamos la Alerta Operativa automáticamente
+            # 3. Disparo de Alerta Global
             if conteo_reportes >= 3:
                 mensaje_alerta = ""
                 tipo_alerta_global = "trafico"
@@ -803,17 +805,14 @@ def registrar_reporte_waze(request):
                     mensaje_alerta = f"📢 Reporte de mantenimiento: Incidencias en la infraestructura de la {parada_obj.nombre}."
 
                 if mensaje_alerta:
-                    # Buscamos si ya existe una alerta igual activa para no duplicarla
                     alerta_existente = AlertaOperativa.objects.filter(mensaje=mensaje_alerta, activa=True).exists()
                     if not alerta_existente:
-                        AlertaOperativa.objects.create(
-                            tipo=tipo_alerta_global,
-                            mensaje=mensaje_alerta,
-                            activa=True
-                        )
+                        AlertaOperativa.objects.create(tipo=tipo_alerta_global, mensaje=mensaje_alerta, activa=True)
 
             return JsonResponse({'status': 'ok', 'msg': 'Reporte procesado por la comunidad.'})
+        
         except Exception as e:
-            return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
+            # Si hay un error interno de base de datos, lo enviamos al frontend para saber qué pasó
+            return JsonResponse({'status': 'error', 'msg': f'Error del servidor: {str(e)}'})
             
-    return JsonResponse({'status': 'error', 'msg': 'Método no permitido'}, status=405)
+    return JsonResponse({'status': 'error', 'msg': 'Método no permitido'})
