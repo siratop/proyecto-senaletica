@@ -240,7 +240,7 @@
   // 4. COMUNICACIÓN CON EL SERVIDOR (Backend y Alertas)
     function enviarBackend(lat, lng, activo) {
        
-        fetch("{% url 'actualizar_ubicacion_chofer' %}", {
+         fetch("{% url 'api_actualizar_ubicacion' %}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

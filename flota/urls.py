@@ -33,4 +33,5 @@ urlpatterns = [
     
     # 3. Por aquí el Mapa Web público pide los buses para mostrarlos
     path('api/buses-activos/', views.api_buses_activos, name='api_buses_activos'),
+   
 ]
