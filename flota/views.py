@@ -18,6 +18,10 @@ from datetime import timedelta
 from rutas.models import Ruta, Parada
 from .models import MensajeFlota, RegistroSesion
 
+
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
 # =========================================================
 # MOTOR MATEMÁTICO (Geocerca para el mapa ciudadano)
 # =========================================================
@@ -170,7 +174,7 @@ def actualizar_gps(request):
                 return JsonResponse({'error': 'Unidad no encontrada'}, status=404)
 
             # ==========================================================
-            # EL APAGADOR: Forzamos el estado a 'inactiva' (femenino)
+            # EL APAGADOR: Forzamos el estado a 'inactiva'
             # ==========================================================
             if data.get('estado') == 'inactivo':
                 unidad.estado = 'inactiva' 
@@ -189,6 +193,28 @@ def actualizar_gps(request):
                 unidad.estado = 'operativa' 
                 unidad.ultima_actualizacion = timezone.now()
                 unidad.save()
+
+                # ----------------------------------------------------
+                # AQUI ESTÁ EL DISPARADOR N°1 (Para la App Móvil)
+                # ----------------------------------------------------
+                try:
+                    channel_layer = get_channel_layer()
+                    async_to_sync(channel_layer.group_send)(
+                        'mapa_envivo', # El nombre de la sala que pusimos en consumers.py
+                        {
+                            'type': 'enviar_ubicacion',
+                            'datos': {
+                                'bus_id': str(unidad.id), 
+                                'lat': lat,
+                                'lon': lon,
+                                'unidad': unidad.numero_unidad
+                            }
+                        }
+                    )
+                except Exception as ws_error:
+                    print(f"Error en WebSocket (App): {ws_error}")
+                # ----------------------------------------------------
+
                 return JsonResponse({'status': 'ok', 'msg': 'GPS actualizado'})
                 
             return JsonResponse({'status': 'error', 'msg': 'Faltan coordenadas'})
@@ -198,7 +224,7 @@ def actualizar_gps(request):
     return JsonResponse({'status': 'error', 'msg': 'Método no permitido'}, status=405)
 
 # =========================================================
-# API PARA EL MAPA WEB (Envío de datos a la pantalla)
+# API PARA EL MAPA WEB (Respaldo en caso de que WS falle)
 # =========================================================
 
 def api_buses_activos(request):
@@ -208,14 +234,10 @@ def api_buses_activos(request):
         data_buses = []
         
         for u in buses:
-            # ==========================================================
-            # LA PUERTA VIP: Si no es 'operativa' o 'activo', NO ENTRA AL MAPA
-            # ==========================================================
             estado_actual = str(getattr(u, 'estado', '')).lower()
             if estado_actual not in ['operativa', 'activo']:
-                continue # Salta este bus, ignorándolo por completo
+                continue 
             
-            # Verificamos que tenga coordenadas válidas
             if u.latitud_actual and u.longitud_actual:
                 unidad_identificador = getattr(u, 'placa', getattr(u, 'numero', f"N° {u.id}"))
                 ruta_obj = getattr(u, 'ruta', getattr(u, 'ruta_asignada', None))
@@ -449,6 +471,29 @@ def actualizar_ubicacion_chofer(request):
                 
                 unidad.ultima_actualizacion = timezone.now()
                 unidad.save()
+
+                # ----------------------------------------------------
+                # AQUI ESTÁ EL DISPARADOR N°2 (Para el Panel Web del Chofer)
+                # ----------------------------------------------------
+                if en_servicio and lat and lon:
+                    try:
+                        channel_layer = get_channel_layer()
+                        async_to_sync(channel_layer.group_send)(
+                            'mapa_envivo',
+                            {
+                                'type': 'enviar_ubicacion',
+                                'datos': {
+                                    'bus_id': str(unidad.id),
+                                    'lat': lat,
+                                    'lon': lon,
+                                    'unidad': unidad.numero_unidad
+                                }
+                            }
+                        )
+                    except Exception as ws_error:
+                        print(f"Error en WebSocket (Web): {ws_error}")
+                # ----------------------------------------------------
+
                 return JsonResponse({'status': 'ok'})
         except Exception as e:
             print(f"Error en actualización web de chofer: {e}") 

@@ -272,123 +272,76 @@
 
         redibujarRutasSeleccionadas();
         redibujarParadasSeleccionadas();
-        buscarBusesEnVivo(); 
     });
 
     // ==========================================
-    // 3. BUSCADOR INTELIGENTE (FILTRO Y AUTO-ENFOQUE)
+    // 3. BUSCADOR INTELIGENTE (FILTRO)
     // ==========================================
-    let timeoutBusqueda = null;
-
     function aplicarFiltrosFlota() {
         let textoBusqueda = document.getElementById('buscador-flota').value.toLowerCase();
         let filtroRutaId = document.getElementById('filtro-ruta-flota').value;
 
-        // 1. Filtrar tarjetas visualmente
         let tarjetas = document.querySelectorAll('.tarjeta-bus');
         tarjetas.forEach(tarjeta => {
             let matchRuta = (filtroRutaId === 'todas' || tarjeta.getAttribute('data-ruta') === filtroRutaId);
             let matchTexto = (tarjeta.getAttribute('data-unidad').includes(textoBusqueda) || tarjeta.getAttribute('data-chofer').includes(textoBusqueda));
             tarjeta.style.display = (matchRuta && matchTexto) ? "block" : "none";
         });
-
-        // 2. Retrasar el mapa un poco para que el usuario termine de escribir y luego hacer el Vuelo Suave
-        clearTimeout(timeoutBusqueda);
-        timeoutBusqueda = setTimeout(() => {
-            let esBusquedaDirecta = (textoBusqueda.length > 0 || filtroRutaId !== 'todas');
-            buscarBusesEnVivo(esBusquedaDirecta);
-        }, 600);
     }
 
     // ==========================================
-    // 4. RADAR AUTOMÁTICO DE BUSES 
+    // 4. NUEVO RADAR EN TIEMPO REAL (WEBSOCKETS)
     // ==========================================
-    
-    
     window.marcadoresFlota = window.marcadoresFlota || {}; 
+    let countBusesActivos = 0;
 
-    function buscarBusesEnVivo(forzarResalte = false) {
-        let filtroRutaId = document.getElementById('filtro-ruta-flota').value;
-        let textoBusqueda = document.getElementById('buscador-flota').value.toLowerCase();
-        let urlSinCache = '/flota/api/buses-tiempo-real/?t=' + new Date().getTime();
+    // Conexión al túnel de Django Channels
+    const protocoloWS = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const socketFlota = new WebSocket(protocoloWS + window.location.host + '/ws/mapa/');
 
-        fetch(urlSinCache)
-        .then(response => response.json())
-        .then(data => {
-            let busesActivosCount = 0;
-           
-            let idsActivosRecibidos = []; 
-            let limitesParaZoom = [];
+    socketFlota.onopen = function(e) {
+        console.log("🟢 Conectado al radar de flota mediante WebSockets");
+    };
 
-            data.buses.forEach(bus => {
-                let etiquetaEstado = document.getElementById('estado-bus-' + bus.id);
-                let estaOperativo = (bus.estado.toLowerCase() === 'operativa' || bus.estado.toLowerCase() === 'activo');
-                let idString = String(bus.id); 
-                
-              
-                if(etiquetaEstado) {
-                    if(estaOperativo) {
-                        etiquetaEstado.innerHTML = '<span style="background:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-signal" style="font-size:10px;"></i> Operativa</span>';
-                    } else {
-                        etiquetaEstado.innerHTML = '<span style="background:#f1f5f9; color:#64748b; padding:4px 8px; border-radius:4px;">Inactiva / Apagado</span>';
-                    }
-                }
+    socketFlota.onmessage = function(e) {
+        const busData = JSON.parse(e.data);
+        const idBusStr = String(busData.bus_id);
+        const lat = parseFloat(busData.lat);
+        const lon = parseFloat(busData.lon);
 
-               
-                if (estaOperativo && bus.lat !== 0 && bus.lon !== 0) {
-                    let coincideRuta = (filtroRutaId === 'todas' || bus.ruta_id == filtroRutaId);
-                    let coincideTexto = (bus.conductor_display.toLowerCase().includes(textoBusqueda) || bus.unidad.includes(textoBusqueda));
+        // Actualizar la etiqueta "Esperando señal..." a "Operativa" en la tarjeta
+        let etiquetaEstado = document.getElementById('estado-bus-' + idBusStr);
+        if(etiquetaEstado) {
+            etiquetaEstado.innerHTML = '<span style="background:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-signal" style="font-size:10px;"></i> Operativa</span>';
+        }
 
-                    if (coincideRuta && coincideTexto) {
-                        idsActivosRecibidos.push(idString);
-                        busesActivosCount++;
-                        
-                        let popupContent = `
-                            <div style="text-align:center;">
-                                <strong style="color:#1e293b;">Unidad ${bus.unidad.toUpperCase()}</strong><br>
-                                <span style="color:#64748b; font-size:12px;">Ruta: ${bus.ruta}</span><br>
-                                <hr style="margin:5px 0;">
-                                <span style="font-size:12px;">Chofer: <b>${bus.conductor_display}</b></span>
-                            </div>`;
+        // Crear el contenido del globo emergente (Popup)
+        let popupContent = `
+            <div style="text-align:center;">
+                <strong style="color:#1e293b;">Unidad ${busData.unidad || idBusStr}</strong><br>
+                <span style="color:#64748b; font-size:12px;">Transmisión En Vivo</span><br>
+            </div>`;
 
-                       
-                        if (window.marcadoresFlota[idString]) {
-                            window.marcadoresFlota[idString].setLatLng([bus.lat, bus.lon]);
-                            window.marcadoresFlota[idString].setPopupContent(popupContent);
-                        } else {
-                            
-                            let marker = L.marker([bus.lat, bus.lon], {icon: busIcon}).bindPopup(popupContent);
-                            marker.addTo(capaBuses);
-                            window.marcadoresFlota[idString] = marker;
-                        }
-                        limitesParaZoom.push([bus.lat, bus.lon]);
-                    }
-                }
-            });
-
-            // 3. LA PURGA ABSOLUTA: Destruir pines apagados
+        // Si el bus ya existe en el mapa, lo deslizamos
+        if (window.marcadoresFlota[idBusStr]) {
+            window.marcadoresFlota[idBusStr].setLatLng([lat, lon]);
+            window.marcadoresFlota[idBusStr].setPopupContent(popupContent);
+        } 
+        // Si el bus es nuevo, lo dibujamos y sumamos al contador
+        else {
+            let marker = L.marker([lat, lon], {icon: busIcon}).bindPopup(popupContent);
+            marker.addTo(capaBuses);
+            window.marcadoresFlota[idBusStr] = marker;
             
-            Object.keys(window.marcadoresFlota).forEach(idPin => {
-                if (!idsActivosRecibidos.includes(idPin)) {
-                    capaBuses.removeLayer(window.marcadoresFlota[idPin]);
-                    delete window.marcadoresFlota[idPin];
-                }
-            });
-
-           
+            countBusesActivos++;
             let statElement = document.getElementById('stat-buses-activos');
-            if (statElement) statElement.innerText = busesActivosCount;
+            if (statElement) statElement.innerText = countBusesActivos;
+        }
+    };
 
-            // Zoom inteligente
-            if (forzarResalte && limitesParaZoom.length > 0) {
-                map.flyToBounds(limitesParaZoom, {padding: [50, 50], maxZoom: 16, duration: 1.2});
-            }
-        })
-        .catch(err => console.error("Error buscando buses en vivo:", err));
-    }
-
-    // El motor de tiempo real: Repetir cada 3 segundos
-    setInterval(() => buscarBusesEnVivo(false), 3000);
+    socketFlota.onclose = function(e) {
+        console.warn('🔴 Conexión WebSocket cerrada o perdida.');
+    };
 
     // ==========================================
     // 5. FUNCIONES DE DIBUJO Y MODALES
