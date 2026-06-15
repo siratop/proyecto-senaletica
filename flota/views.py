@@ -18,7 +18,7 @@ from datetime import timedelta
 from rutas.models import Ruta, Parada
 from .models import MensajeFlota, RegistroSesion
 
-
+# NUEVAS IMPORTACIONES PARA EL DISPARADOR WEBSOCKET
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
@@ -99,7 +99,7 @@ def dashboard_router(request):
     
     if perfil.rol == 'conductor':
         unidad = Unidad.objects.filter(conductor=request.user).first()
-        return render(request, 'flota/panel_conductor.html', {'unidad': unidad})
+        return render(request, 'flota/dashboard_chofer.html',{'unidad': unidad})
     
     elif perfil.rol == 'flota':
         flota = Unidad.objects.filter(propietario_flota=request.user)
@@ -151,7 +151,7 @@ def panel_chofer(request):
             'titulo': '⚠️ Acceso Restringido',
             'mensaje': 'Su usuario no tiene unidad asignada.'
         })
-    return render(request, 'flota/panel.html', {'unidad': unidad})
+    return render(request, 'flota/dashboard_chofer.html', {'unidad': unidad})
 
 # =========================================================
 # TELEMETRÍA Y SERVICIOS API (Recepción desde la App)
