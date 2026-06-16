@@ -2,7 +2,7 @@ import os
 from django.core.asgi import get_asgi_application
 
 # Establecer settings antes de importar componentes de Channels
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tu_proyecto.settings') # Cambia 'tu_proyecto' por el nombre real de tu carpeta
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 
 # Cargar la aplicación HTTP normal
 django_asgi_app = get_asgi_application()

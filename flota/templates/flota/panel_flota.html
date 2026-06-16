@@ -295,54 +295,89 @@
     window.marcadoresFlota = window.marcadoresFlota || {}; 
     let countBusesActivos = 0;
 
-    // Conexión al túnel de Django Channels
+    // --- AGREGAR ESTA FUNCIÓN DE CARGA INICIAL ---
+    function cargarBusesIniciales() {
+        // Pedimos la foto inicial de los buses activos
+        fetch('/flota/api/buses-activos/')
+            .then(res => res.json())
+            .then(data => {
+                if(data.buses) {
+                    data.buses.forEach(bus => {
+                        const idBusStr = String(bus.id);
+                        
+                        // Si el bus ya lo dibujó el WebSocket hiper-rápido, lo ignoramos
+                        if(window.marcadoresFlota[idBusStr]) return;
+
+                        let popupContent = `
+                            <div style="text-align:center;">
+                                <strong style="color:#1e293b;">Unidad ${bus.unidad}</strong><br>
+                                <span style="color:#64748b; font-size:12px;">Transmisión En Vivo</span><br>
+                            </div>`;
+                        
+                        let marker = L.marker([bus.lat, bus.lon], {icon: busIcon}).bindPopup(popupContent);
+                        marker.addTo(capaBuses);
+                        window.marcadoresFlota[idBusStr] = marker;
+                        
+                        // Actualizar etiqueta en la tarjeta visual a "Operativa"
+                        let etiquetaEstado = document.getElementById('estado-bus-' + idBusStr);
+                        if(etiquetaEstado) {
+                            etiquetaEstado.innerHTML = '<span style="background:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-signal" style="font-size:10px;"></i> Operativa</span>';
+                        }
+                        
+                        countBusesActivos++;
+                    });
+                    // Actualizar el contador grande
+                    let statElement = document.getElementById('stat-buses-activos');
+                    if (statElement) statElement.innerText = countBusesActivos;
+                }
+            })
+            .catch(err => console.error("Error cargando radar inicial:", err));
+    }
+    
+    // Ejecutamos la carga inicial apenas abre el mapa
+    cargarBusesIniciales();
+    // ---------------------------------------------
+
+    // Conexión al túnel de Django Channels (Mantén este código tal cual lo tienes)
     const protocoloWS = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     const socketFlota = new WebSocket(protocoloWS + window.location.host + '/ws/mapa/');
-
-    socketFlota.onopen = function(e) {
-        console.log("🟢 Conectado al radar de flota mediante WebSockets");
-    };
-
+    
     socketFlota.onmessage = function(e) {
-        const busData = JSON.parse(e.data);
-        const idBusStr = String(busData.bus_id);
-        const lat = parseFloat(busData.lat);
-        const lon = parseFloat(busData.lon);
+        const data = JSON.parse(e.data);
+        const idBusStr = String(data.bus_id);
+        const lat = parseFloat(data.lat);
+        const lon = parseFloat(data.lon);
 
-        // Actualizar la etiqueta "Esperando señal..." a "Operativa" en la tarjeta
-        let etiquetaEstado = document.getElementById('estado-bus-' + idBusStr);
-        if(etiquetaEstado) {
-            etiquetaEstado.innerHTML = '<span style="background:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-signal" style="font-size:10px;"></i> Operativa</span>';
-        }
-
-        // Crear el contenido del globo emergente (Popup)
-        let popupContent = `
-            <div style="text-align:center;">
-                <strong style="color:#1e293b;">Unidad ${busData.unidad || idBusStr}</strong><br>
-                <span style="color:#64748b; font-size:12px;">Transmisión En Vivo</span><br>
-            </div>`;
-
-        // Si el bus ya existe en el mapa, lo deslizamos
-        if (window.marcadoresFlota[idBusStr]) {
-            window.marcadoresFlota[idBusStr].setLatLng([lat, lon]);
-            window.marcadoresFlota[idBusStr].setPopupContent(popupContent);
-        } 
-        // Si el bus es nuevo, lo dibujamos y sumamos al contador
-        else {
+        // Si el marcador no existe, lo creamos
+        if (!window.marcadoresFlota[idBusStr]) {
+            let popupContent = `
+                <div style="text-align:center;">
+                    <strong style="color:#1e293b;">Unidad ${data.unidad}</strong><br>
+                    <span style="color:#64748b; font-size:12px;">Transmisión En Vivo</span><br>
+                </div>`;
             let marker = L.marker([lat, lon], {icon: busIcon}).bindPopup(popupContent);
             marker.addTo(capaBuses);
             window.marcadoresFlota[idBusStr] = marker;
-            
+
+            // Actualizar etiqueta visual
+            let etiquetaEstado = document.getElementById('estado-bus-' + idBusStr);
+            if(etiquetaEstado) {
+                etiquetaEstado.innerHTML = '<span style="background:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-signal" style="font-size:10px;"></i> Operativa</span>';
+            }
+
             countBusesActivos++;
             let statElement = document.getElementById('stat-buses-activos');
             if (statElement) statElement.innerText = countBusesActivos;
+        } else {
+            // Si ya existe, lo movemos por el mapa
+            window.marcadoresFlota[idBusStr].setLatLng([lat, lon]);
         }
     };
 
     socketFlota.onclose = function(e) {
-        console.warn('🔴 Conexión WebSocket cerrada o perdida.');
+        console.error('El túnel WebSocket se cerró.');
     };
-
+    
     // ==========================================
     // 5. FUNCIONES DE DIBUJO Y MODALES
     // ==========================================
