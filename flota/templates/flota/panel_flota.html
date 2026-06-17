@@ -334,63 +334,77 @@
     const protocoloWS = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     const socketFlota = new WebSocket(protocoloWS + window.location.host + '/ws/mapa/');
     
-    socketFlota.onmessage = function(e) {
-        const data = JSON.parse(e.data);
-        const idBusStr = String(data.bus_id);
+   socketFlota.onmessage = function(e) {
+        try {
+            const data = JSON.parse(e.data);
+            // Aseguramos que data sea el objeto que contiene la información
+            const payload = data.datos || data; 
+            const idBusStr = String(payload.bus_id);
 
-        // 1. Verificamos si el bus mandó la señal de apagado
-        if (data.en_servicio === false || data.activo === false) {
-            if (window.marcadoresFlota[idBusStr]) {
-                // Borramos el marcador del mapa Leaflet
-                capaBuses.removeLayer(window.marcadoresFlota[idBusStr]);
-                delete window.marcadoresFlota[idBusStr];
-                
-                // Actualizamos la etiqueta de la tarjeta
+            // 1. Verificación de estado: ¿Se debe borrar?
+            // Evaluamos varias formas en las que puede venir el "apagado"
+            const estaApagado = (
+                payload.en_servicio === false || 
+                payload.en_servicio === "false" || 
+                payload.activo === false || 
+                payload.estado === 'inactiva' || 
+                payload.estado === 'inactivo'
+            );
+
+            if (estaApagado) {
+                if (window.marcadoresFlota[idBusStr]) {
+                    // Borramos del mapa Leaflet
+                    capaBuses.removeLayer(window.marcadoresFlota[idBusStr]);
+                    delete window.marcadoresFlota[idBusStr];
+                    
+                    // Actualizamos la etiqueta visual
+                    let etiquetaEstado = document.getElementById('estado-bus-' + idBusStr);
+                    if(etiquetaEstado) {
+                        etiquetaEstado.innerHTML = '<span style="background:#f1f5f9; color:#64748b; padding:4px 8px; border-radius:4px;">Esperando señal...</span>';
+                    }
+
+                    // Actualizamos el contador
+                    if (countBusesActivos > 0) countBusesActivos--;
+                    let statElement = document.getElementById('stat-buses-activos');
+                    if (statElement) statElement.innerText = countBusesActivos;
+                }
+                return; // Salimos de la función aquí
+            }
+
+            // 2. Si llega aquí, el bus está activo y debe moverse/dibujarse
+            const lat = parseFloat(payload.lat);
+            const lon = parseFloat(payload.lon);
+
+            // Validación de coordenadas reales
+            if (isNaN(lat) || isNaN(lon) || (lat === 0 && lon === 0)) return;
+
+            if (!window.marcadoresFlota[idBusStr]) {
+                // Crear nuevo marcador
+                let popupContent = `
+                    <div style="text-align:center;">
+                        <strong style="color:#1e293b;">Unidad ${payload.unidad || 'N/A'}</strong><br>
+                        <span style="color:#64748b; font-size:12px;">Transmisión En Vivo</span><br>
+                    </div>`;
+                let marker = L.marker([lat, lon], {icon: busIcon}).bindPopup(popupContent);
+                marker.addTo(capaBuses);
+                window.marcadoresFlota[idBusStr] = marker;
+
+                // Actualizar etiqueta
                 let etiquetaEstado = document.getElementById('estado-bus-' + idBusStr);
                 if(etiquetaEstado) {
-                    etiquetaEstado.innerHTML = '<span style="background:#f1f5f9; color:#64748b; padding:4px 8px; border-radius:4px;">Esperando señal...</span>';
+                    etiquetaEstado.innerHTML = '<span style="background:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-signal" style="font-size:10px;"></i> Operativa</span>';
                 }
 
-                // Descontamos del total de buses activos
-                if (countBusesActivos > 0) countBusesActivos--;
+                countBusesActivos++;
                 let statElement = document.getElementById('stat-buses-activos');
                 if (statElement) statElement.innerText = countBusesActivos;
+            } else {
+                // Actualizar posición
+                window.marcadoresFlota[idBusStr].setLatLng([lat, lon]);
             }
-            return; // Terminamos la función aquí para que no intente dibujar las coordenadas
+        } catch (err) {
+            console.error("Error procesando mensaje WebSocket:", err);
         }
-
-        // 2. Si el bus sigue encendido, obtenemos sus coordenadas
-        const lat = parseFloat(data.lat);
-        const lon = parseFloat(data.lon);
-
-        // Si el marcador no existe, lo creamos
-        if (!window.marcadoresFlota[idBusStr]) {
-            let popupContent = `
-                <div style="text-align:center;">
-                    <strong style="color:#1e293b;">Unidad ${data.unidad}</strong><br>
-                    <span style="color:#64748b; font-size:12px;">Transmisión En Vivo</span><br>
-                </div>`;
-            let marker = L.marker([lat, lon], {icon: busIcon}).bindPopup(popupContent);
-            marker.addTo(capaBuses);
-            window.marcadoresFlota[idBusStr] = marker;
-
-            // Actualizar etiqueta visual
-            let etiquetaEstado = document.getElementById('estado-bus-' + idBusStr);
-            if(etiquetaEstado) {
-                etiquetaEstado.innerHTML = '<span style="background:#dcfce7; color:#166534; padding:4px 8px; border-radius:4px;"><i class="fa-solid fa-signal" style="font-size:10px;"></i> Operativa</span>';
-            }
-
-            countBusesActivos++;
-            let statElement = document.getElementById('stat-buses-activos');
-            if (statElement) statElement.innerText = countBusesActivos;
-        } else {
-            // Si ya existe, lo movemos por el mapa
-            window.marcadoresFlota[idBusStr].setLatLng([lat, lon]);
-        }
-    };
-
-    socketFlota.onclose = function(e) {
-        console.error('El túnel WebSocket se cerró.');
     };
     
     // ==========================================
