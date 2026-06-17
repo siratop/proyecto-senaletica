@@ -597,32 +597,36 @@ def editar_campana(request, campana_id):
 # =========================================================
 
 def alerta_emergencia(request, parada_id):
-    parada = get_object_or_404(Parada, id=parada_id)
-    
-    # 1. Identificar al ciudadano que presiona el botón
-    ciudadano_nombre = "Un ciudadano anónimo"
-    if request.user.is_authenticated:
-        ciudadano_nombre = f"{request.user.first_name} {request.user.last_name} ({request.user.username})"
-
-    # 2. Guardar en Base de Datos para que aparezca en el panel del Operador / Soporte
-    mensaje_sos = f"🚨 PÁNICO S.O.S. activado por {ciudadano_nombre} en la estación: {parada.nombre} (QR: {parada.codigo})"
-    
-    try:
-        AlertaOperativa.objects.create(
-            tipo='incidente', 
-            mensaje=mensaje_sos, 
-            latitud=parada.latitud, 
-            longitud=parada.longitud, 
-            activa=True
-        )
-        print("✅ Alerta SOS de parada registrada en BD (Módulo de correo extirpado)", flush=True)
-    except Exception as e:
-        print(f"❌ Error guardando SOS de parada en DB: {e}", flush=True)
+   
+    if request.method == 'POST':
+        parada = get_object_or_404(Parada, id=parada_id)
         
-    # 3. Notificar al usuario en su pantalla que la central ya lo está viendo
-    messages.success(request, "⚠️ ALERTA SOS ENVIADA: Nuestra central de emergencias ha sido notificada al instante.")
+        # 1. Identificar al ciudadano
+        ciudadano_nombre = "Un ciudadano anónimo"
+        if request.user.is_authenticated:
+            ciudadano_nombre = f"{request.user.first_name} {request.user.last_name} ({request.user.username})"
 
-    return redirect('inicio_peaton', parada_id=parada.id)
+        # 2. Guardar en Base de Datos
+        mensaje_sos = f"🚨 PÁNICO S.O.S. activado por {ciudadano_nombre} en la estación: {parada.nombre} (QR: {parada.codigo})"
+        
+        try:
+            AlertaOperativa.objects.create(
+                tipo='incidente', 
+                mensaje=mensaje_sos, 
+                latitud=parada.latitud, 
+                longitud=parada.longitud, 
+                activa=True
+            )
+            print("✅ Alerta SOS de parada registrada en BD", flush=True)
+        except Exception as e:
+            print(f"❌ Error guardando SOS de parada en DB: {e}", flush=True)
+            
+        # 3. Notificar al usuario
+        messages.success(request, "⚠️ ALERTA SOS ENVIADA: Nuestra central ha sido notificada.")
+        return redirect('inicio_peaton', parada_id=parada.id)
+    
+    # Si Chrome o un bot entra a fisgonear por GET, lo devolvemos sin hacer nada
+    return redirect('inicio_peaton', parada_id=parada_id)
 
 @csrf_exempt
 def actualizar_gps_unidad(request):
@@ -775,14 +779,15 @@ def panel_estadistico_inteligente(request):
     rutas_labels = list(rutas_conteo.keys())
     rutas_data = list(rutas_conteo.values())
 
+# ==========================================
+    # 4. GRÁFICOS INFERIORES: PARADAS (DATOS REALES)
     # ==========================================
-    # 4. GRÁFICOS INFERIORES: PARADAS
-    # ==========================================
-    # IMPORTANTE: Como en tu código actual no hay un contador de "cuántas veces se escanea un QR", 
-    # mostraré las 5 primeras paradas con un dato fijo por ahora, para que el gráfico no se rompa.
-    # ¡Me avisas si tienes un modelo de "ConsultasQR" para conectarlo!
-    paradas_labels = [p.nombre for p in Parada.objects.all()[:5]]
-    paradas_data = [120, 95, 80, 60, 45] # Datos fijos temporales
+    # Ordenamos las paradas de mayor a menor según sus reportes de afluencia 
+    # y tomamos solo el Top 5 para no saturar el gráfico
+    top_paradas = Parada.objects.all().order_by('-reportes_afluencia')[:5]
+    
+    paradas_labels = [p.nombre for p in top_paradas]
+    paradas_data = [p.reportes_afluencia for p in top_paradas]
             
     contexto = {
         'total_alertas': total_alertas, 'alertas_activas': alertas_activas, 'alertas_resueltas': alertas_resueltas,
@@ -794,6 +799,8 @@ def panel_estadistico_inteligente(request):
         'puntos_paradas_json': json.dumps(puntos_paradas),
         
         'rutas_labels': json.dumps(rutas_labels), 'rutas_data': json.dumps(rutas_data),
+        
+        # Aquí inyectamos los datos reales de la demanda
         'paradas_labels': json.dumps(paradas_labels), 'paradas_data': json.dumps(paradas_data),
     }
     return render(request, 'panel_estadistico.html', contexto)
