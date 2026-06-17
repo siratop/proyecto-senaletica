@@ -626,35 +626,74 @@ def alerta_emergencia(request, parada_id):
 def actualizar_gps_unidad(request):
     """
     API para recibir las coordenadas en segundo plano desde la App del Chofer.
+    Actualizado para enviar orden de "apagado" por WebSockets.
     """
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             
-            # 1. Seguridad básica: Un token secreto para que nadie más envíe datos falsos
-            token_recibido = data.get('token')
-            token_servidor = "SENALETICA_SECRETO_2026" # En el futuro lo puedes poner en variables de entorno (.env)
+            # 1. Leer si el chofer sigue transmitiendo o si apagó el botón
+            # Asumimos True por defecto si no lo envía
+            en_servicio = data.get('en_servicio', True) 
             
-            if token_recibido != token_servidor:
+            # 2. Seguridad básica
+            token_recibido = data.get('token')
+            token_servidor = "SENALETICA_SECRETO_2026"
+            
+            if token_recibido and token_recibido != token_servidor:
                 return JsonResponse({'error': 'Acceso no autorizado'}, status=401)
 
-            # 2. Extraer los datos del autobús
+            # 3. Extraer los datos del autobús
             unidad_id = data.get('unidad_id')
             lat = data.get('latitud')
             lon = data.get('longitud')
 
-            if not unidad_id or not lat or not lon:
-                return JsonResponse({'error': 'Faltan datos (unidad_id, latitud o longitud)'}, status=400)
+            # Si la app envía los datos usando la sesión en vez del ID directo:
+            if not unidad_id and request.user.is_authenticated:
+                unidad_obj = Unidad.objects.filter(conductor=request.user).first()
+                if unidad_obj:
+                    unidad_id = unidad_obj.id
 
-            # 3. Buscar la unidad en la base de datos y actualizar
+            if not unidad_id:
+                return JsonResponse({'error': 'Faltan datos (unidad_id)'}, status=400)
+
+            # 4. Buscar la unidad en la base de datos y actualizar
             unidad = Unidad.objects.get(id=unidad_id)
-            unidad.latitud_actual = lat
-            unidad.longitud_actual = lon
+            
+            if en_servicio:
+                unidad.latitud_actual = lat
+                unidad.longitud_actual = lon
+                unidad.estado = 'operativa'
+            else:
+                unidad.estado = 'inactiva' # Se marca como inactiva en la BD
+                
             unidad.save()
+
+            # =========================================================
+            # 📡 TÚNEL WEBSOCKET: Avisar al Panel que se movió o apagó
+            # =========================================================
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                'mapa_envivo',
+                {
+                    'type': 'enviar_ubicacion',
+                    'datos': {
+                        'bus_id': str(unidad.id),
+                        'unidad': str(unidad.numero_unidad),
+                        'lat': lat if lat else 0,
+                        'lon': lon if lon else 0,
+                        'en_servicio': en_servicio  # <--- Esta llave le dice al mapa que lo borre
+                    }
+                }
+            )
+            # =========================================================
 
             return JsonResponse({
                 'status': 'ok', 
-                'msg': f'GPS actualizado para la unidad {unidad_id}'
+                'msg': f'Señal procesada correctamente para la unidad {unidad_id}'
             })
 
         except Unidad.DoesNotExist:
