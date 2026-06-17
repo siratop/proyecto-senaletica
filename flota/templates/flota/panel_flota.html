@@ -331,6 +331,22 @@
     
     cargarBusesIniciales();
 
+    setInterval(function() {
+    const ahora = new Date().getTime();
+    for (let idBus in window.marcadoresFlota) {
+        let marcador = window.marcadoresFlota[idBus];
+        // Si el marcador existe pero no ha recibido señal fresca en 60s
+        if (marcador.ultimaActualizacion && (ahora - marcador.ultimaActualizacion > 60000)) {
+            capaBuses.removeLayer(marcador);
+            delete window.marcadoresFlota[idBus];
+            
+            // Actualizar interfaz
+            let etiqueta = document.getElementById('estado-bus-' + idBus);
+            if(etiqueta) etiqueta.innerHTML = '<span style="background:#f1f5f9; color:#64748b; padding:4px 8px; border-radius:4px;">Esperando señal...</span>';
+        }
+    }
+}, 30000); // Revisa cada 30 segundos
+
     const protocoloWS = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     const socketFlota = new WebSocket(protocoloWS + window.location.host + '/ws/mapa/');
     
