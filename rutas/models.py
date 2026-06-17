@@ -38,7 +38,7 @@ class Parada(models.Model):
     # Métricas ciudadanas
     reportes_limpieza = models.IntegerField(default=0)
     reportes_inseguridad = models.IntegerField(default=0)
-
+    reportes_afluencia = models.IntegerField(default=0)
     def save(self, *args, **kwargs):
         if not self.codigo:
             self.codigo = f"QR-PRD-{int(time.time())}"
