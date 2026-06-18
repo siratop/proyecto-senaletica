@@ -15,3 +15,4 @@ staticfiles/
 # Archivos de sistema (Mac/Windows)
 .DS_Store
 Thumbs.db
+.env
