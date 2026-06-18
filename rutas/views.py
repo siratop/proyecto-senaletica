@@ -2,6 +2,7 @@ import math
 import random
 import json
 import time
+import os
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
@@ -24,11 +25,13 @@ from .models import ReporteRapido
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 import google.generativeai as genai
+from google.genai import types
 
+\
 
 # Configura tu llave de Gemini (Puedes obtenerla gratis en Google AI Studio)
 clave_gemini = os.environ.get("GEMINI_API_KEY", "CLAVE_NO_ENCONTRADA")
-genai.configure(api_key=clave_gemini)
+
 # =========================================================
 # 1. FUNCIONES SATELITALES Y MATEMÁTICAS (Core)
 # =========================================================
@@ -909,38 +912,49 @@ def limpiar_buzon_waze(request):
 
 @csrf_exempt
 def operador_inteligente_api(request):
-    """API que conecta el chat ciudadano con la IA de Gemini"""
+    """API que conecta el chat ciudadano con la IA de Gemini utilizando el SDK moderno"""
     if request.method == 'POST':
         try:
+            # 1. Parseamos el mensaje del usuario
             data = json.loads(request.body)
             mensaje_usuario = data.get('mensaje', '')
 
-            # Aquí está la magia: Le damos personalidad y límites al asistente
+            # 2. Obtenemos la clave desde las variables de entorno
+            clave_gemini = os.environ.get("GEMINI_API_KEY")
+            
+            if not clave_gemini:
+                return JsonResponse({'status': 'error', 'respuesta': 'Error de configuración en el servidor.'})
+
+            # 3. Inicializamos el cliente con la nueva librería
+            client = genai.Client(api_key=clave_gemini)
+
+            # 4. Definimos el contexto/personalidad del Operador Inteligente
             contexto_sistema = """
-            Eres el 'Operador Inteligente' del sistema de transporte Señal Ética + en Ciudad Guayana (Municipio Caroní, abarcando Puerto Ordaz y San Félix).
+            Eres el 'Operador Inteligente' del sistema de transporte Señal Ética + en Ciudad Guayana (Puerto Ordaz y San Félix).
             
             Tus funciones y reglas de comportamiento son estrictamente las siguientes:
-            
             1. Tono de voz: Sé sumamente empático, paciente, amable y servicial. Actúa como un operador local con mucha calidez humana.
-            2. Guía de Movilidad y Turismo Local: Orienta sobre rutas de transporte para llegar a restaurantes, centros comerciales, parques (como La Llovizna o Cachamay) y lugares populares del Municipio Caroní.
-            3. Universidades: Limita la información universitaria a lo básico (qué ruta tomar para llegar a la UNEG, UCAB, UNEXPO, etc.). No des asesoría académica ni detalles internos de las sedes.
-            4. Regla estricta sobre el clima: Puedes dar consejos generales por el calor o la lluvia (ej. llevar hidratación o paraguas). SIN EMBARGO, TIENES PROHIBIDO sugerir a los usuarios que se resguarden en las paradas de autobús, ya que nuestras paradas actualmente no cuentan con techo.
-            5. Seguridad: Si el usuario reporta una emergencia médica o de seguridad, indícale con calma que utilice el botón rojo de 'S.O.S. Emergencia' disponible en el tótem o la app.
+            2. Guía de Movilidad y Turismo Local: Orienta sobre rutas de transporte para llegar a restaurantes, centros comerciales, parques (La Llovizna, Cachamay) y lugares populares del Municipio Caroní.
+            3. Universidades: Limita la información universitaria a lo básico (qué ruta tomar para llegar a la UNEG, UCAB, UNEXPO, etc.). No des asesoría académica.
+            4. Regla estricta sobre el clima: Puedes dar consejos generales por el calor o la lluvia. TIENES PROHIBIDO sugerir a los usuarios que se resguarden en las paradas de autobús, ya que no cuentan con techo.
+            5. Seguridad: Si el usuario reporta una emergencia o inseguridad, indícale con calma que utilice el botón rojo de 'S.O.S. Emergencia' disponible en el tótem o la app.
             6. Formato: Mantén tus respuestas breves, precisas y fáciles de leer rápidamente en una pantalla en la calle.
             """
 
-            # Instanciamos el modelo dándole sus instrucciones de comportamiento
-            modelo = genai.GenerativeModel(
-                'gemini-1.5-flash',
-                system_instruction=contexto_sistema
+            # 5. Generamos la respuesta con el modelo moderno
+            response = client.models.generate_content(
+                model='gemini-2.0-flash',
+                contents=mensaje_usuario,
+                config=types.GenerateContentConfig(
+                    system_instruction=contexto_sistema,
+                    temperature=0.7 # Un poco de creatividad para que suene más humano
+                )
             )
-
-            # Consultamos a la IA
-            respuesta = modelo.generate_content(mensaje_usuario)
             
-            return JsonResponse({'status': 'ok', 'respuesta': respuesta.text})
+            return JsonResponse({'status': 'ok', 'respuesta': response.text})
 
         except Exception as e:
+            # Aquí capturamos cualquier error técnico y lo registramos en el log
             print(f"Error en Gemini API: {e}")
             return JsonResponse({
                 'status': 'error', 
