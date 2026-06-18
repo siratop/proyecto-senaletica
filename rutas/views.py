@@ -24,7 +24,7 @@ from datetime import timedelta
 from .models import ReporteRapido
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-import google.generativeai as genai
+from google import genai
 from google.genai import types
 
 \
@@ -954,11 +954,15 @@ def operador_inteligente_api(request):
             return JsonResponse({'status': 'ok', 'respuesta': response.text})
 
         except Exception as e:
-            # Aquí capturamos cualquier error técnico y lo registramos en el log
+            error_msg = str(e)
+            if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+                return JsonResponse({
+                    'status': 'error', 
+                    'respuesta': 'Estamos teniendo muchas consultas ahora mismo. Por favor, espera unos segundos y vuelve a preguntar.'
+                })
             print(f"Error en Gemini API: {e}")
             return JsonResponse({
                 'status': 'error', 
-                'respuesta': 'Disculpa, hay una falla de comunicación en la central. Por favor, intenta en unos minutos.'
+                'respuesta': 'Disculpa, el operador está descansando un momento. Intenta de nuevo.'
             })
-            
-    return JsonResponse({'status': 'error', 'msg': 'Método no permitido'})
+   
