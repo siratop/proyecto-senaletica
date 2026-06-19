@@ -33,17 +33,16 @@ admin.site.register(User, UserAdmin)
 class TicketSoporteAdmin(admin.ModelAdmin):
     list_display = ('id', 'asunto', 'usuario', 'estado', 'fecha_creacion')
     list_filter = ('estado', 'fecha_creacion')
-    search_fields = ('usuario__username', 'asunto')
     
-    # Protegemos lo que escribió el usuario para que el admin no lo borre por error
+    # Esto protege el mensaje original para que el agente no lo borre por error
     readonly_fields = ('usuario', 'asunto', 'mensaje', 'fecha_creacion')
     
-    # Organizamos cómo lo ve el agente de soporte
+    # Así se verá la pantalla para responder
     fieldsets = (
-        ('Datos del Ciudadano', {
+        ('Mensaje del Ciudadano', {
             'fields': ('usuario', 'asunto', 'mensaje', 'fecha_creacion')
         }),
-        ('Área de Respuesta (Soporte)', {
+        ('Área de Respuesta', {
             'fields': ('respuesta_admin', 'estado')
         }),
     )
