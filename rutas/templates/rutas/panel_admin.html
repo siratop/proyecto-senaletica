@@ -3,34 +3,78 @@
 <style>
     .admin-dashboard {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-        gap: 20px;
-        max-width: 1000px;
+        grid-template-columns: 1fr; /* Una columna para que los desplegables se vean bien */
+        gap: 15px;
+        max-width: 900px;
         margin: 0 auto;
     }
-    .admin-card {
+
+    /* Estilos del Acordeón */
+    details.admin-card {
         background: white;
         border: 1px solid #e2e8f0;
         border-radius: 12px;
         overflow: hidden;
         box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
     }
-    .admin-card-header {
+    
+    summary.admin-card-header {
         background: #f8fafc;
-        padding: 15px 20px;
-        border-bottom: 1px solid #e2e8f0;
+        padding: 18px 20px;
+        border-bottom: 1px solid transparent;
         color: var(--primary-dark);
         font-weight: 800;
         font-size: 16px;
         display: flex;
         align-items: center;
         gap: 10px;
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
     }
-    .admin-card-header.alerta {
-        background: #fff5f5;
-        color: #991b1b;
-        border-bottom: 1px solid #fecaca;
+
+    summary.admin-card-header::-webkit-details-marker {
+        display: none;
     }
+
+    /* Flecha indicadora */
+    summary.admin-card-header::after {
+        content: '\25BC';
+        margin-left: auto;
+        font-size: 12px;
+        color: #64748b;
+        transition: transform 0.3s ease;
+    }
+
+    details[open] summary.admin-card-header::after {
+        transform: rotate(180deg);
+    }
+
+    details[open] summary.admin-card-header {
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    /* Variantes de colores para los headers */
+    summary.alerta { background: #fff5f5; color: #991b1b; }
+    details[open] summary.alerta { border-bottom: 1px solid #fecaca; }
+
+    summary.publicidad { background: #fffbeb; color: #b45309; }
+    details[open] summary.publicidad { border-bottom: 1px solid #fde68a; }
+
+    summary.soporte { background: #f5f3ff; color: #6b21a8; }
+    details[open] summary.soporte { border-bottom: 1px solid #e9d5ff; }
+
+    /* Módulos Internos */
+    .acordeon-contenido {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
     .admin-module {
         padding: 20px;
         border-bottom: 1px solid #f1f5f9;
@@ -65,243 +109,202 @@
     .module-actions.una-columna {
         grid-template-columns: 1fr;
     }
-    .btn-admin-add {
-        background: var(--primary);
-        color: white;
-        border: none;
-        padding: 10px;
-        border-radius: 6px;
-        font-weight: bold;
-        text-align: center;
-        text-decoration: none;
-        font-size: 13px;
-        display: block;
-    }
-    .btn-admin-manage {
-        background: white;
-        color: #475569;
-        border: 1px solid #cbd5e1;
-        padding: 10px;
-        border-radius: 6px;
-        font-weight: bold;
-        text-align: center;
-        text-decoration: none;
-        font-size: 13px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 5px;
-    }
-    .btn-admin-danger {
-        background: #ef4444;
-        color: white;
-        border: none;
-        padding: 10px;
-        border-radius: 6px;
-        font-weight: bold;
-        text-align: center;
-        text-decoration: none;
-        font-size: 13px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 8px;
-    }
-    .module-disabled {
-        opacity: 0.5;
-        pointer-events: none;
-    }
-
-    .btn-mck {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px; /* Espacio entre el ícono y el texto */
-        padding: 12px 24px;
-        font-size: 16px;
-        font-weight: 600;
-        text-decoration: none;
-        border-radius: 8px; /* Bordes redondeados modernos */
-        transition: all 0.3s ease; /* Animación suave */
-        cursor: pointer;
-    }
-
-    /* Estilo "Outline" (Borde morado, fondo transparente) */
-    .btn-mck-outline {
-        background-color: transparent;
-        color: #8b5cf6; /* Color morado de tu chat */
-        border: 2px solid #8b5cf6;
-    }
-
-    /* Efecto al pasar el mouse por encima (Se rellena de morado) */
-    .btn-mck-outline:hover {
-        background-color: #8b5cf6;
-        color: #ffffff;
-        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-        transform: translateY(-2px); /* Se levanta un poquito */
-    }
+    
+    /* Botones */
+    .btn-admin-add { background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; text-decoration: none; font-size: 13px; display: block; }
+    .btn-admin-manage { background: white; color: #475569; border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; text-decoration: none; font-size: 13px; display: flex; justify-content: center; align-items: center; gap: 5px; transition: 0.2s;}
+    .btn-admin-manage:hover { background: #f8fafc; }
+    .btn-admin-danger { background: #ef4444; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; text-decoration: none; font-size: 13px; display: flex; justify-content: center; align-items: center; gap: 8px; }
+    
+    .btn-mck { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 24px; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 8px; transition: all 0.3s ease; cursor: pointer; }
+    .btn-mck-outline { background-color: transparent; color: #8b5cf6; border: 2px solid #8b5cf6; }
+    .btn-mck-outline:hover { background-color: #8b5cf6; color: #ffffff; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); transform: translateY(-2px); }
 </style>
 
-<div style="max-width: 1000px; margin: 0 auto 20px auto;">
-    <h1 style="color: var(--primary-dark); font-family: 'Urbanist', sans-serif;">Centro de Control Administrativo</h1>
-    <p style="color: var(--text-muted);">Gestión de infraestructura, flota satelital, alertas viales y configuración de usuarios.</p>
+<div style="max-width: 900px; margin: 0 auto 20px auto; padding: 0 15px;">
+    <h1 style="color: var(--primary-dark); font-family: 'Urbanist', sans-serif;"><i class="fa-solid fa-server"></i> Centro de Control Administrativo</h1>
+    <p style="color: var(--text-muted); font-size: 14px;">Gestión de infraestructura, flota satelital, alertas viales y configuración de usuarios.</p>
 </div>
 
-<div class="admin-dashboard">
+<div class="admin-dashboard" style="padding: 0 15px;">
     
-    <div class="admin-card" style="border: 1px solid #fecaca;">
-        <div class="admin-card-header alerta">
+    <details class="admin-card" style="border: 1px solid #fecaca;" open>
+        <summary class="admin-card-header alerta">
             <i class="fa-solid fa-triangle-exclamation"></i> Contingencias y Avisos
-        </div>
-        
-        <div class="admin-module" style="background: #fffbeb;">
-            <div class="module-header">
-                <span class="module-title">Avisos Operativos (Banners)</span>
-                <span class="module-badge" style="background: #fef3c7; color: #b45309;">Global</span>
+        </summary>
+        <div class="acordeon-contenido">
+            <div class="admin-module" style="background: #fffbeb;">
+                <div class="module-header">
+                    <span class="module-title">Avisos Operativos (Banners)</span>
+                    <span class="module-badge" style="background: #fef3c7; color: #b45309;">Global</span>
+                </div>
+                <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Redacte alertas de feriados, paros o fallas para toda la ciudad.</p>
+                <div class="module-actions una-columna">
+                    <a href="{% url 'gestionar_alertas' %}" class="btn-admin-danger">
+                        <i class="fa-solid fa-bullhorn"></i> Redactar / Ver Avisos
+                    </a>
+                </div>
             </div>
-            <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Redacte alertas de feriados, paros o fallas para toda la ciudad.</p>
-            <div class="module-actions una-columna">
-                <a href="{% url 'gestionar_alertas' %}" class="btn-admin-danger">
-                    <i class="fa-solid fa-bullhorn"></i> Redactar / Ver Avisos
-                </a>
+            
+            <div class="admin-module">
+                <div class="module-header">
+                    <span class="module-title">Buzón de Sugerencias</span>
+                    <span class="module-badge">Auditoría</span>
+                </div>
+                <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Revise las sugerencias de rutas y reportes de trancas del público.</p>
+                <div class="module-actions una-columna">
+                    <a href="{% url 'ver_sugerencias' %}" class="btn-admin-manage">
+                        <i class="fa-solid fa-inbox"></i> Abrir Sugerencias
+                    </a>
+                </div>
             </div>
-        </div>
-        
-        <div class="admin-module">
-            <div class="module-header">
-                <span class="module-title">Buzón de Sugerencias</span>
-                <span class="module-badge">Auditoría</span>
-            </div>
-            <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Revise las sugerencias de rutas y reportes de trancas del público.</p>
-            <div class="module-actions una-columna">
-                <a href="{% url 'ver_sugerencias' %}" class="btn-admin-manage">
-                    <i class="fa-solid fa-inbox"></i> Abrir Sugerencias
-                </a>
-            </div>
-        </div>
 
-        <div class="admin-module" style="background: #f0fdf4; border-left: 3px solid #10b981;">
-            <div class="module-header">
-                <span class="module-title">Radar Comunitario</span>
-                <span class="module-badge" style="background: #dcfce7; color: #166534;">En Vivo</span>
-            </div>
-            <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Monitor de reportes instantáneos (Bus lleno, tráfico, paradas sucias).</p>
-            <div class="module-actions una-columna">
-                <a href="{% url 'buzon_reportes' %}" class="btn-admin-manage" style="background: #ffffff; color: #0d9488; border: 2px solid #0d9488; display: flex; justify-content: center; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-satellite-dish"></i> Leer Buzón Comunitario
-                </a>
+            <div class="admin-module" style="background: #f0fdf4; border-left: 3px solid #10b981;">
+                <div class="module-header">
+                    <span class="module-title">Radar Comunitario</span>
+                    <span class="module-badge" style="background: #dcfce7; color: #166534;">En Vivo</span>
+                </div>
+                <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Monitor de reportes instantáneos (Bus lleno, tráfico, paradas sucias).</p>
+                <div class="module-actions una-columna">
+                    <a href="{% url 'buzon_reportes' %}" class="btn-admin-manage" style="background: #ffffff; color: #0d9488; border: 2px solid #0d9488;">
+                        <i class="fa-solid fa-satellite-dish"></i> Leer Buzón Comunitario
+                    </a>
+                </div>
             </div>
         </div>
-    </div>
+    </details>
 
-    <div class="admin-card">
-        <div class="admin-card-header">
+    <details class="admin-card" style="border: 1px solid #d8b4fe;">
+        <summary class="admin-card-header soporte">
+            <i class="fa-solid fa-headset"></i> Soporte y Mesa de Ayuda
+        </summary>
+        <div class="acordeon-contenido">
+            <div class="admin-module" style="background: #faf5ff;">
+                <div class="module-header">
+                    <span class="module-title">Tickets de Ciudadanos</span>
+                    <span class="module-badge" style="background: #e9d5ff; color: #6b21a8;">Atención</span>
+                </div>
+                <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">
+                    Lea los problemas reportados, vea fechas/usuarios, responda, marque como solucionado o elimine registros desde la bóveda de administración.
+                </p>
+                <div class="module-actions una-columna">
+                    <a href="/admin/usuarios/ticketsoporte/" target="_blank" class="btn-admin-manage" style="background: #7e22ce; color: white; border: none;">
+                        <i class="fa-solid fa-clipboard-check"></i> Gestionar Tickets en la Bóveda
+                    </a>
+                </div>
+            </div>
+        </div>
+    </details>
+
+    <details class="admin-card">
+        <summary class="admin-card-header">
             <i class="fa-solid fa-map-location-dot" style="color: var(--primary);"></i> Infraestructura Vial
+        </summary>
+        <div class="acordeon-contenido">
+            <div class="admin-module">
+                <div class="module-header">
+                    <span class="module-title">Paradas Virtuales</span>
+                    <span class="module-badge">Puntos QR</span>
+                </div>
+                <div class="module-actions">
+                    <a href="{% url 'crear_parada' %}" class="btn-admin-add">+ Añadir</a>
+                    <a href="{% url 'listar_paradas' %}" class="btn-admin-manage"><i class="fa-solid fa-pen-to-square"></i> Gestionar</a>
+                </div>
+            </div>
+            <div class="admin-module">
+                <div class="module-header">
+                    <span class="module-title">Rutas y Trazados</span>
+                    <span class="module-badge">Líneas</span>
+                </div>
+                <div class="module-actions">
+                    <a href="{% url 'crear_ruta' %}" class="btn-admin-add">+ Añadir</a>
+                    <a href="{% url 'listar_rutas' %}" class="btn-admin-manage"><i class="fa-solid fa-pen-to-square"></i> Gestionar</a>
+                </div>
+            </div>
         </div>
-        <div class="admin-module">
-            <div class="module-header">
-                <span class="module-title">Paradas Virtuales</span>
-                <span class="module-badge">Puntos QR</span>
-            </div>
-            <div class="module-actions">
-                <a href="{% url 'crear_parada' %}" class="btn-admin-add">+ Añadir</a>
-                <a href="{% url 'listar_paradas' %}" class="btn-admin-manage"><i class="fa-solid fa-pen-to-square"></i> Gestionar</a>
-            </div>
-        </div>
-        <div class="admin-module">
-            <div class="module-header">
-                <span class="module-title">Rutas y Trazados</span>
-                <span class="module-badge">Líneas</span>
-            </div>
-            <div class="module-actions">
-                <a href="{% url 'crear_ruta' %}" class="btn-admin-add">+ Añadir</a>
-                <a href="{% url 'listar_rutas' %}" class="btn-admin-manage"><i class="fa-solid fa-pen-to-square"></i> Gestionar</a>
-            </div>
-        </div>
-    </div>
+    </details>
 
-    <div class="admin-card">
-        <div class="admin-card-header">
+    <details class="admin-card">
+        <summary class="admin-card-header">
             <i class="fa-solid fa-bus-simple" style="color: var(--primary);"></i> Gestión de Flota
-        </div>
-        <div class="admin-module">
-            <div class="module-header">
-                <span class="module-title">Unidades Activas</span>
-                <span class="module-badge">Autobuses</span>
+        </summary>
+        <div class="acordeon-contenido">
+            <div class="admin-module">
+                <div class="module-header">
+                    <span class="module-title">Unidades Activas</span>
+                    <span class="module-badge">Autobuses</span>
+                </div>
+                <div class="module-actions">
+                    <a href="{% url 'crear_unidad' %}" class="btn-admin-add">+ Añadir</a>
+                    <a href="{% url 'listar_unidades' %}" class="btn-admin-manage"><i class="fa-solid fa-list"></i> Gestionar</a>
+                </div>
             </div>
-            <div class="module-actions">
-                <a href="{% url 'crear_unidad' %}" class="btn-admin-add">+ Añadir</a>
-                <a href="{% url 'listar_unidades' %}" class="btn-admin-manage"><i class="fa-solid fa-list"></i> Gestionar</a>
-            </div>
         </div>
-        
-    </div>
+    </details>
 
-    <div class="admin-card">
-        <div class="admin-card-header">
+    <details class="admin-card">
+        <summary class="admin-card-header">
             <i class="fa-solid fa-users-gear" style="color: var(--primary);"></i> Gestión de Usuarios
-        </div>
-        <div class="admin-module">
-            <div class="module-header">
-                <span class="module-title">Cuentas Ciudadanas</span>
-                <span class="module-badge">Plataforma</span>
+        </summary>
+        <div class="acordeon-contenido">
+            <div class="admin-module">
+                <div class="module-header">
+                    <span class="module-title">Cuentas Ciudadanas</span>
+                    <span class="module-badge">Plataforma</span>
+                </div>
+                <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Administre accesos, edite datos o asigne permisos.</p>
+                <div class="module-actions">
+                    <a href="{% url 'crear_perfil' %}" class="btn-admin-add">+ Registrar</a>
+                    <a href="{% url 'gestionar_usuarios' %}" class="btn-admin-manage"><i class="fa-solid fa-user-pen"></i> Edición</a>
+                </div>
             </div>
-            <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Administre accesos, edite datos personales o asigne permisos.</p>
-            <div class="module-actions">
-                <a href="{% url 'crear_perfil' %}" class="btn-admin-add">+ Registrar</a>
-                <a href="{% url 'gestionar_usuarios' %}" class="btn-admin-manage">
-                    <i class="fa-solid fa-user-pen"></i> Edición Avanzada
-                </a>
-            </div>
-        </div>
-        <div class="admin-module">
-            <div class="module-header">
-                <span class="module-title">Tarjetas Inteligentes (NFC)</span>
-                <span class="module-badge" style="background: #e0e7ff; color: #4338ca;">Hardware</span>
-            </div>
-            <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Vincule, recargue o suspenda tarjetas de pasaje electrónico.</p>
-            <div class="module-actions">
-                <a href="{% url 'asignar_nfc' %}" class="btn-admin-add">
-                    + Asignar NFC
-                </a>
-                <a href="{% url 'auditoria_nfc' %}" class="btn-admin-manage">
-                    <i class="fa-solid fa-file-invoice"></i> Auditoría
-                </a>
+            <div class="admin-module">
+                <div class="module-header">
+                    <span class="module-title">Tarjetas Inteligentes (NFC)</span>
+                    <span class="module-badge" style="background: #e0e7ff; color: #4338ca;">Hardware</span>
+                </div>
+                <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Vincule, recargue o suspenda tarjetas.</p>
+                <div class="module-actions">
+                    <a href="{% url 'asignar_nfc' %}" class="btn-admin-add">+ Asignar NFC</a>
+                    <a href="{% url 'auditoria_nfc' %}" class="btn-admin-manage"><i class="fa-solid fa-file-invoice"></i> Auditoría</a>
+                </div>
             </div>
         </div>
-    </div>
+    </details>
 
-    <div class="admin-card" style="border: 1px solid #fde68a;">
-        <div class="admin-card-header" style="background: #fffbeb; color: #b45309; border-bottom: 1px solid #fde68a;">
+    <details class="admin-card" style="border: 1px solid #fde68a;">
+        <summary class="admin-card-header publicidad">
             <i class="fa-solid fa-rectangle-ad"></i> Publicidad y Financiamiento
+        </summary>
+        <div class="acordeon-contenido">
+            <div class="admin-module" style="background: #fefce8;">
+                <div class="module-header">
+                    <span class="module-title">Campañas y Anuncios (Ads)</span>
+                    <span class="module-badge" style="background: #fef3c7; color: #d97706;">Monetización</span>
+                </div>
+                <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Suba banners publicitarios.</p>
+                <div class="module-actions">
+                    <a href="{% url 'crear_campana' %}" class="btn-admin-add" style="background: #d97706;">+ Nueva Campaña</a>
+                    <a href="{% url 'gestionar_publicidad' %}" class="btn-admin-manage">Administrar</a>
+                </div>
+            </div>
+            <div class="admin-module">
+                <div class="module-header">
+                    <span class="module-title">Patrocinadores del Sistema</span>
+                    <span class="module-badge">Convenios</span>
+                </div>
+                <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Gestione las empresas aliadas.</p>
+                <div class="module-actions">
+                    <a href="{% url 'crear_patrocinador' %}" class="btn-admin-add" style="background: #10b981;">+ Añadir Aliado</a>
+                    <a href="{% url 'listar_patrocinadores' %}" class="btn-admin-manage"><i class="fa-solid fa-building"></i> Directorio</a>
+                </div>
+            </div>
         </div>
-        <div class="admin-module" style="background: #fefce8;">
-            <div class="module-header">
-                <span class="module-title">Campañas y Anuncios (Ads)</span>
-                <span class="module-badge" style="background: #fef3c7; color: #d97706;">Monetización</span>
-            </div>
-            <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Suba banners e imágenes publicitarias que se mostrarán en la app.</p>
-            <div class="module-actions">
-                <a href="{% url 'crear_campana' %}" class="btn-admin-add" style="background: #d97706;">+ Nueva Campaña</a>
-                <a href="{% url 'gestionar_publicidad' %}" class="btn-admin-manage">Administrar Banners</a>
-            </div>
-        </div>
-        <div class="admin-module">
-            <div class="module-header">
-                <span class="module-title">Patrocinadores del Sistema</span>
-                <span class="module-badge">Convenios</span>
-            </div>
-            <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Gestione las empresas aliadas que sustentan la red de transporte.</p>
-            <div class="module-actions">
-                <a href="{% url 'crear_patrocinador' %}" class="btn-admin-add" style="background: #10b981;">+ Añadir Aliado</a>
-                <a href="{% url 'listar_patrocinadores' %}" class="btn-admin-manage"><i class="fa-solid fa-building"></i> Directorio</a>
-            </div>
-        </div>
-    </div>
+    </details>
 
 </div> 
 
-<div style="text-align: center; margin-top: 30px;">
+<div style="text-align: center; margin-top: 30px; margin-bottom: 30px;">
     <a href="{% url 'inicio_general' %}" class="btn-mck btn-mck-outline" style="width: auto;">
         <i class="fa-solid fa-arrow-left"></i> Volver a la pantalla principal
     </a>
