@@ -24,8 +24,7 @@ from datetime import timedelta
 from .models import ReporteRapido
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from google import genai
-from google.genai import types
+from groq import Groq
 
 \
 
@@ -912,57 +911,44 @@ def limpiar_buzon_waze(request):
 
 @csrf_exempt
 def operador_inteligente_api(request):
-    """API que conecta el chat ciudadano con la IA de Gemini utilizando el SDK moderno"""
     if request.method == 'POST':
         try:
-            # 1. Parseamos el mensaje del usuario
             data = json.loads(request.body)
             mensaje_usuario = data.get('mensaje', '')
 
-            # 2. Obtenemos la clave desde las variables de entorno
-            clave_gemini = os.environ.get("GEMINI_API_KEY")
-            
-            if not clave_gemini:
-                return JsonResponse({'status': 'error', 'respuesta': 'Error de configuración en el servidor.'})
+            clave_groq = os.environ.get("GROQ_API_KEY")
+            client = Groq(api_key=clave_groq)
 
-            # 3. Inicializamos el cliente con la nueva librería
-            client = genai.Client(api_key=clave_gemini)
-
-            # 4. Definimos el contexto/personalidad del Operador Inteligente
             contexto_sistema = """
             Eres el 'Operador Inteligente' del sistema de transporte Señal Ética + en Ciudad Guayana (Puerto Ordaz y San Félix).
             
-            Tus funciones y reglas de comportamiento son estrictamente las siguientes:
-            1. Tono de voz: Sé sumamente empático, paciente, amable y servicial. Actúa como un operador local con mucha calidez humana.
-            2. Guía de Movilidad y Turismo Local: Orienta sobre rutas de transporte para llegar a restaurantes, centros comerciales, parques (La Llovizna, Cachamay) y lugares populares del Municipio Caroní.
-            3. Universidades: Limita la información universitaria a lo básico (qué ruta tomar para llegar a la UNEG, UCAB, UNEXPO, etc.). No des asesoría académica.
-            4. Regla estricta sobre el clima: Puedes dar consejos generales por el calor o la lluvia. TIENES PROHIBIDO sugerir a los usuarios que se resguarden en las paradas de autobús, ya que no cuentan con techo.
-            5. Seguridad: Si el usuario reporta una emergencia o inseguridad, indícale con calma que utilice el botón rojo de 'S.O.S. Emergencia' disponible en el tótem o la app.
-            6. Formato: Mantén tus respuestas breves, precisas y fáciles de leer rápidamente en una pantalla en la calle.
+            Tus funciones y reglas:
+            1. Tono de voz: Sé sumamente empático, paciente, amable y servicial. Actúa como un operador local.
+            2. Guía de Movilidad: Orienta sobre rutas para llegar a restaurantes, parques (La Llovizna, Cachamay) y lugares populares.
+            3. Universidades: Limita la información a qué ruta tomar para llegar a la UNEG, UCAB, UNEXPO. No des asesoría académica.
+            4. Clima: TIENES PROHIBIDO sugerir a los usuarios que se resguarden en las paradas de autobús, ya que no cuentan con techo.
+            5. Seguridad: Si el usuario reporta una emergencia, indícale usar el botón rojo de 'S.O.S. Emergencia'.
+            6. Formato: Mantén tus respuestas breves y precisas.
             """
 
-            # 5. Generamos la respuesta con el modelo moderno
-            response = client.models.generate_content(
-                model='gemini-2.0-flash',
-                contents=mensaje_usuario,
-                config=types.GenerateContentConfig(
-                    system_instruction=contexto_sistema,
-                    temperature=0.7 # Un poco de creatividad para que suene más humano
-                )
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": contexto_sistema},
+                    {"role": "user", "content": mensaje_usuario}
+                ],
+                model="llama-3.1-8b-instant", # Modelo ultra rápido
+                temperature=0.7,
             )
             
-            return JsonResponse({'status': 'ok', 'respuesta': response.text})
+            respuesta_ia = chat_completion.choices[0].message.content
+            return JsonResponse({'status': 'ok', 'respuesta': respuesta_ia})
 
         except Exception as e:
-            error_msg = str(e)
-            if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
-                return JsonResponse({
-                    'status': 'error', 
-                    'respuesta': 'Estamos teniendo muchas consultas ahora mismo. Por favor, espera unos segundos y vuelve a preguntar.'
-                })
-            print(f"Error en Gemini API: {e}")
+            print(f"Error en Groq API: {e}", flush=True)
             return JsonResponse({
                 'status': 'error', 
                 'respuesta': 'Disculpa, el operador está descansando un momento. Intenta de nuevo.'
             })
+            
+    return JsonResponse({'status': 'error', 'msg': 'Método no permitido'})
    

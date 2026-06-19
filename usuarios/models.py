@@ -87,3 +87,21 @@ class SolicitudOperador(models.Model):
    
     def __str__(self):
         return f"Solicitud de {self.usuario.username}"
+
+class TicketSoporte(models.Model):
+    ESTADOS = (
+        ('Abierto', 'Abierto - Esperando respuesta'),
+        ('Respondido', 'Respondido por Soporte'),
+        ('Cerrado', 'Cerrado - Resuelto'),
+    )
+    
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tickets')
+    asunto = models.CharField(max_length=150, verbose_name="Asunto del problema")
+    mensaje = models.TextField(verbose_name="Mensaje del usuario")
+    respuesta_admin = models.TextField(blank=True, null=True, verbose_name="Respuesta de Soporte")
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='Abierto')
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Ticket #{self.id} - {self.usuario.username} - {self.estado}"        

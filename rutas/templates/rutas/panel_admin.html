@@ -111,6 +111,35 @@
         opacity: 0.5;
         pointer-events: none;
     }
+
+    .btn-mck {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px; /* Espacio entre el ícono y el texto */
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: 600;
+        text-decoration: none;
+        border-radius: 8px; /* Bordes redondeados modernos */
+        transition: all 0.3s ease; /* Animación suave */
+        cursor: pointer;
+    }
+
+    /* Estilo "Outline" (Borde morado, fondo transparente) */
+    .btn-mck-outline {
+        background-color: transparent;
+        color: #8b5cf6; /* Color morado de tu chat */
+        border: 2px solid #8b5cf6;
+    }
+
+    /* Efecto al pasar el mouse por encima (Se rellena de morado) */
+    .btn-mck-outline:hover {
+        background-color: #8b5cf6;
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        transform: translateY(-2px); /* Se levanta un poquito */
+    }
 </style>
 
 <div style="max-width: 1000px; margin: 0 auto 20px auto;">

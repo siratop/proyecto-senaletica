@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from .models import PerfilUsuario
+from .models import TicketSoporte
 
 # 1. Creamos la vista "en línea" para el Perfil
 class PerfilUsuarioInline(admin.StackedInline):
@@ -27,3 +28,22 @@ class UserAdmin(BaseUserAdmin):
 
 admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
+
+@admin.register(TicketSoporte)
+class TicketSoporteAdmin(admin.ModelAdmin):
+    list_display = ('id', 'asunto', 'usuario', 'estado', 'fecha_creacion')
+    list_filter = ('estado', 'fecha_creacion')
+    search_fields = ('usuario__username', 'asunto')
+    
+    # Protegemos lo que escribió el usuario para que el admin no lo borre por error
+    readonly_fields = ('usuario', 'asunto', 'mensaje', 'fecha_creacion')
+    
+    # Organizamos cómo lo ve el agente de soporte
+    fieldsets = (
+        ('Datos del Ciudadano', {
+            'fields': ('usuario', 'asunto', 'mensaje', 'fecha_creacion')
+        }),
+        ('Área de Respuesta (Soporte)', {
+            'fields': ('respuesta_admin', 'estado')
+        }),
+    )

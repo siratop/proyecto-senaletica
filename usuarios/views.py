@@ -20,6 +20,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 from .models import Dependiente, PerfilUsuario
 from django.db.models import Q
+from .models import TicketSoporte
 try:
     from rutas.models import AlertaOperativa
 except ImportError:
@@ -317,13 +318,17 @@ def mi_perfil(request):
             user.delete()
             return redirect('login') 
 
+    # --- NUEVO: Buscamos los tickets de soporte del usuario ---
+    tickets_usuario = TicketSoporte.objects.filter(usuario=request.user).order_by('-fecha_creacion')
+
+    # --- ACTUALIZADO: Pasamos la variable 'tickets' al HTML ---
     return render(request, 'usuarios/mi_perfil.html', {
         'perfil': perfil,
         'puede_editar': puede_editar,
         'dias_restantes': dias_restantes,
-        'dias_restantes_flota': dias_restantes_flota 
+        'dias_restantes_flota': dias_restantes_flota,
+        'tickets': tickets_usuario 
     })
-
 
 # =========================================================
 # 4. MONITOR DE EMERGENCIAS Y CENTRAL DE SERVICIO AL CLIENTE
@@ -408,3 +413,22 @@ def actualizar_gps_alerta(request):
             print(f"Error en GPS: {e}", flush=True)
             return JsonResponse({'status': 'error', 'msg': str(e)}, status=400)
     return JsonResponse({'status': 'error'}, status=405)
+
+@login_required
+def enviar_ticket(request):
+    if request.method == 'POST':
+        asunto = request.POST.get('asunto')
+        mensaje = request.POST.get('mensaje')
+        
+        # Creamos el ticket asociado al usuario que está logueado
+        if asunto and mensaje:
+            TicketSoporte.objects.create(
+                usuario=request.user,
+                asunto=asunto,
+                mensaje=mensaje
+            )
+            messages.success(request, '✅ Tu mensaje ha sido enviado a soporte. Te responderemos pronto.')
+        else:
+            messages.error(request, '⚠️ Debes completar todos los campos del formulario.')
+            
+        return redirect('mi_perfil') # ¡Redirección corregida!

@@ -132,6 +132,84 @@
             </button>
         </form>
     </div>
+    
+<!-- TARJETA DE SOPORTE TÉCNICO -->
+<div class="card mt-4 mb-4" style="border-radius: 8px; border: 1px solid #e0e0e0;">
+    <div class="card-header bg-white" style="color: #0056b3; font-weight: bold; border-bottom: 1px solid #e0e0e0;">
+        <i class="fa-solid fa-headset"></i> Contactar a Soporte Técnico
+    </div>
+    <div class="card-body">
+        <p class="text-muted small">¿Tienes problemas con tus tarjetas NFC, saldo o rutas? Escríbenos y te responderemos por aquí.</p>
+        
+        <form method="POST" action="{% url 'enviar_ticket' %}">
+            {% csrf_token %}
+            
+            <div class="form-group mb-3">
+                <label class="form-label small font-weight-bold">Asunto</label>
+                <input type="text" name="asunto" class="form-control" placeholder="Ej: Falla al recargar saldo" required>
+            </div>
+            
+            <div class="form-group mb-3">
+                <label class="form-label small font-weight-bold">Detalla tu problema</label>
+                <textarea name="mensaje" class="form-control" rows="3" placeholder="Explícanos qué sucedió..." required></textarea>
+            </div>
+            
+            <button type="submit" class="btn text-white w-100" style="background-color: #0056b3; border-radius: 6px;">
+                <i class="fa-solid fa-paper-plane"></i> Enviar Mensaje a Soporte
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- HISTORIAL DE TICKETS -->
+<div class="card mt-4 mb-4" style="border-radius: 8px; border: 1px solid #e0e0e0;">
+    <div class="card-header bg-white" style="color: #28a745; font-weight: bold; border-bottom: 1px solid #e0e0e0;">
+        <i class="fa-solid fa-clock-rotate-left"></i> Tu Historial de Soporte
+    </div>
+    
+    <div class="card-body p-0">
+        {% if tickets %}
+            <!-- Si el usuario tiene tickets, mostramos la lista -->
+            <div class="list-group list-group-flush" style="border-radius: 8px;">
+                {% for ticket in tickets %}
+                    <div class="list-group-item" style="border-bottom: 1px solid #f0f0f0;">
+                        
+                        <!-- Encabezado del ticket -->
+                        <div class="d-flex w-100 justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0 font-weight-bold text-dark">{{ ticket.asunto }}</h6>
+                            <small class="text-muted">{{ ticket.fecha_creacion|date:"d M Y" }}</small>
+                        </div>
+                        
+                        <!-- Mensaje del ciudadano -->
+                        <p class="mb-2 small text-secondary">
+                            <i class="fa-solid fa-user text-muted"></i> <strong>Tú:</strong> {{ ticket.mensaje }}
+                        </p>
+
+                        <!-- Respuesta del equipo de soporte -->
+                        {% if ticket.respuesta_admin %}
+                            <div class="p-2 mt-2" style="background-color: #f8f9fa; border-left: 3px solid #0056b3; border-radius: 0 4px 4px 0;">
+                                <p class="mb-0 small text-dark">
+                                    <i class="fa-solid fa-headset" style="color: #0056b3;"></i> <strong>Soporte:</strong> {{ ticket.respuesta_admin }}
+                                </p>
+                            </div>
+                        {% else %}
+                            <span class="badge text-dark mt-1" style="background-color: #ffeeba; border: 1px solid #ffdf7e;">
+                                <i class="fa-solid fa-hourglass-half"></i> Esperando respuesta de soporte...
+                            </span>
+                        {% endif %}
+
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Si no ha enviado nada aún -->
+            <div class="p-4 text-center text-muted small">
+                <i class="fa-solid fa-inbox fa-2x mb-2 text-light"></i><br>
+                Aún no tienes mensajes en tu historial de soporte.
+            </div>
+        {% endif %}
+    </div>
+</div>
 
     {% if perfil.rol == 'ciudadano' %}
     <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
