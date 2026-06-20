@@ -31,7 +31,7 @@ class Parada(models.Model):
     referencia = models.CharField(max_length=200, help_text="Ej: Frente al C.C. Orinokia", blank=True, null=True)
     tipo = models.CharField(max_length=15, choices=TIPO_CHOICES, default='OFICIAL')
     estado = models.CharField(max_length=15, choices=ESTADO_CHOICES, default='ACTIVA')
-    
+    visitas = models.PositiveIntegerField(default=0, verbose_name="Visitas Totales")
     # Campo corregido y añadido
     tiempo_caminando = models.IntegerField(default=0, help_text="Minutos a pie hasta la parada")
     

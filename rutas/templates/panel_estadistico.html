@@ -30,93 +30,70 @@
 
     <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; margin-bottom: 30px;">
         <h4 style="margin: 0 0 15px 0; color: #334155; font-size: 18px; font-weight: bold;">📍 Radar Geográfico Multipropósito</h4>
-        <p style="font-size: 13px; color: #64748b; margin-top: -10px; margin-bottom: 15px;">Usa el control en la esquina superior derecha del mapa para activar/desactivar capas de calor.</p>
-        <div id="mapaCalor" style="width: 100%; height: 550px; border-radius: 8px; border: 1px solid #cbd5e1; z-index: 1;"></div>
+        <div id="mapaCalor" style="width: 100%; height: 550px; border-radius: 8px; border: 1px solid #cbd5e1;"></div>
     </div>
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;">
         
         <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
             <h4 style="margin: 0 0 20px 0; color: #334155; font-size: 15px; font-weight: bold; text-align: center;">Incidencias por Tipo</h4>
-            <div style="position: relative; width: 100%; height: 220px;">
-                <canvas id="chartAlertas"></canvas>
-            </div>
+            <canvas id="chartAlertas" height="220"></canvas>
         </div>
 
         <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
             <h4 style="margin: 0 0 20px 0; color: #334155; font-size: 15px; font-weight: bold; text-align: center;">Unidades Activas por Ruta</h4>
-            <div style="position: relative; width: 100%; height: 220px;">
-                <canvas id="chartRutas"></canvas>
-            </div>
+            <canvas id="chartRutas" height="220"></canvas>
         </div>
 
         <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
-            <h4 style="margin: 0 0 20px 0; color: #334155; font-size: 15px; font-weight: bold; text-align: center;">Demanda en Paradas</h4>
-            <div style="position: relative; width: 100%; height: 220px;">
-                <canvas id="chartParadas"></canvas>
-            </div>
+            <h4 style="margin: 0 0 20px 0; color: #334155; font-size: 15px; font-weight: bold; text-align: center;">Demanda en Paradas (Visitas)</h4>
+            <canvas id="chartParadas" height="220"></canvas>
         </div>
-
     </div>
 </div>
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        
-        // --- 1. LÓGICA DEL MAPA MULTI-CAPA ---
+        // --- MAPA ---
         const mapa = L.map('mapaCalor').setView([8.2965, -62.7212], 13);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap & CARTO'
-        }).addTo(mapa);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png').addTo(mapa);
 
-        // Extraer los 3 JSON
         const ptosAlertas = JSON.parse('{{ puntos_alertas_json|safe }}');
         const ptosBuses = JSON.parse('{{ puntos_buses_json|safe }}');
         const ptosParadas = JSON.parse('{{ puntos_paradas_json|safe }}');
 
-        // Crear las 3 capas de calor con distintos colores
-        const capaAlertas = L.heatLayer(ptosAlertas, {radius: 25, blur: 15, gradient: {0.4: 'yellow', 0.8: 'orange', 1.0: 'red'}});
-        const capaBuses = L.heatLayer(ptosBuses, {radius: 20, blur: 15, gradient: {0.4: '#bae6fd', 0.8: '#0284c7', 1.0: '#082f49'}}); // Tonos azules
-        const capaParadas = L.heatLayer(ptosParadas, {radius: 30, blur: 20, gradient: {0.4: '#d9f99d', 0.8: '#65a30d', 1.0: '#3f6212'}}); // Tonos verdes
-
-        // Activamos la de alertas por defecto
-        capaAlertas.addTo(mapa);
-
-        // CREAR EL SELECTOR DE CAPAS
-        const overlayMaps = {
-            "🚨 Alertas SOS y Accidentes (Rojo)": capaAlertas,
-            "🚌 Flujo de Flota Activa (Azul)": capaBuses,
-            "🚏 Demanda en Paradas (Verde)": capaParadas
-        };
-        L.control.layers(null, overlayMaps, {collapsed: false}).addTo(mapa);
-
-
-        // --- 2. GRÁFICOS INFERIORES ---
-        new Chart(document.getElementById('chartAlertas').getContext('2d'), {
+        L.heatLayer(ptosAlertas, {radius: 25, gradient: {0.4: 'yellow', 1.0: 'red'}}).addTo(mapa);
+        
+        // --- GRÁFICOS ---
+        new Chart(document.getElementById('chartAlertas'), {
             type: 'doughnut',
             data: {
                 labels: JSON.parse('{{ chart_labels|safe }}'),
                 datasets: [{ data: JSON.parse('{{ chart_data|safe }}'), backgroundColor: ['#38bdf8', '#fbbf24', '#f87171'] }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            }
         });
 
-        new Chart(document.getElementById('chartRutas').getContext('2d'), {
+        new Chart(document.getElementById('chartRutas'), {
             type: 'bar',
             data: {
                 labels: JSON.parse('{{ rutas_labels|safe }}'),
-                datasets: [{ label: 'Buses', data: JSON.parse('{{ rutas_data|safe }}'), backgroundColor: '#3b82f6', borderRadius: 4 }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                datasets: [{ label: 'Unidades', data: JSON.parse('{{ rutas_data|safe }}'), backgroundColor: '#3b82f6' }]
+            }
         });
 
-        new Chart(document.getElementById('chartParadas').getContext('2d'), {
+        // GRÁFICO DE PARADAS ACTUALIZADO CON VISITAS REALES
+        new Chart(document.getElementById('chartParadas'), {
             type: 'bar', 
             data: {
-                labels: JSON.parse('{{ paradas_labels|safe }}'),
-                datasets: [{ label: 'Consultas', data: JSON.parse('{{ paradas_data|safe }}'), backgroundColor: '#10b981', borderRadius: 4 }]
+                labels: {{ paradas_labels|safe }}, 
+                datasets: [{
+                    label: 'Visitas totales',
+                    data: {{ visitas_paradas|safe }}, 
+                    backgroundColor: '#10b981',
+                    borderRadius: 4
+                }]
             },
-            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
         });
     });
 </script>

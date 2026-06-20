@@ -132,7 +132,8 @@ def panel_admin_amigable(request):
 def inicio_peaton(request, parada_id):
     parada = get_object_or_404(Parada, id=parada_id)
     rutas_asociadas = parada.rutas.all()
-    
+    parada.visitas += 1
+    parada.save()
     rutas_data = {}
     tiempo_estimado_default = "--"
     
@@ -733,7 +734,9 @@ def panel_estadistico_inteligente(request):
     
     chart_labels = [labels_map.get(item['tipo'], item['tipo']) for item in conteo_por_tipo]
     chart_data = [item['total'] for item in conteo_por_tipo]
-
+    top_paradas = Parada.objects.all().order_by('-visitas')[:5]
+    nombres_paradas = [p.nombre for p in top_paradas]
+    visitas_paradas = [p.visitas for p in top_paradas]
     # ==========================================
     # 2. CAPAS DEL MAPA DE CALOR (DATOS REALES)
     # ==========================================
@@ -809,6 +812,8 @@ def panel_estadistico_inteligente(request):
         
         # Aquí inyectamos los datos reales de la demanda
         'paradas_labels': json.dumps(paradas_labels), 'paradas_data': json.dumps(paradas_data),
+        'nombres_paradas': nombres_paradas,
+        'visitas_paradas': json.dumps(visitas_paradas),
     }
     return render(request, 'panel_estadistico.html', contexto)
 

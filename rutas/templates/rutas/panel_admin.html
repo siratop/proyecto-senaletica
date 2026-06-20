@@ -174,7 +174,7 @@
         </div>
     </details>
 
-    <details class="admin-card" style="border: 1px solid #d8b4fe;">
+ <details class="admin-card" style="border: 1px solid #d8b4fe;">
         <summary class="admin-card-header soporte">
             <i class="fa-solid fa-headset"></i> Soporte y Mesa de Ayuda
         </summary>
@@ -185,16 +185,16 @@
                     <span class="module-badge" style="background: #e9d5ff; color: #6b21a8;">Atención</span>
                 </div>
                 <p style="font-size: 12px; color: #64748b; margin-top: -5px; margin-bottom: 15px;">
-                    Lea los problemas reportados, vea fechas/usuarios, responda, marque como solucionado o elimine registros desde la bóveda de administración.
+                    Lea los problemas reportados, vea fechas/usuarios y responda los reclamos directamente desde la nueva Mesa de Ayuda.
                 </p>
                 <div class="module-actions una-columna">
-                    <a href="/admin/usuarios/ticketsoporte/" target="_blank" class="btn-admin-manage" style="background: #7e22ce; color: white; border: none;">
-                        <i class="fa-solid fa-clipboard-check"></i> Gestionar Tickets en la Bóveda
+                    <a href="{% url 'panel_soporte' %}" class="btn-admin-manage" style="background: #7e22ce; color: white; border: none;">
+                        <i class="fa-solid fa-clipboard-check"></i> Abrir Mesa de Ayuda
                     </a>
                 </div>
             </div>
         </div>
-    </details>
+    </details>   
 
     <details class="admin-card">
         <summary class="admin-card-header">
