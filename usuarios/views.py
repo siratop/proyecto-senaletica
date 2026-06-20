@@ -432,3 +432,27 @@ def enviar_ticket(request):
             messages.error(request, '⚠️ Debes completar todos los campos del formulario.')
             
         return redirect('mi_perfil') # ¡Redirección corregida!
+    
+@login_required
+def panel_soporte(request):
+    """Panel Exclusivo para la Mesa de Ayuda y Tickets de Soporte"""
+    from usuarios.models import PerfilUsuario, TicketSoporte
+    
+    perfil, created = PerfilUsuario.objects.get_or_create(usuario=request.user)
+    
+    # Validar si es del equipo de soporte
+    es_agente = request.user.is_staff or request.user.is_superuser or perfil.rol == 'soporte'
+
+    if es_agente:
+        tickets_abiertos = TicketSoporte.objects.filter(estado='Abierto').order_by('-fecha_creacion')
+        tickets_resueltos = TicketSoporte.objects.exclude(estado='Abierto').order_by('-fecha_creacion')[:30]
+    else:
+        tickets_abiertos = TicketSoporte.objects.filter(usuario=request.user, estado='Abierto').order_by('-fecha_creacion')
+        tickets_resueltos = TicketSoporte.objects.filter(usuario=request.user).exclude(estado='Abierto').order_by('-fecha_creacion')[:20]
+
+    contexto = {
+        'tickets_abiertos': tickets_abiertos,
+        'tickets_resueltos': tickets_resueltos,
+        'es_agente': es_agente,
+    }
+    return render(request, 'usuarios/panel_soporte.html', contexto)   

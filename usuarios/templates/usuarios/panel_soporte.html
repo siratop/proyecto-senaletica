@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    .admin-dashboard { display: grid; grid-template-columns: 1fr; gap: 15px; max-width: 900px; margin: 0 auto; }
+    
+    details.admin-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: all 0.3s ease; }
+    summary.admin-card-header { background: #f8fafc; padding: 18px 20px; color: var(--primary-dark); font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; user-select: none; }
+    summary.admin-card-header::-webkit-details-marker { display: none; }
+    summary.admin-card-header::after { content: '\25BC'; margin-left: auto; font-size: 12px; color: #64748b; transition: transform 0.3s ease; }
+    details[open] summary.admin-card-header::after { transform: rotate(180deg); }
+    details[open] summary.admin-card-header { border-bottom: 1px solid #e2e8f0; }
+
+    summary.soporte { background: #f5f3ff; color: #6b21a8; }
+    details[open] summary.soporte { border-bottom: 1px solid #e9d5ff; }
+
+    .acordeon-contenido { padding: 20px; animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+    .ticket-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #fff; display: flex; flex-direction: column; gap: 10px; }
+    .ticket-card.abierto { border-left: 4px solid #ef4444; }
+    .ticket-card.resuelto { border-left: 4px solid #10b981; background: #f8fafc; opacity: 0.8; }
+
+    .btn-responder { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #8b5cf6; color: white; text-decoration: none; padding: 10px 15px; border-radius: 6px; font-size: 13px; font-weight: bold; transition: 0.2s; }
+    .btn-responder:hover { background: #7e22ce; }
+    
+    .btn-mck { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 24px; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 8px; transition: all 0.3s ease; cursor: pointer; }
+    .btn-mck-outline { background-color: transparent; color: #8b5cf6; border: 2px solid #8b5cf6; }
+    .btn-mck-outline:hover { background-color: #8b5cf6; color: #ffffff; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); transform: translateY(-2px); }
+</style>
+
+<div style="max-width: 900px; margin: 0 auto 20px auto; padding: 0 15px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div>
+            <h1 style="color: var(--primary-dark); font-family: 'Urbanist', sans-serif; margin-bottom: 5px;"><i class="fa-solid fa-headset"></i> Mesa de Ayuda</h1>
+            <p style="color: var(--text-muted); font-size: 14px; margin-top: 0;">Gestión de tickets, reclamos de saldo y soporte técnico ciudadano.</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            {% if es_agente %}
+            <a href="{% url 'panel_servicio_cliente' %}" style="background: #ef4444; color: white; padding: 8px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 5px;">
+                <i class="fa-solid fa-map-location-dot"></i> Ver Mapa S.O.S
+            </a>
+            {% endif %}
+            <span style="background: #f1f5f9; padding: 8px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; border: 1px solid #cbd5e1; color: #334155;">
+                <i class="fa-solid fa-user-shield" style="color: #10b981;"></i> Agente: {{ user.username }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<div class="admin-dashboard" style="padding: 0 15px;">
+    
+    <!-- BANDEJA DE TICKETS -->
+    <details class="admin-card" style="border: 1px solid #d8b4fe;" open>
+        <summary class="admin-card-header soporte">
+            <i class="fa-solid fa-envelope-open-text"></i> Bandeja de Entrada (Tickets)
+        </summary>
+        <div class="acordeon-contenido">
+            
+            <h4 style="margin-top: 0; color: #ef4444; font-size: 14px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 15px;">
+                <i class="fa-solid fa-circle-exclamation"></i> Esperando Respuesta ({{ tickets_abiertos|length }})
+            </h4>
+            
+            {% if tickets_abiertos %}
+                {% for ticket in tickets_abiertos %}
+                    <div class="ticket-card abierto">
+                        <div style="display: flex; justify-content: space-between; align-items: start; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
+                            <div>
+                                <strong style="color: #1e293b; font-size: 15px;">#{{ ticket.id }} - {{ ticket.asunto }}</strong>
+                                <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+                                    <i class="fa-solid fa-user"></i> {{ ticket.usuario.username }}
+                                </div>
+                            </div>
+                            <span style="font-size: 11px; color: #64748b; background: #f1f5f9; padding: 4px 10px; border-radius: 12px; font-weight: bold;">
+                                <i class="fa-regular fa-clock"></i> {{ ticket.fecha_creacion|date:"d M, H:i" }}
+                            </span>
+                        </div>
+                        <p style="font-size: 13px; color: #475569; margin: 0; line-height: 1.5;">{{ ticket.mensaje }}</p>
+                        
+                        {% if es_agente %}
+                            <div style="margin-top: 10px; text-align: right;">
+                                <a href="/admin/usuarios/ticketsoporte/{{ ticket.id }}/change/" target="_blank" class="btn-responder">
+                                    <i class="fa-solid fa-reply"></i> Responder / Resolver Ticket
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div style="text-align: center; padding: 20px; background: #f8fafc; border-radius: 8px; margin-bottom: 20px;">
+                    <i class="fa-solid fa-check-double" style="color: #10b981; font-size: 24px; margin-bottom: 10px;"></i>
+                    <p style="font-size: 13px; color: #64748b; margin: 0;">No hay tickets pendientes por responder.</p>
+                </div>
+            {% endif %}
+
+            <h4 style="margin-top: 30px; color: #10b981; font-size: 14px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 15px;">
+                <i class="fa-solid fa-check-circle"></i> Últimos Casos Resueltos
+            </h4>
+            {% if tickets_resueltos %}
+                {% for ticket in tickets_resueltos %}
+                    <div class="ticket-card resuelto" style="flex-direction: row; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #334155; font-size: 14px;">#{{ ticket.id }} - {{ ticket.asunto }}</strong>
+                            <span style="font-size: 12px; color: #94a3b8; margin-left: 10px;">{{ ticket.usuario.username }}</span>
+                        </div>
+                        <span style="font-size: 11px; color: #059669; background: #d1fae5; padding: 4px 10px; border-radius: 12px; font-weight: bold;">
+                            {{ ticket.estado }}
+                        </span>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p style="font-size: 13px; color: #94a3b8; padding-left: 10px;">No hay historial reciente.</p>
+            {% endif %}
+        </div>
+    </details>
+
+</div>
+    
+<div style="text-align: center; margin-top: 30px; margin-bottom: 30px;">
+    <a href="{% url 'inicio_general' %}" class="btn-mck btn-mck-outline" style="width: auto;">
+        <i class="fa-solid fa-arrow-left"></i> Volver a la pantalla principal
+    </a>
+</div>
+{% endblock %}
