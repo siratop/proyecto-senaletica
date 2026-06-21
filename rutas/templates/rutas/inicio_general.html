@@ -373,16 +373,15 @@
                 <div class="tarjeta-filtro" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; border-left: 4px solid #3b82f6;">
                     <h4 class="titulo-filtro" style="margin: 0 0 5px 0; color: #0f172a; font-size: 17px;">{{ ruta.nombre }}</h4>
                     <p style="margin: 0 0 15px 0; font-size: 13px; color: #64748b;">Conecta las zonas principales del sector asignado.</p>
+                    
                     <div style="display: flex; gap: 10px; font-size: 12px; color: #475569;">
-                        
-                        <span><i class="fa-solid fa-bus" style="color:#94a3b8; margin-right: 5px;"></i>
-                            {% if ruta.unidad_set.exists %}
-                                <strong style="color: #10b981;">Flota Oficial Asignada</strong>
+                        <div style="font-size: 13px; font-weight: bold; color: {% if ruta.buses_activos_count > 0 %}#10b981{% else %}#94a3b8{% endif %};">
+                            {% if ruta.buses_activos_count > 0 %}
+                                <i class="fa-solid fa-bus"></i> {{ ruta.buses_activos_count }} unidad(es) en recorrido
                             {% else %}
-                                <span style="color: #d97706; font-weight: bold;">Posible bus operativo pero no registrado</span>
+                                <i class="fa-solid fa-bus-slash"></i> Sin unidades en servicio
                             {% endif %}
-                        </span>
-
+                        </div>
                     </div>
                 </div>
                 {% empty %}
@@ -794,7 +793,7 @@
     });
 
     // ==========================================
-    // MAGIA DE FILTRADO 
+    // MAGIA DE FILTRADO (AHORA CON BUSES)
     // ==========================================
     document.getElementById('selector-ruta-unica').addEventListener('change', function(e) {
         let idSeleccionado = e.target.value;
@@ -820,6 +819,11 @@
         if (!checkboxParadas.checked) {
             checkboxParadas.checked = true;
             mapGlobal.addLayer(layerParadas);
+        }
+
+        // AQUÍ SE FUERZA EL REFRESCO DE LOS BUSES EN BASE AL FILTRO
+        if (typeof actualizarFlotaEnMapa === 'function' && document.getElementById('filtro-flota') && document.getElementById('filtro-flota').checked) {
+            actualizarFlotaEnMapa(); 
         }
     });
 

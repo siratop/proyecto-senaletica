@@ -78,7 +78,7 @@
                         
                         {% if es_agente %}
                             <div style="margin-top: 10px; text-align: right;">
-                                <a href="/admin/usuarios/ticketsoporte/{{ ticket.id }}/change/" target="_blank" class="btn-responder">
+                                <a href="{% url 'responder_ticket' ticket.id %}" target="_blank" class="btn-responder">
                                     <i class="fa-solid fa-reply"></i> Responder / Resolver Ticket
                                 </a>
                             </div>

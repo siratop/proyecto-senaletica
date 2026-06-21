@@ -66,21 +66,25 @@ def inicio_general(request):
         perfil, created = PerfilUsuario.objects.get_or_create(usuario=request.user)
 
     rutas = Ruta.objects.all()
+    for ruta in rutas:
+        ruta.buses_activos_count = Unidad.objects.filter(
+            ruta_asignada=ruta, 
+            estado__in=['operativa', 'activo'], 
+            latitud_actual__isnull=False
+        ).count()
+        
     avisos_generales = AlertaOperativa.objects.filter(activa=True, tipo='general')
     
     # --- FILTRO DE SEGURIDAD PARA ALERTAS EN EL MAPA ---
     if request.user.is_authenticated:
-        # 1. Si es Superusuario, Staff o tiene rol de ADMINISTRADOR o ATENCION_CLIENTE, ve TODO
         if request.user.is_superuser or request.user.is_staff or (perfil and perfil.rol in ['ADMINISTRADOR', 'ATENCION_CLIENTE']):
             incidentes_mapa = AlertaOperativa.objects.filter(activa=True).exclude(tipo='general')
         else:
-            # 2. Si es un ciudadano común autenticado, solo ve las alertas que él mismo creó
             incidentes_mapa = AlertaOperativa.objects.filter(
                 activa=True, 
                 usuario_creador=request.user
             ).exclude(tipo='general')
     else:
-        # 3. Si el usuario ni siquiera ha iniciado sesión (anónimo), no ve incidentes privados en el mapa
         incidentes_mapa = AlertaOperativa.objects.none()
     # ---------------------------------------------------
 
