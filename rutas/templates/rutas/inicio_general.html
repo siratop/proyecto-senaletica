@@ -363,11 +363,17 @@
             Catálogo de Rutas Activas
         </summary>
         <div style="padding: 20px;">
-            <div style="margin-bottom: 20px; position: relative;">
-                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 15px; top: 12px; color: #94a3b8;"></i>
-                <input type="text" id="buscar-rutas" onkeyup="filtrarTarjetas('buscar-rutas', 'grid-rutas')" placeholder="Buscar por nombre de línea o sector..." style="width: 100%; box-sizing: border-box; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none;">
+            
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <div style="position: relative; flex: 1; min-width: 250px;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 15px; top: 12px; color: #94a3b8;"></i>
+                    <input type="text" id="buscar-rutas" onkeyup="filtrarTarjetas('buscar-rutas', 'grid-rutas')" placeholder="Buscar por nombre de línea o sector..." style="width: 100%; box-sizing: border-box; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none;">
+                </div>
+                
+                <button onclick="location.reload()" style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s ease; white-space: nowrap; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.05);" onmouseover="this.style.background='#dbeafe'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#eff6ff'; this.style.transform='translateY(0)';">
+                    <i class="fa-solid fa-rotate-right"></i> Refrescar Red
+                </button>
             </div>
-
             <div id="grid-rutas" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
                 {% for ruta in rutas %}
                 <div class="tarjeta-filtro" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; border-left: 4px solid #3b82f6;">
