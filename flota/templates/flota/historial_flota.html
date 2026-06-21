@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div style="max-width: 1200px; margin: 40px auto; padding: 20px;">
+    
+    <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 25px; border-radius: 12px; margin-bottom: 25px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div>
+            <span style="background: #f59e0b; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">Auditoría del Sistema</span>
+            <h2 style="margin: 10px 0 5px 0; font-size: 24px;">
+                <i class="fa-solid fa-clock-rotate-left" style="color: #f59e0b;"></i> 
+                Historial de Turnos y Transmisiones
+            </h2>
+            <p style="margin: 0; color: #94a3b8; font-size: 14px;">Control detallado de aperturas de jornada, operarios y tiempos en ruta.</p>
+        </div>
+        <div>
+            <a href="{% url 'dashboard_router' %}" style="background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 14px; text-decoration: none; display: flex; align-items: center; gap: 8px; transition: 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)';" onmouseout="this.style.background='rgba(255,255,255,0.1)';">
+                <i class="fa-solid fa-arrow-left-long"></i> Volver al Radar
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div style="padding: 15px; margin-bottom: 20px; border-radius: 8px; font-size: 14px; font-weight: bold; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;">
+                <i class="fa-solid fa-circle-check"></i> {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 5px rgba(0,0,0,0.02); margin-bottom: 25px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+        <div style="flex: 1; position: relative; min-width: 280px;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 15px; top: 12px; color: #94a3b8;"></i>
+            <input type="text" id="buscador-historial" onkeyup="filtrarHistorial()" placeholder="Buscar por número de unidad o nombre de chofer..." style="width: 100%; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 14px; box-sizing: border-box; background: #f8fafc;">
+        </div>
+        <div style="min-width: 180px;">
+            <input type="date" id="filtro-fecha" onchange="filtrarHistorial()" style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; background: #f8fafc; color: #475569; cursor: pointer;">
+        </div>
+    </div>
+
+    <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden;">
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: bold;">
+                        <th style="padding: 15px 20px;">Unidad</th>
+                        <th style="padding: 15px 20px;">Operador / Chofer</th>
+                        <th style="padding: 15px 20px;">Fecha</th>
+                        <th style="padding: 15px 20px;">Hora Entrada</th>
+                        <th style="padding: 15px 20px;">Hora Salida</th>
+                        <th style="padding: 15px 20px;">Tiempo en Vía</th>
+                        <th style="padding: 15px 20px; text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-cuerpo-historial">
+                    {% for item in historiales %}
+                    <tr class="fila-historial" data-unidad="{{ item.bus.numero_unidad|lower }}" data-chofer="{{ item.conductor.first_name|lower }} {{ item.conductor.username|lower }}" data-fecha="{{ item.fecha|date:'Y-m-d' }}" style="border-bottom: 1px solid #f1f5f9; color: #334155; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc';" onmouseout="this.style.background='transparent';">
+                        
+                        <td style="padding: 15px 20px; font-weight: bold; color: #0f172a;">
+                            <span style="background: #eff6ff; color: #2563eb; padding: 4px 8px; border-radius: 6px; border: 1px solid #bfdbfe;">
+                                <i class="fa-solid fa-bus" style="font-size: 12px;"></i> Unidad {{ item.bus.numero_unidad }}
+                            </span>
+                        </td>
+                        
+                        <td style="padding: 15px 20px;">
+                            <i class="fa-solid fa-circle-user" style="color: #94a3b8; margin-right: 5px;"></i>
+                            {{ item.conductor.first_name|default:item.conductor.username|default:"Desconectado" }}
+                        </td>
+                        
+                        <td style="padding: 15px 20px; color: #64748b;">
+                            {{ item.fecha|date:"d/m/Y" }}
+                        </td>
+                        
+                        <td style="padding: 15px 20px; color: #10b981; font-weight: 600;">
+                            <i class="fa-regular fa-clock"></i> {{ item.hora_inicio|date:"h:i A" }}
+                        </td>
+                        
+                        <td style="padding: 15px 20px; font-weight: 600; color: {% if item.hora_fin %}#ef4444{% else %}#64748b{% endif %};">
+                            {% if item.hora_fin %}
+                                <i class="fa-regular fa-clock"></i> {{ item.hora_fin|date:"h:i A" }}
+                            {% else %}
+                                <span style="background: #fef3c7; color: #d97706; padding: 3px 6px; border-radius: 4px; font-size: 12px;">Activo ahora</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td style="padding: 15px 20px;">
+                            <span style="font-weight: bold; background: #f1f5f9; padding: 4px 8px; border-radius: 6px; color: #475569; font-size: 13px;">
+                                <i class="fa-solid fa-stopwatch"></i> {{ item.duracion }}
+                            </span>
+                        </td>
+                        
+                        <td style="padding: 15px 20px; text-align: center;">
+                            <form method="POST" action="{% url 'eliminar_historial' item.id %}" onsubmit="return confirmarEliminacion(event);" style="margin: 0; display: inline-block;">
+                                {% csrf_token %}
+                                <button type="submit" style="background: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='#fee2e2';" onmouseout="this.style.background='#fef2f2';">
+                                    <i class="fa-solid fa-trash-can"></i> Eliminar
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="fila-vacia">
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc;">
+                            <i class="fa-solid fa-folder-open" style="font-size: 28px; margin-bottom: 10px; display: block; color: #cbd5e1;"></i>
+                            No hay registros de turnos en la base de datos todavía.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    
+                    <tr id="fila-no-resultados" style="display: none;">
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc;">
+                            <i class="fa-solid fa-magnifying-glass-blur" style="font-size: 28px; margin-bottom: 10px; display: block; color: #cbd5e1;"></i>
+                            No se encontraron registros que coincidan con los filtros aplicados.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Remover acentos para búsquedas más precisas
+    const limpiarTexto = (str) => {
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    };
+
+    // Función de filtrado interactivo en tiempo real
+    function filtrarHistorial() {
+        let buscador = limpiarTexto(document.getElementById('buscador-historial').value);
+        let filtroFecha = document.getElementById('filtro-fecha').value; // Formato: YYYY-MM-DD
+        
+        let filas = document.querySelectorAll('.fila-historial');
+        let contadorVisibles = 0;
+
+        filas.forEach(fila => {
+            let unidad = fila.getAttribute('data-unidad');
+            let chofer = fila.getAttribute('data-chofer');
+            let fecha = fila.getAttribute('data-fecha');
+
+            let coincideTexto = buscador === '' || unidad.includes(buscador) || chofer.includes(buscador);
+            let coincideFecha = filtroFecha === '' || fecha === filtroFecha;
+
+            if (coincideTexto && coincideFecha) {
+                fila.style.display = "";
+                contadorVisibles++;
+            } else {
+                fila.style.display = "none";
+            }
+        });
+
+        // Manejo de mensajes de error en la tabla si no hay resultados
+        let filaNoResultados = document.getElementById('fila-no-resultados');
+        let filaVacia = document.getElementById('fila-vacia');
+
+        if (contadorVisibles === 0) {
+            if (filaVacia) filaVacia.style.display = "none";
+            if (filaNoResultados) filaNoResultados.style.display = "";
+        } else {
+            if (filaNoResultados) filaNoResultados.style.display = "none";
+        }
+    }
+
+    // Modal de doble confirmación con palabra clave para mayor seguridad
+    function confirmarEliminacion(event) {
+        event.preventDefault();
+        let confirmacionStr = prompt("⚠️ ¡ADVERTENCIA!\nEsta acción borrará permanentemente este registro de auditoría.\n\nEscriba la palabra 'ELIMINAR' para confirmar:");
+        
+        if (confirmacionStr === 'ELIMINAR') {
+            event.target.submit();
+        } else if (confirmacionStr !== null) {
+            alert("Confirmación incorrecta. El registro no ha sido borrado.");
+        }
+    }
+</script>
+
+{% endblock %}

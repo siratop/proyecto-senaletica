@@ -17,10 +17,13 @@ from django.utils import timezone
 from datetime import timedelta
 from rutas.models import Ruta, Parada
 from .models import MensajeFlota, RegistroSesion
+from .models import HistorialTurno
 
 # NUEVAS IMPORTACIONES PARA EL DISPARADOR WEBSOCKET
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from .utils import registrar_inicio_turno, registrar_fin_turno
+
 
 # =========================================================
 # MOTOR MATEMÁTICO (Geocerca para el mapa ciudadano)
@@ -518,3 +521,24 @@ def actualizar_ubicacion_chofer(request):
             pass
             
     return JsonResponse({'status': 'error'})
+
+@login_required
+def historial_flota(request):
+    """Renderiza la tabla con todos los registros de la flota"""
+    # Aquí traemos todos los historiales. 
+    # (Si tienes un filtro por empresa, aquí usaríamos .filter(bus__flota=request.user.perfil.flota))
+    historiales = HistorialTurno.objects.all().select_related('bus', 'conductor')
+    
+    return render(request, 'flota/historial_flota.html', {
+        'historiales': historiales
+    })
+
+@login_required
+def eliminar_historial(request, historial_id):
+    """Elimina un registro específico del historial con protección de método POST"""
+    if request.method == 'POST':
+        registro = get_object_or_404(HistorialTurno, id=historial_id)
+        registro.delete()
+        messages.success(request, "El registro del historial ha sido eliminado exitosamente.")
+        
+    return redirect('historial_flota')

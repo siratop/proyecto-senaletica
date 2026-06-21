@@ -77,3 +77,31 @@ class RegistroSesion(models.Model):
 
     def __str__(self):
         return f"Sesión Unidad {self.unidad.numero_unidad} - {self.duracion_minutos} min"    
+    
+class HistorialTurno(models.Model):
+    # Asumiendo que tu modelo principal de autobuses se llama 'Bus' o 'Unidad'
+    bus = models.ForeignKey('Bus', on_delete=models.CASCADE, related_name='historiales')
+    conductor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    fecha = models.DateField(auto_now_add=True, verbose_name="Fecha del Turno")
+    hora_inicio = models.DateTimeField(auto_now_add=True, verbose_name="Hora de Entrada")
+    hora_fin = models.DateTimeField(null=True, blank=True, verbose_name="Hora de Salida")
+    
+    class Meta:
+        verbose_name = "Historial de Turno"
+        verbose_name_plural = "Historiales de Turnos"
+        ordering = ['-fecha', '-hora_inicio']
+
+    def __str__(self):
+        return f"Turno: Unidad {self.bus.numero_unidad} - {self.fecha}"
+
+    def duracion(self):
+        """Calcula el tiempo exacto que el chofer estuvo transmitiendo en la vía"""
+        if self.hora_fin:
+            diferencia = self.hora_fin - self.hora_inicio
+            # Extraemos horas y minutos matemáticamente
+            segundos_totales = int(diferencia.total_seconds())
+            horas = segundos_totales // 3600
+            minutos = (segundos_totales % 3600) // 60
+            return f"{horas}h {minutos}m"
+        return "En curso..."
