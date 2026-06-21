@@ -36,4 +36,5 @@ urlpatterns = [
    
     path('panel/historial/', views.historial_flota, name='historial_flota'),
     path('panel/historial/eliminar/<int:historial_id>/', views.eliminar_historial, name='eliminar_historial'),
+    path('mantenimiento/', views.mantenimiento_flota, name='mantenimiento_flota'),
 ]

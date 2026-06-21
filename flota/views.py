@@ -542,3 +542,11 @@ def eliminar_historial(request, historial_id):
         messages.success(request, "El registro del historial ha sido eliminado exitosamente.")
         
     return redirect('historial_flota')
+
+@login_required
+def mantenimiento_flota(request):
+    """
+    Panel de Control de Mantenimiento y Documentación Legal 
+    para el Municipio Caroní.
+    """
+    return render(request, 'flota/mantenimiento_flota.html')
