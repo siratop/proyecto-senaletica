@@ -456,3 +456,36 @@ def panel_soporte(request):
         'es_agente': es_agente,
     }
     return render(request, 'usuarios/panel_soporte.html', contexto)   
+
+@login_required
+def responder_ticket(request, ticket_id):
+    """Pantalla vistosa para que el agente responda o elimine un ticket específico"""
+    from usuarios.models import PerfilUsuario, TicketSoporte
+    
+    perfil, created = PerfilUsuario.objects.get_or_create(usuario=request.user)
+    es_agente = request.user.is_staff or request.user.is_superuser or perfil.rol == 'soporte'
+
+    if not es_agente:
+        return redirect('inicio_general')
+
+    # Buscamos el ticket exacto
+    ticket = get_object_or_404(TicketSoporte, id=ticket_id)
+
+    if request.method == 'POST':
+        # --- LÓGICA PARA ELIMINAR EL TICKET ---
+        if 'eliminar' in request.POST:
+            ticket.delete()
+            return redirect('panel_soporte')
+        # --------------------------------------
+
+        # --- LÓGICA PARA GUARDAR RESPUESTA ---
+        respuesta = request.POST.get('respuesta_admin')
+        estado = request.POST.get('estado')
+
+        ticket.respuesta_admin = respuesta
+        ticket.estado = estado
+        ticket.save()
+
+        return redirect('panel_soporte')
+
+    return render(request, 'usuarios/responder_ticket.html', {'ticket': ticket})

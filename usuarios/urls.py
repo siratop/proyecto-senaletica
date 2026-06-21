@@ -26,5 +26,5 @@ urlpatterns = [
     path('servicio-al-cliente/alerta/<int:alerta_id>/<str:accion>/', views.gestionar_alerta_sos, name='gestionar_alerta_sos'),
     path('soporte/enviar/', views.enviar_ticket, name='enviar_ticket'),
     path('soporte/panel-tickets/', views.panel_soporte, name='panel_soporte'),
-
+    path('soporte/ticket/<int:ticket_id>/responder/', views.responder_ticket, name='responder_ticket'), 
 ]
