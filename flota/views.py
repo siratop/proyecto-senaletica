@@ -24,7 +24,6 @@ from .models import  ControlMecanico, ControlLegal
 # NUEVAS IMPORTACIONES PARA EL DISPARADOR WEBSOCKET
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .utils import registrar_inicio_turno, registrar_fin_turno
 
 
 # =========================================================
@@ -164,7 +163,7 @@ def panel_chofer(request):
 
 @csrf_exempt
 def actualizar_gps(request):
-    """Recibe la ubicación de la App Móvil o la orden de apagado."""
+    """Recibe la ubicación de la App Móvil o la orden de apagado y gestiona el historial."""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -178,12 +177,26 @@ def actualizar_gps(request):
             if not unidad:
                 return JsonResponse({'error': 'Unidad no encontrada'}, status=404)
 
+            # Preparar variables de tiempo para el Historial
+            hoy = timezone.now().date()
+            ahora = timezone.now().time()
+            
+            # Buscar si este bus ya tiene un turno abierto hoy
+            turno_abierto = HistorialTurno.objects.filter(
+                bus=unidad, fecha=hoy, hora_fin__isnull=True
+            ).first()
+
             # ==========================================================
-            # EL APAGADOR: Forzamos el estado a 'inactiva' y avisamos al mapa
+            # EL APAGADOR: Forzamos el estado a 'inactiva', cerramos turno y avisamos al mapa
             # ==========================================================
             if data.get('estado') == 'inactivo':
                 unidad.estado = 'inactiva' 
                 unidad.save()
+                
+                # CERRAR EL TURNO EN EL HISTORIAL
+                if turno_abierto:
+                    turno_abierto.hora_fin = ahora
+                    turno_abierto.save()
                 
                 # DISPARADOR: Avisar al mapa que se borre (App Móvil)
                 try:
@@ -203,10 +216,10 @@ def actualizar_gps(request):
                 except Exception as ws_error:
                     print(f"Error WebSocket: {ws_error}")
                     
-                return JsonResponse({'status': 'Bus desconectado del mapa'})
+                return JsonResponse({'status': 'Bus desconectado del mapa y turno cerrado'})
 
             # ==========================================================
-            # SI ESTÁ TRANSMITIENDO: Actualiza coordenadas
+            # SI ESTÁ TRANSMITIENDO: Actualiza coordenadas y abre turno
             # ==========================================================
             lat = data.get('latitud', data.get('lat'))
             lon = data.get('longitud', data.get('lon'))
@@ -217,6 +230,16 @@ def actualizar_gps(request):
                 unidad.estado = 'operativa' 
                 unidad.ultima_actualizacion = timezone.now()
                 unidad.save()
+
+                # ABRIR EL TURNO EN EL HISTORIAL (Si no existe uno abierto)
+                if not turno_abierto:
+                    chofer_default = getattr(unidad, 'propietario_flota', None) or User.objects.first()
+                    HistorialTurno.objects.create(
+                        bus=unidad,
+                        fecha=hoy,
+                        hora_inicio=ahora,
+                        conductor=chofer_default
+                    )
 
                 # DISPARADOR: Avisar al mapa que se mueva (App Móvil)
                 try:
@@ -237,7 +260,7 @@ def actualizar_gps(request):
                 except Exception as ws_error:
                     print(f"Error en WebSocket (App): {ws_error}")
 
-                return JsonResponse({'status': 'ok', 'msg': 'GPS actualizado'})
+                return JsonResponse({'status': 'ok', 'msg': 'GPS e Historial actualizados'})
                 
             return JsonResponse({'status': 'error', 'msg': 'Faltan coordenadas'})
         except Exception as e:
