@@ -39,4 +39,5 @@ urlpatterns = [
     path('mantenimiento/', views.mantenimiento_flota, name='mantenimiento_flota'),
     path('historial/', views.historial_flota, name='historial_flota'),
     path('historial/eliminar/<int:historial_id>/', views.eliminar_historial, name='eliminar_historial'),
+    path('historial/purgar/', views.limpiar_todo_historial, name='limpiar_todo_historial'),
 ]

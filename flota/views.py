@@ -625,3 +625,12 @@ def historial_flota(request):
         'historiales': historiales,
         'rutas': rutas_disponibles
     })
+
+@login_required
+def limpiar_todo_historial(request):
+    """Elimina absolutamente todo el historial de la base de datos"""
+    if request.method == 'POST':
+        from .models import HistorialTurno
+        HistorialTurno.objects.all().delete()
+        messages.success(request, 'El historial ha sido purgado por completo exitosamente.')
+    return redirect('historial_flota')
