@@ -537,12 +537,16 @@ def historial_flota(request):
 
 @login_required
 def eliminar_historial(request, historial_id):
-    """Elimina un registro específico del historial con protección de método POST"""
+    """Elimina un registro específico del historial"""
     if request.method == 'POST':
-        registro = get_object_or_404(HistorialTurno, id=historial_id)
-        registro.delete()
-        messages.success(request, "El registro del historial ha sido eliminado exitosamente.")
-        
+        try:
+            turno = HistorialTurno.objects.get(id=historial_id)
+            # Solo permitimos que se borren turnos, pero podríamos validar si es el dueño
+            turno.delete()
+            messages.success(request, 'Registro eliminado correctamente del sistema de auditoría.')
+        except HistorialTurno.DoesNotExist:
+            messages.error(request, 'El registro no existe o ya fue eliminado.')
+            
     return redirect('historial_flota')
 
 @login_required
@@ -608,4 +612,24 @@ def mantenimiento_flota(request):
         'query': query,
         'ruta_id': ruta_id,
         'rutas': rutas_disponibles
+    })
+
+@login_required
+def historial_flota(request):
+    """Panel para ver el registro de actividad y horas de los choferes"""
+    
+    # Obtenemos las unidades del dueño logueado
+    unidades_propias = Unidad.objects.filter(propietario_flota=request.user)
+    
+    # Buscamos el historial de turnos de esas unidades, ordenado por fecha descendente
+    historiales = HistorialTurno.objects.filter(bus__in=unidades_propias).order_by('-fecha', '-hora_inicio')
+    
+    # Mini buscador por número de unidad
+    bus_filtro = request.GET.get('q', '')
+    if bus_filtro:
+        historiales = historiales.filter(bus__numero_unidad__icontains=bus_filtro)
+
+    return render(request, 'flota/historial_flota.html', {
+        'historiales': historiales,
+        'query': bus_filtro
     })
