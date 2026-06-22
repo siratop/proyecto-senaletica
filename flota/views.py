@@ -547,6 +547,11 @@ def eliminar_historial(request, historial_id):
 def mantenimiento_flota(request):
     """
     Panel de Control de Mantenimiento y Documentación Legal 
-    para el Municipio Caroní.
     """
-    return render(request, 'flota/mantenimiento_flota.html')
+    # Buscamos todas las unidades que le pertenecen al dueño logueado
+    unidades = Unidad.objects.filter(propietario_flota=request.user)
+    
+    # Se las enviamos a la plantilla HTML
+    return render(request, 'flota/mantenimiento_flota.html', {
+        'unidades': unidades
+    })
