@@ -549,26 +549,54 @@ def eliminar_historial(request, historial_id):
 def mantenimiento_flota(request):
     """Panel de Control de Mantenimiento y Documentación Legal"""
     
-    # 1. Atrapamos lo que el usuario escriba en el panel buscador
-    query = request.GET.get('q', '')
-    
-    # 2. Traemos las unidades del usuario logueado
-    unidades = Unidad.objects.filter(propietario_flota=request.user)
-    
-    # 3. Lógica del Buscador (Si escribió algo, filtramos)
-    if query:
-        unidades = unidades.filter(
-            Q(numero_unidad__icontains=query) | 
-            Q(ruta_asignada__nombre__icontains=query)
-        )
+    # --- 1. GUARDAR DATOS (Cuando el usuario presiona "Guardar" en el modal) ---
+    if request.method == 'POST':
+        unidad_id = request.POST.get('unidad_id')
+        unidad = Unidad.objects.get(id=unidad_id, propietario_flota=request.user)
         
-    # 4. CREADOR AUTOMÁTICO DE REGISTRO BASE:
-    # Si la unidad es nueva y no tiene control mecánico/legal, se lo creamos en 0.
+        # Guardar Mecánica
+        mecanica, _ = ControlMecanico.objects.get_or_create(unidad=unidad)
+        mecanica.vida_aceite = request.POST.get('vida_aceite', 100)
+        mecanica.vida_cauchos = request.POST.get('vida_cauchos', 100)
+        mecanica.save()
+        
+        # Guardar Legal (Manejamos las fechas para que no den error si están vacías)
+        legal, _ = ControlLegal.objects.get_or_create(unidad=unidad)
+        legal.pago_alcaldia = request.POST.get('pago_alcaldia', 'Sin registrar')
+        
+        vencimiento_rcv = request.POST.get('vencimiento_rcv')
+        legal.vencimiento_rcv = vencimiento_rcv if vencimiento_rcv else None
+        
+        vencimiento_imttv = request.POST.get('vencimiento_imttv')
+        legal.vencimiento_imttv = vencimiento_imttv if vencimiento_imttv else None
+        
+        legal.save()
+        return redirect('mantenimiento_flota') # Recarga la página limpia
+
+    # --- 2. MOSTRAR Y FILTRAR DATOS (GET) ---
+    query = request.GET.get('q', '')
+    ruta_id = request.GET.get('ruta', '')
+    
+    # Traemos las unidades y las rutas disponibles
+    unidades = Unidad.objects.filter(propietario_flota=request.user)
+    rutas_disponibles = Ruta.objects.all() 
+    
+    # Aplicar Filtro de Buscador (por nombre/placa)
+    if query:
+        unidades = unidades.filter(numero_unidad__icontains=query)
+        
+    # Aplicar Filtro por Ruta
+    if ruta_id:
+        unidades = unidades.filter(ruta_asignada__id=ruta_id)
+        
+    # Creador automático de registros base para unidades nuevas
     for unidad in unidades:
         ControlMecanico.objects.get_or_create(unidad=unidad)
         ControlLegal.objects.get_or_create(unidad=unidad)
 
     return render(request, 'flota/mantenimiento_flota.html', {
         'unidades': unidades,
-        'query': query
+        'query': query,
+        'ruta_id': ruta_id,
+        'rutas': rutas_disponibles
     })
