@@ -3,106 +3,50 @@
 
 <div style="max-width: 1200px; margin: 40px auto; padding: 20px;">
     
-    <!-- ENCABEZADO PRINCIPAL -->
-    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 25px; border-radius: 12px; margin-bottom: 25px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-        <div>
-            <span style="background: #10b981; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">Gestión Integral</span>
-            <h2 style="margin: 10px 0 5px 0; font-size: 24px;">
-                <i class="fa-solid fa-screwdriver-wrench" style="color: #10b981;"></i> 
-                Control y Mantenimiento de Flota
-            </h2>
-            <p style="margin: 0; color: #94a3b8; font-size: 14px;">Auditoría mecánica y estatus legal de las unidades (INTT y Alcaldía de Caroní).</p>
-        </div>
-        <div>
-            <a href="{% url 'dashboard_router' %}" style="background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 14px; text-decoration: none; display: flex; align-items: center; gap: 8px; transition: 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)';" onmouseout="this.style.background='rgba(255,255,255,0.1)';">
-                <i class="fa-solid fa-arrow-left-long"></i> Volver al Radar
-            </a>
+    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 25px; border-radius: 12px; margin-bottom: 25px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div>
+                <h2 style="margin: 0; font-size: 24px;"><i class="fa-solid fa-screwdriver-wrench" style="color: #10b981;"></i> Control de Flota</h2>
+                <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 14px;">Auditoría legal y mecánica en tiempo real.</p>
+            </div>
+            
+            <form method="GET" action="{% url 'mantenimiento_flota' %}" style="display: flex; gap: 10px;">
+                <input type="text" name="q" value="{{ query }}" placeholder="Buscar unidad o ruta..." 
+                       style="padding: 10px; border-radius: 8px; border: none; width: 250px;">
+                <button type="submit" style="background: #3b82f6; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer;">Buscar</button>
+            </form>
         </div>
     </div>
 
-    <!-- SECCIÓN DIVIDIDA EN DOS COLUMNAS -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px;">
         
         {% for unidad in unidades %}
-        <!-- COLUMNA 1: ESTADO MECÁNICO POR UNIDAD -->
-        <div style="background: white; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-            <h3 style="margin-top: 0; color: #334155; font-size: 18px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-                <i class="fa-solid fa-oil-can" style="color: #f59e0b;"></i> Estatus Mecánico - Unidad {{ unidad.numero_unidad }}
-            </h3>
-            
-            <div style="margin-top: 20px;">
-                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <strong style="color: #0f172a;"><i class="fa-solid fa-bus"></i> {{ unidad.numero_unidad }}</strong>
-                        
-                        {% if unidad.estado == 'operativa' %}
-                            <span style="background: #ecfdf5; color: #059669; font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid #a7f3d0;">Operativa</span>
-                        {% elif unidad.estado == 'inactiva' %}
-                            <span style="background: #f1f5f9; color: #64748b; font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid #cbd5e1;">Inactiva</span>
-                        {% else %}
-                            <span style="background: #fef2f2; color: #ef4444; font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid #fecaca;">Averiada</span>
-                        {% endif %}
-                    </div>
-                    
-                    <p style="font-size: 13px; color: #64748b; margin: 5px 0 10px 0;">Placa: {{ unidad.placa|default:"No registrada" }}</p>
-                    
-                    <!-- Barras de progreso de mantenimiento (Por ahora visuales) -->
-                    <div style="margin-bottom: 10px;">
-                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; color: #475569;">
-                            <span>Aceite y Filtros</span>
-                            <span>Buen estado</span>
-                        </div>
-                        <div style="background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div style="background: #10b981; width: 90%; height: 100%;"></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <button style="width: 100%; background: white; border: 1px dashed #cbd5e1; color: #64748b; padding: 10px; border-radius: 8px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='#f8fafc';">
-                    <i class="fa-solid fa-plus"></i> Registrar Mantenimiento
-                </button>
+        <div style="background: white; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 15px;">
+                <h3 style="margin: 0;">Unidad {{ unidad.numero_unidad }}</h3>
+                <span style="background: #e2e8f0; padding: 4px 10px; border-radius: 6px; font-size: 12px;">{{ unidad.estado|upper }}</span>
             </div>
-        </div>
 
-        <!-- COLUMNA 2: DOCUMENTACIÓN LEGAL POR UNIDAD -->
-        <div style="background: white; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-            <h3 style="margin-top: 0; color: #334155; font-size: 18px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-                <i class="fa-solid fa-file-contract" style="color: #3b82f6;"></i> Control Legal - Unidad {{ unidad.numero_unidad }}
-            </h3>
-            
-            <div style="margin-top: 20px;">
-                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
-                    
-                    <!-- Checklist Legal (Preparado para conectar con la BD) -->
-                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 14px; color: #475569;">
-                        <li style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0;">
-                            <span>Carnet de Circulación (INTT)</span>
-                            <span style="color: #059669;"><i class="fa-solid fa-circle-check"></i> Vigente</span>
-                        </li>
-                        <li style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0;">
-                            <span>Póliza RCV</span>
-                            <span style="color: #64748b;"><i class="fa-solid fa-circle-question"></i> Sin registrar</span>
-                        </li>
-                        <li style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0;">
-                            <span>Permiso de Ruta (IMTTV)</span>
-                            <span style="color: #64748b;"><i class="fa-solid fa-circle-question"></i> Sin registrar</span>
-                        </li>
-                        <li style="display: flex; justify-content: space-between;">
-                            <span>Trimestres Alcaldía Caroní</span>
-                            <span style="color: #64748b;"><i class="fa-solid fa-circle-question"></i> Sin registrar</span>
-                        </li>
-                    </ul>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #64748b;">Mecánica</h4>
+                    <p style="font-size: 13px;">Aceite: {{ unidad.mecanica.vida_aceite }}%</p>
+                    <p style="font-size: 13px;">Cauchos: {{ unidad.mecanica.vida_cauchos }}%</p>
+                </div>
+                <div>
+                    <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #64748b;">Estatus Legal</h4>
+                    <p style="font-size: 13px;">Alcaldía: {{ unidad.legal.pago_alcaldia }}</p>
+                    <p style="font-size: 13px;">RCV Vence: {{ unidad.legal.vencimiento_rcv|default:"N/A" }}</p>
                 </div>
             </div>
+
+            <button style="margin-top: 20px; width: 100%; padding: 10px; background: #1e293b; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                Editar Datos Técnicos
+            </button>
         </div>
         {% empty %}
-        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px; border: 1px solid #e2e8f0;">
-            <i class="fa-solid fa-bus-slash" style="font-size: 40px; color: #cbd5e1; margin-bottom: 15px;"></i>
-            <h3 style="color: #475569;">No tienes unidades registradas</h3>
-            <p style="color: #94a3b8;">Añade tu primer autobús desde el panel principal para ver su estatus de mantenimiento.</p>
-        </div>
+        <p style="text-align: center; color: #64748b;">No se encontraron unidades con ese criterio.</p>
         {% endfor %}
-        
     </div>
 </div>
 

@@ -76,7 +76,7 @@ class HistorialTurno(models.Model):
             return f"{horas}h {minutos}m"
         return "En curso..."
     
- class ControlMecanico(models.Model):
+class ControlMecanico(models.Model):
     """Guarda el estatus de las piezas y el kilometraje de la unidad"""
     unidad = models.OneToOneField(Unidad, on_delete=models.CASCADE, related_name='mecanica')
     kilometraje = models.IntegerField(default=0)
