@@ -18,6 +18,8 @@ from datetime import timedelta
 from rutas.models import Ruta, Parada
 from .models import MensajeFlota, RegistroSesion
 from .models import HistorialTurno
+from django.db.models import Q
+from .models import  ControlMecanico, ControlLegal
 
 # NUEVAS IMPORTACIONES PARA EL DISPARADOR WEBSOCKET
 from channels.layers import get_channel_layer
@@ -545,13 +547,28 @@ def eliminar_historial(request, historial_id):
 
 @login_required
 def mantenimiento_flota(request):
-    """
-    Panel de Control de Mantenimiento y Documentación Legal 
-    """
-    # Buscamos todas las unidades que le pertenecen al dueño logueado
+    """Panel de Control de Mantenimiento y Documentación Legal"""
+    
+    # 1. Atrapamos lo que el usuario escriba en el panel buscador
+    query = request.GET.get('q', '')
+    
+    # 2. Traemos las unidades del usuario logueado
     unidades = Unidad.objects.filter(propietario_flota=request.user)
     
-    # Se las enviamos a la plantilla HTML
+    # 3. Lógica del Buscador (Si escribió algo, filtramos)
+    if query:
+        unidades = unidades.filter(
+            Q(numero_unidad__icontains=query) | 
+            Q(ruta_asignada__nombre__icontains=query)
+        )
+        
+    # 4. CREADOR AUTOMÁTICO DE REGISTRO BASE:
+    # Si la unidad es nueva y no tiene control mecánico/legal, se lo creamos en 0.
+    for unidad in unidades:
+        ControlMecanico.objects.get_or_create(unidad=unidad)
+        ControlLegal.objects.get_or_create(unidad=unidad)
+
     return render(request, 'flota/mantenimiento_flota.html', {
-        'unidades': unidades
+        'unidades': unidades,
+        'query': query
     })
