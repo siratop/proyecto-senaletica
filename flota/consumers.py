@@ -1,8 +1,6 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from flota.models import Bus 
-from flota.utils import registrar_inicio_turno, registrar_fin_turno
 from django.utils import timezone
 from flota.models import Unidad, HistorialTurno
 
@@ -51,30 +49,35 @@ class MapaConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def gestionar_historial(self, bus_id, esta_activo):
         try:
-            # Buscamos el autobús real
+            from django.contrib.auth.models import User
+            
             unidad = Unidad.objects.get(id=bus_id)
             hoy = timezone.now().date()
             ahora = timezone.now().time()
             
-            # Buscamos si hay un turno abierto para hoy (que no tenga hora de fin)
             turno_abierto = HistorialTurno.objects.filter(
-                bus=unidad, 
-                fecha=hoy, 
-                hora_fin__isnull=True
+                bus=unidad, fecha=hoy, hora_fin__isnull=True
             ).first()
 
             if esta_activo and not turno_abierto:
-                # El bus se conectó y no tenía turno abierto -> Creamos uno nuevo
-                HistorialTurno.objects.create(
-                    bus=unidad,
-                    fecha=hoy,
-                    hora_inicio=ahora
-                )
+                # Buscamos al dueño de la flota o al primer chofer para que no falle si es obligatorio
+                chofer_default = unidad.propietario_flota or User.objects.first()
+                
+                try:
+                    HistorialTurno.objects.create(
+                        bus=unidad,
+                        fecha=hoy,
+                        hora_inicio=ahora,
+                        conductor=chofer_default # Previene el error de "conductor_id is null"
+                    )
+                    print(f"✅ GPS: Turno ABIERTO para la unidad {unidad.numero_unidad}")
+                except Exception as e:
+                    print(f"❌ GPS ERROR AL GUARDAR: {e}")
+
             elif not esta_activo and turno_abierto:
-                # El bus se desconectó o apagó servicio -> Cerramos su turno
                 turno_abierto.hora_fin = ahora
                 turno_abierto.save()
+                print(f"🔴 GPS: Turno CERRADO para la unidad {unidad.numero_unidad}")
                 
         except Unidad.DoesNotExist:
-            # Si el GPS manda un ID que no existe, lo ignoramos para no tumbar el servidor
-            pass
+            print(f"⚠️ GPS: El teléfono envió un bus_id que no existe en BD ({bus_id})")

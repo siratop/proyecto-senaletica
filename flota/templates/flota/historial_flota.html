@@ -28,13 +28,28 @@
     {% endif %}
 
     <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 5px rgba(0,0,0,0.02); margin-bottom: 25px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
-        <div style="flex: 1; position: relative; min-width: 280px;">
+        
+        <div style="flex: 2; position: relative; min-width: 250px;">
             <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 15px; top: 12px; color: #94a3b8;"></i>
-            <input type="text" id="buscador-historial" onkeyup="filtrarHistorial()" placeholder="Buscar por número de unidad o nombre de chofer..." style="width: 100%; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 14px; box-sizing: border-box; background: #f8fafc;">
+            <input type="text" id="buscador-historial" onkeyup="filtrarHistorial()" placeholder="Buscar por unidad o chofer..." style="width: 100%; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 14px; box-sizing: border-box; background: #f8fafc;">
         </div>
-        <div style="min-width: 180px;">
+        
+        <div style="flex: 1; min-width: 180px;">
+            <select id="filtro-ruta" onchange="filtrarHistorial()" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; background: #f8fafc; color: #475569; cursor: pointer;">
+                <option value="">Todas las Rutas</option>
+                {% for r in rutas %}
+                    <option value="{{ r.nombre|lower }}">{{ r.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 160px;">
             <input type="date" id="filtro-fecha" onchange="filtrarHistorial()" style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; background: #f8fafc; color: #475569; cursor: pointer;">
         </div>
+        
+        <button onclick="limpiarFiltros()" style="background: #e2e8f0; color: #475569; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px;">
+            <i class="fa-solid fa-eraser"></i>
+        </button>
     </div>
 
     <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden;">
@@ -43,22 +58,26 @@
                 <thead>
                     <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: bold;">
                         <th style="padding: 15px 20px;">Unidad</th>
+                        <th style="padding: 15px 20px;">Ruta Asignada</th>
                         <th style="padding: 15px 20px;">Operador / Chofer</th>
                         <th style="padding: 15px 20px;">Fecha</th>
-                        <th style="padding: 15px 20px;">Hora Entrada</th>
-                        <th style="padding: 15px 20px;">Hora Salida</th>
-                        <th style="padding: 15px 20px;">Tiempo en Vía</th>
+                        <th style="padding: 15px 20px;">Entrada</th>
+                        <th style="padding: 15px 20px;">Salida</th>
                         <th style="padding: 15px 20px; text-align: center;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="tabla-cuerpo-historial">
                     {% for item in historiales %}
-                    <tr class="fila-historial" data-unidad="{{ item.bus.numero_unidad|lower }}" data-chofer="{{ item.conductor.first_name|lower }} {{ item.conductor.username|lower }}" data-fecha="{{ item.fecha|date:'Y-m-d' }}" style="border-bottom: 1px solid #f1f5f9; color: #334155; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc';" onmouseout="this.style.background='transparent';">
+                    <tr class="fila-historial" data-unidad="{{ item.bus.numero_unidad|lower }}" data-chofer="{{ item.conductor.first_name|lower }} {{ item.conductor.username|lower }}" data-ruta="{{ item.bus.ruta_asignada.nombre|lower }}" data-fecha="{{ item.fecha|date:'Y-m-d' }}" style="border-bottom: 1px solid #f1f5f9; color: #334155; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc';" onmouseout="this.style.background='transparent';">
                         
                         <td style="padding: 15px 20px; font-weight: bold; color: #0f172a;">
                             <span style="background: #eff6ff; color: #2563eb; padding: 4px 8px; border-radius: 6px; border: 1px solid #bfdbfe;">
                                 <i class="fa-solid fa-bus" style="font-size: 12px;"></i> Unidad {{ item.bus.numero_unidad }}
                             </span>
+                        </td>
+                        
+                        <td style="padding: 15px 20px; font-weight: 600; color: #64748b;">
+                            {{ item.bus.ruta_asignada.nombre|default:"Sin ruta" }}
                         </td>
                         
                         <td style="padding: 15px 20px;">
@@ -71,28 +90,22 @@
                         </td>
                         
                         <td style="padding: 15px 20px; color: #10b981; font-weight: 600;">
-                            <i class="fa-regular fa-clock"></i> {{ item.hora_inicio|date:"h:i A" }}
+                            <i class="fa-regular fa-clock"></i> {{ item.hora_inicio|time:"h:i A" }}
                         </td>
                         
                         <td style="padding: 15px 20px; font-weight: 600; color: {% if item.hora_fin %}#ef4444{% else %}#64748b{% endif %};">
                             {% if item.hora_fin %}
-                                <i class="fa-regular fa-clock"></i> {{ item.hora_fin|date:"h:i A" }}
+                                <i class="fa-solid fa-right-from-bracket"></i> {{ item.hora_fin|time:"h:i A" }}
                             {% else %}
-                                <span style="background: #fef3c7; color: #d97706; padding: 3px 6px; border-radius: 4px; font-size: 12px;">Activo ahora</span>
+                                <span style="background: #fef3c7; color: #d97706; padding: 3px 6px; border-radius: 4px; font-size: 12px;">Transmisión Activa</span>
                             {% endif %}
-                        </td>
-                        
-                        <td style="padding: 15px 20px;">
-                            <span style="font-weight: bold; background: #f1f5f9; padding: 4px 8px; border-radius: 6px; color: #475569; font-size: 13px;">
-                                <i class="fa-solid fa-stopwatch"></i> {{ item.duracion }}
-                            </span>
                         </td>
                         
                         <td style="padding: 15px 20px; text-align: center;">
                             <form method="POST" action="{% url 'eliminar_historial' item.id %}" onsubmit="return confirmarEliminacion(event);" style="margin: 0; display: inline-block;">
                                 {% csrf_token %}
                                 <button type="submit" style="background: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='#fee2e2';" onmouseout="this.style.background='#fef2f2';">
-                                    <i class="fa-solid fa-trash-can"></i> Eliminar
+                                    <i class="fa-solid fa-trash-can"></i>
                                 </button>
                             </form>
                         </td>
@@ -101,7 +114,7 @@
                     <tr id="fila-vacia">
                         <td colspan="7" style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc;">
                             <i class="fa-solid fa-folder-open" style="font-size: 28px; margin-bottom: 10px; display: block; color: #cbd5e1;"></i>
-                            No hay registros de turnos en la base de datos todavía.
+                            No hay registros en la base de datos todavía.
                         </td>
                     </tr>
                     {% endfor %}
@@ -119,28 +132,36 @@
 </div>
 
 <script>
-    // Remover acentos para búsquedas más precisas
     const limpiarTexto = (str) => {
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        return str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
     };
 
-    // Función de filtrado interactivo en tiempo real
+    function limpiarFiltros() {
+        document.getElementById('buscador-historial').value = '';
+        document.getElementById('filtro-ruta').value = '';
+        document.getElementById('filtro-fecha').value = '';
+        filtrarHistorial();
+    }
+
     function filtrarHistorial() {
         let buscador = limpiarTexto(document.getElementById('buscador-historial').value);
-        let filtroFecha = document.getElementById('filtro-fecha').value; // Formato: YYYY-MM-DD
+        let filtroRuta = document.getElementById('filtro-ruta').value;
+        let filtroFecha = document.getElementById('filtro-fecha').value; 
         
         let filas = document.querySelectorAll('.fila-historial');
         let contadorVisibles = 0;
 
         filas.forEach(fila => {
-            let unidad = fila.getAttribute('data-unidad');
-            let chofer = fila.getAttribute('data-chofer');
-            let fecha = fila.getAttribute('data-fecha');
+            let unidad = fila.getAttribute('data-unidad') || "";
+            let chofer = fila.getAttribute('data-chofer') || "";
+            let ruta = fila.getAttribute('data-ruta') || "";
+            let fecha = fila.getAttribute('data-fecha') || "";
 
             let coincideTexto = buscador === '' || unidad.includes(buscador) || chofer.includes(buscador);
+            let coincideRuta = filtroRuta === '' || ruta.includes(filtroRuta);
             let coincideFecha = filtroFecha === '' || fecha === filtroFecha;
 
-            if (coincideTexto && coincideFecha) {
+            if (coincideTexto && coincideFecha && coincideRuta) {
                 fila.style.display = "";
                 contadorVisibles++;
             } else {
@@ -148,29 +169,25 @@
             }
         });
 
-        // Manejo de mensajes de error en la tabla si no hay resultados
         let filaNoResultados = document.getElementById('fila-no-resultados');
         let filaVacia = document.getElementById('fila-vacia');
 
-        if (contadorVisibles === 0) {
-            if (filaVacia) filaVacia.style.display = "none";
+        if (contadorVisibles === 0 && !filaVacia) {
             if (filaNoResultados) filaNoResultados.style.display = "";
         } else {
             if (filaNoResultados) filaNoResultados.style.display = "none";
         }
     }
 
-    // Modal de doble confirmación con palabra clave para mayor seguridad
     function confirmarEliminacion(event) {
         event.preventDefault();
-        let confirmacionStr = prompt("⚠️ ¡ADVERTENCIA!\nEsta acción borrará permanentemente este registro de auditoría.\n\nEscriba la palabra 'ELIMINAR' para confirmar:");
-        
-        if (confirmacionStr === 'ELIMINAR') {
+        if (confirm("⚠️ ¿Estás seguro de que deseas eliminar permanentemente este registro de auditoría?")) {
             event.target.submit();
-        } else if (confirmacionStr !== null) {
-            alert("Confirmación incorrecta. El registro no ha sido borrado.");
         }
     }
+
+    // Ejecutar filtro al cargar por si el navegador autocompleta la fecha
+    document.addEventListener('DOMContentLoaded', filtrarHistorial);
 </script>
 
 {% endblock %}

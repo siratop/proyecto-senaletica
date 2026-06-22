@@ -617,19 +617,11 @@ def mantenimiento_flota(request):
 @login_required
 def historial_flota(request):
     """Panel para ver el registro de actividad y horas de los choferes"""
-    
-    # Obtenemos las unidades del dueño logueado
-    unidades_propias = Unidad.objects.filter(propietario_flota=request.user)
-    
-    # Buscamos el historial de turnos de esas unidades, ordenado por fecha descendente
-    historiales = HistorialTurno.objects.filter(bus__in=unidades_propias).order_by('-fecha', '-hora_inicio')
-    
-    # Mini buscador por número de unidad
-    bus_filtro = request.GET.get('q', '')
-    if bus_filtro:
-        historiales = historiales.filter(bus__numero_unidad__icontains=bus_filtro)
+    # Traemos todo el historial, garantizando que el más reciente salga de PRIMERO
+    historiales = HistorialTurno.objects.all().order_by('-fecha', '-hora_inicio')
+    rutas_disponibles = Ruta.objects.all()
 
     return render(request, 'flota/historial_flota.html', {
         'historiales': historiales,
-        'query': bus_filtro
+        'rutas': rutas_disponibles
     })
