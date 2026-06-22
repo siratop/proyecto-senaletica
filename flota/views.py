@@ -549,47 +549,56 @@ def eliminar_historial(request, historial_id):
 def mantenimiento_flota(request):
     """Panel de Control de Mantenimiento y Documentación Legal"""
     
-    # --- 1. GUARDAR DATOS (Cuando el usuario presiona "Guardar" en el modal) ---
+    # --- 1. GUARDAR DATOS DEL MODAL ---
     if request.method == 'POST':
         unidad_id = request.POST.get('unidad_id')
-        unidad = Unidad.objects.get(id=unidad_id, propietario_flota=request.user)
+        unidad = Unidad.objects.get(id=unidad_id)
         
         # Guardar Mecánica
         mecanica, _ = ControlMecanico.objects.get_or_create(unidad=unidad)
         mecanica.vida_aceite = request.POST.get('vida_aceite', 100)
         mecanica.vida_cauchos = request.POST.get('vida_cauchos', 100)
+        mecanica.estado_limpieza = request.POST.get('estado_limpieza', 'Limpio')
+        mecanica.estado_mecanico = request.POST.get('estado_mecanico', 'Optimo')
+        
+        # Manejo de fechas vacías
+        f_aceite = request.POST.get('fecha_aceite')
+        mecanica.fecha_aceite = f_aceite if f_aceite else None
+        f_cauchos = request.POST.get('fecha_cauchos')
+        mecanica.fecha_cauchos = f_cauchos if f_cauchos else None
         mecanica.save()
         
-        # Guardar Legal (Manejamos las fechas para que no den error si están vacías)
+        # Guardar Legal
         legal, _ = ControlLegal.objects.get_or_create(unidad=unidad)
         legal.pago_alcaldia = request.POST.get('pago_alcaldia', 'Sin registrar')
-        
-        vencimiento_rcv = request.POST.get('vencimiento_rcv')
-        legal.vencimiento_rcv = vencimiento_rcv if vencimiento_rcv else None
-        
-        vencimiento_imttv = request.POST.get('vencimiento_imttv')
-        legal.vencimiento_imttv = vencimiento_imttv if vencimiento_imttv else None
-        
+        v_rcv = request.POST.get('vencimiento_rcv')
+        legal.vencimiento_rcv = v_rcv if v_rcv else None
+        v_imttv = request.POST.get('vencimiento_imttv')
+        legal.vencimiento_imttv = v_imttv if v_imttv else None
         legal.save()
-        return redirect('mantenimiento_flota') # Recarga la página limpia
+        
+        return redirect('mantenimiento_flota')
 
-    # --- 2. MOSTRAR Y FILTRAR DATOS (GET) ---
+    # --- 2. MOSTRAR Y FILTRAR ---
     query = request.GET.get('q', '')
     ruta_id = request.GET.get('ruta', '')
     
-    # Traemos las unidades y las rutas disponibles
-    unidades = Unidad.objects.filter(propietario_flota=request.user)
+    # Traemos TODAS las unidades para que el buscador no falle
+    unidades = Unidad.objects.all().order_by('numero_unidad')
     rutas_disponibles = Ruta.objects.all() 
     
-    # Aplicar Filtro de Buscador (por nombre/placa)
+    # Buscador por nombre de unidad o nombre de ruta
     if query:
-        unidades = unidades.filter(numero_unidad__icontains=query)
+        unidades = unidades.filter(
+            Q(numero_unidad__icontains=query) | 
+            Q(ruta_asignada__nombre__icontains=query)
+        ).distinct()
         
-    # Aplicar Filtro por Ruta
+    # Filtro selector de Rutas
     if ruta_id:
         unidades = unidades.filter(ruta_asignada__id=ruta_id)
         
-    # Creador automático de registros base para unidades nuevas
+    # Generador de registros base automáticos
     for unidad in unidades:
         ControlMecanico.objects.get_or_create(unidad=unidad)
         ControlLegal.objects.get_or_create(unidad=unidad)

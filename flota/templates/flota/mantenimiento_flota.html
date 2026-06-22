@@ -13,7 +13,7 @@
         </div>
         
         <form method="GET" action="{% url 'mantenimiento_flota' %}" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <input type="text" name="q" value="{{ query }}" placeholder="Buscar unidad..." style="padding: 10px; border-radius: 8px; border: none; width: 180px;">
+            <input type="text" name="q" value="{{ query }}" placeholder="Buscar unidad o ruta..." style="padding: 10px; border-radius: 8px; border: none; width: 180px;">
             
             <select name="ruta" style="padding: 10px; border-radius: 8px; border: none; width: 180px; color: #334155;">
                 <option value="">Todas las Rutas</option>
@@ -22,9 +22,8 @@
                 {% endfor %}
             </select>
             
-            <button type="submit" style="background: #3b82f6; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold;"><i class="fa-solid fa-magnifying-glass"></i> Buscar</button>
-            
-            <a href="{% url 'mantenimiento_flota' %}" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 10px 15px; border-radius: 8px; text-decoration: none; font-size: 14px;"><i class="fa-solid fa-eraser"></i> Limpiar</a>
+            <button type="submit" style="background: #3b82f6; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold;">Buscar</button>
+            <a href="{% url 'mantenimiento_flota' %}" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 10px 15px; border-radius: 8px; text-decoration: none; font-size: 14px;">Limpiar</a>
         </form>
     </div>
 
@@ -45,9 +44,28 @@
                 <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #f1f5f9;">
                     <h4 style="margin: 0 0 15px 0; font-size: 14px; color: #334155;"><i class="fa-solid fa-oil-can" style="color: #f59e0b;"></i> Mecánica</h4>
                     
+                    {% if unidad.mecanica.estado_mecanico == 'Danado' %}
+                        <div style="background: #fef2f2; border: 1px solid #fecaca; color: #ef4444; padding: 6px; border-radius: 6px; margin-bottom: 10px; font-size: 12px; font-weight: bold; text-align: center;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> DAÑADO
+                        </div>
+                    {% elif unidad.mecanica.estado_mecanico == 'Pendiente' %}
+                        <div style="background: #fffbeb; border: 1px solid #fde68a; color: #f59e0b; padding: 6px; border-radius: 6px; margin-bottom: 10px; font-size: 12px; font-weight: bold; text-align: center;">
+                            <i class="fa-solid fa-wrench"></i> REQUIERE REVISIÓN
+                        </div>
+                    {% else %}
+                        <div style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #059669; padding: 6px; border-radius: 6px; margin-bottom: 10px; font-size: 12px; font-weight: bold; text-align: center;">
+                            <i class="fa-solid fa-check-circle"></i> ÓPTIMO
+                        </div>
+                    {% endif %}
+
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 10px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 5px;">
+                        <span style="color: #64748b;">Limpieza:</span>
+                        <strong style="color: {% if unidad.mecanica.estado_limpieza == 'Sucio' %}#ef4444{% else %}#059669{% endif %};">{{ unidad.mecanica.estado_limpieza }}</strong>
+                    </div>
+
                     <div style="margin-bottom: 10px;">
-                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; color: #475569;">
-                            <span>Vida de Aceite</span>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px; color: #475569;">
+                            <span>Aceite ({{ unidad.mecanica.fecha_aceite|date:"d/m/y"|default:"Sin fecha" }})</span>
                             <span>{{ unidad.mecanica.vida_aceite }}%</span>
                         </div>
                         <div style="background: #e2e8f0; height: 6px; border-radius: 3px; overflow: hidden;">
@@ -56,12 +74,12 @@
                     </div>
 
                     <div>
-                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; color: #475569;">
-                            <span>Estado Cauchos</span>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px; color: #475569;">
+                            <span>Cauchos ({{ unidad.mecanica.fecha_cauchos|date:"d/m/y"|default:"Sin fecha" }})</span>
                             <span>{{ unidad.mecanica.vida_cauchos }}%</span>
                         </div>
                         <div style="background: #e2e8f0; height: 6px; border-radius: 3px; overflow: hidden;">
-                            <div style="background: #3b82f6; width: {{ unidad.mecanica.vida_cauchos }}%; height: 100%;"></div>
+                            <div style="background: {% if unidad.mecanica.vida_cauchos > 30 %}#3b82f6{% else %}#ef4444{% endif %}; width: {{ unidad.mecanica.vida_cauchos }}%; height: 100%;"></div>
                         </div>
                     </div>
                 </div>
@@ -69,81 +87,114 @@
                 <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #f1f5f9;">
                     <h4 style="margin: 0 0 15px 0; font-size: 14px; color: #334155;"><i class="fa-solid fa-file-contract" style="color: #3b82f6;"></i> Estatus Legal</h4>
                     <ul style="list-style: none; padding: 0; margin: 0; font-size: 13px; color: #475569;">
-                        <li style="margin-bottom: 8px; display: flex; justify-content: space-between;">
+                        <li style="margin-bottom: 12px; display: flex; justify-content: space-between;">
                             <span>RCV:</span>
-                            <strong style="color: {% if unidad.legal.vencimiento_rcv %}#0f172a{% else %}#ef4444{% endif %};">{{ unidad.legal.vencimiento_rcv|date:"d/m/Y"|default:"Falta" }}</strong>
+                            <strong style="color: {% if unidad.legal.vencimiento_rcv %}#0f172a{% else %}#ef4444{% endif %};">{{ unidad.legal.vencimiento_rcv|date:"d/m/Y"|default:"Sin registro" }}</strong>
                         </li>
-                        <li style="margin-bottom: 8px; display: flex; justify-content: space-between;">
+                        <li style="margin-bottom: 12px; display: flex; justify-content: space-between;">
                             <span>IMTTV:</span>
-                            <strong style="color: {% if unidad.legal.vencimiento_imttv %}#0f172a{% else %}#ef4444{% endif %};">{{ unidad.legal.vencimiento_imttv|date:"d/m/Y"|default:"Falta" }}</strong>
+                            <strong style="color: {% if unidad.legal.vencimiento_imttv %}#0f172a{% else %}#ef4444{% endif %};">{{ unidad.legal.vencimiento_imttv|date:"d/m/Y"|default:"Sin registro" }}</strong>
                         </li>
-                        <li style="display: flex; justify-content: space-between;">
+                        <li style="display: flex; justify-content: space-between; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
                             <span>Alcaldía:</span>
-                            <strong style="color: {% if 'Pendiente' in unidad.legal.pago_alcaldia or 'Mora' in unidad.legal.pago_alcaldia %}#f59e0b{% else %}#059669{% endif %};">{{ unidad.legal.pago_alcaldia }}</strong>
+                            <strong style="color: {% if 'Pendiente' in unidad.legal.pago_alcaldia or 'Mora' in unidad.legal.pago_alcaldia %}#ef4444{% else %}#059669{% endif %};">{{ unidad.legal.pago_alcaldia }}</strong>
                         </li>
                     </ul>
                 </div>
             </div>
 
-            <button onclick="document.getElementById('modal-editar-{{ unidad.id }}').style.display='flex'" style="width: 100%; background: white; border: 1px dashed #cbd5e1; color: #64748b; padding: 10px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: bold;" onmouseover="this.style.background='#f1f5f9';" onmouseout="this.style.background='white';">
+            <button onclick="document.getElementById('modal-editar-{{ unidad.id }}').style.display='flex'" style="width: 100%; background: #1e293b; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: bold;">
                 <i class="fa-solid fa-pen-to-square"></i> Actualizar Estatus
             </button>
         </div>
 
-        <div id="modal-editar-{{ unidad.id }}" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
-            <div style="background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 500px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <div id="modal-editar-{{ unidad.id }}" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 1000;">
+            <div style="background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 550px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="margin: 0; color: #0f172a;">Actualizar Unidad {{ unidad.numero_unidad }}</h3>
-                    <button onclick="document.getElementById('modal-editar-{{ unidad.id }}').style.display='none'" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8;">&times;</button>
+                    <h3 style="margin: 0; color: #0f172a;"><i class="fa-solid fa-gear"></i> Auditar Unidad {{ unidad.numero_unidad }}</h3>
+                    <button onclick="document.getElementById('modal-editar-{{ unidad.id }}').style.display='none'" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #94a3b8;">&times;</button>
                 </div>
                 
                 <form method="POST" action="{% url 'mantenimiento_flota' %}">
                     {% csrf_token %}
                     <input type="hidden" name="unidad_id" value="{{ unidad.id }}">
                     
-                    <h4 style="color: #64748b; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Mecánica (%)</h4>
-                    <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                        <div style="flex: 1;">
-                            <label style="font-size: 12px; color: #475569;">Aceite (0-100)</label>
-                            <input type="number" name="vida_aceite" value="{{ unidad.mecanica.vida_aceite }}" max="100" min="0" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                    <h4 style="color: #0f172a; margin-bottom: 10px; border-bottom: 2px solid #f1f5f9; padding-bottom: 5px;">1. Estatus de la Unidad</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div>
+                            <label style="font-size: 12px; color: #475569; font-weight: bold;">Salud Mecánica</label>
+                            <select name="estado_mecanico" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px;">
+                                <option value="Optimo" {% if unidad.mecanica.estado_mecanico == 'Optimo' %}selected{% endif %}>Óptimo (En Ruta)</option>
+                                <option value="Pendiente" {% if unidad.mecanica.estado_mecanico == 'Pendiente' %}selected{% endif %}>Pendiente para revisión</option>
+                                <option value="Danado" {% if unidad.mecanica.estado_mecanico == 'Danado' %}selected{% endif %}>Dañado / Inoperativo</option>
+                            </select>
                         </div>
-                        <div style="flex: 1;">
-                            <label style="font-size: 12px; color: #475569;">Cauchos (0-100)</label>
-                            <input type="number" name="vida_cauchos" value="{{ unidad.mecanica.vida_cauchos }}" max="100" min="0" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                        <div>
+                            <label style="font-size: 12px; color: #475569; font-weight: bold;">Estado de Limpieza</label>
+                            <select name="estado_limpieza" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px;">
+                                <option value="Limpio" {% if unidad.mecanica.estado_limpieza == 'Limpio' %}selected{% endif %}>Limpio</option>
+                                <option value="Sucio" {% if unidad.mecanica.estado_limpieza == 'Sucio' %}selected{% endif %}>Sucio (Requiere Lavado)</option>
+                            </select>
                         </div>
                     </div>
 
-                    <h4 style="color: #64748b; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">Legal (Vencimientos)</h4>
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size: 12px; color: #475569; display: block; margin-bottom: 5px;">Vencimiento Póliza RCV</label>
-                        <input type="date" name="vencimiento_rcv" value="{{ unidad.legal.vencimiento_rcv|date:'Y-m-d' }}" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                    <h4 style="color: #0f172a; margin-bottom: 10px; border-bottom: 2px solid #f1f5f9; padding-bottom: 5px;">2. Piezas y Repuestos</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px;">
+                        <div>
+                            <label style="font-size: 12px; color: #475569;">Vida Aceite (%)</label>
+                            <input type="number" name="vida_aceite" value="{{ unidad.mecanica.vida_aceite }}" max="100" min="0" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #475569;">Fecha Cambio Aceite</label>
+                            <input type="date" name="fecha_aceite" value="{{ unidad.mecanica.fecha_aceite|date:'Y-m-d' }}" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; box-sizing: border-box;">
+                        </div>
                     </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size: 12px; color: #475569; display: block; margin-bottom: 5px;">Permiso IMTTV Caroní</label>
-                        <input type="date" name="vencimiento_imttv" value="{{ unidad.legal.vencimiento_imttv|date:'Y-m-d' }}" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
-                    </div>
-                    <div style="margin-bottom: 25px;">
-                        <label style="font-size: 12px; color: #475569; display: block; margin-bottom: 5px;">Estatus Alcaldía</label>
-                        <select name="pago_alcaldia" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
-                            <option value="Sin registrar" {% if unidad.legal.pago_alcaldia == 'Sin registrar' %}selected{% endif %}>Sin registrar</option>
-                            <option value="Al día" {% if unidad.legal.pago_alcaldia == 'Al día' %}selected{% endif %}>Al día</option>
-                            <option value="Pendiente T1" {% if unidad.legal.pago_alcaldia == 'Pendiente T1' %}selected{% endif %}>Pendiente T1</option>
-                            <option value="Pendiente T2" {% if unidad.legal.pago_alcaldia == 'Pendiente T2' %}selected{% endif %}>Pendiente T2</option>
-                            <option value="Pendiente T3" {% if unidad.legal.pago_alcaldia == 'Pendiente T3' %}selected{% endif %}>Pendiente T3</option>
-                            <option value="En Mora" {% if unidad.legal.pago_alcaldia == 'En Mora' %}selected{% endif %}>En Mora</option>
-                        </select>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div>
+                            <label style="font-size: 12px; color: #475569;">Vida Cauchos (%)</label>
+                            <input type="number" name="vida_cauchos" value="{{ unidad.mecanica.vida_cauchos }}" max="100" min="0" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #475569;">Fecha Cambio Cauchos</label>
+                            <input type="date" name="fecha_cauchos" value="{{ unidad.mecanica.fecha_cauchos|date:'Y-m-d' }}" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; box-sizing: border-box;">
+                        </div>
                     </div>
 
-                    <button type="submit" style="width: 100%; background: #10b981; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer;">Guardar Cambios</button>
+                    <h4 style="color: #0f172a; margin-bottom: 10px; border-bottom: 2px solid #f1f5f9; padding-bottom: 5px;">3. Fechas Legales</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+                        <div>
+                            <label style="font-size: 12px; color: #475569;">Vencimiento RCV</label>
+                            <input type="date" name="vencimiento_rcv" value="{{ unidad.legal.vencimiento_rcv|date:'Y-m-d' }}" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #475569;">Permiso IMTTV</label>
+                            <input type="date" name="vencimiento_imttv" value="{{ unidad.legal.vencimiento_imttv|date:'Y-m-d' }}" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px; box-sizing: border-box;">
+                        </div>
+                        <div style="grid-column: 1 / -1;">
+                            <label style="font-size: 12px; color: #475569;">Estatus Impuestos Alcaldía</label>
+                            <select name="pago_alcaldia" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 5px;">
+                                <option value="Sin registrar" {% if unidad.legal.pago_alcaldia == 'Sin registrar' %}selected{% endif %}>Sin registrar</option>
+                                <option value="Al día" {% if unidad.legal.pago_alcaldia == 'Al día' %}selected{% endif %}>Al día</option>
+                                <option value="Pendiente T1" {% if unidad.legal.pago_alcaldia == 'Pendiente T1' %}selected{% endif %}>Pendiente T1</option>
+                                <option value="Pendiente T2" {% if unidad.legal.pago_alcaldia == 'Pendiente T2' %}selected{% endif %}>Pendiente T2</option>
+                                <option value="Pendiente T3" {% if unidad.legal.pago_alcaldia == 'Pendiente T3' %}selected{% endif %}>Pendiente T3</option>
+                                <option value="En Mora" {% if unidad.legal.pago_alcaldia == 'En Mora' %}selected{% endif %}>En Mora (Alerta Legal)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" style="width: 100%; background: #10b981; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px;">
+                        <i class="fa-solid fa-floppy-disk"></i> Guardar Auditoría
+                    </button>
                 </form>
             </div>
         </div>
         
         {% empty %}
         <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px; border: 1px dashed #cbd5e1;">
-            <i class="fa-solid fa-folder-open" style="font-size: 40px; color: #94a3b8; margin-bottom: 15px;"></i>
-            <h3 style="color: #475569;">No hay registros</h3>
-            <p style="color: #94a3b8;">Prueba limpiando el buscador o añade una unidad nueva.</p>
+            <i class="fa-solid fa-magnifying-glass" style="font-size: 40px; color: #94a3b8; margin-bottom: 15px;"></i>
+            <h3 style="color: #475569;">No se encontraron resultados</h3>
+            <p style="color: #94a3b8;">No hay unidades que coincidan con tu búsqueda o filtro de ruta.</p>
         </div>
         {% endfor %}
         

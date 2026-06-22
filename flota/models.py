@@ -80,11 +80,45 @@ class ControlMecanico(models.Model):
     """Guarda el estatus de las piezas y el kilometraje de la unidad"""
     unidad = models.OneToOneField(Unidad, on_delete=models.CASCADE, related_name='mecanica')
     kilometraje = models.IntegerField(default=0)
+    
+    # Control de Aceite
     vida_aceite = models.IntegerField(default=100) # Porcentaje 0 a 100
+    fecha_aceite = models.DateField(null=True, blank=True)
+    
+    # Control de Cauchos
     vida_cauchos = models.IntegerField(default=100) # Porcentaje 0 a 100
+    fecha_cauchos = models.DateField(null=True, blank=True)
+    
+    # Estatus Físicos
+    ESTADO_LIMPIEZA = (('Limpio', 'Limpio'), ('Sucio', 'Sucio'))
+    estado_limpieza = models.CharField(max_length=20, choices=ESTADO_LIMPIEZA, default='Limpio')
+    
+    ESTADO_MECANICO = (
+        ('Optimo', 'Óptimo'), 
+        ('Pendiente', 'Pendiente para revisión'), 
+        ('Danado', 'Dañado')
+    )
+    estado_mecanico = models.CharField(max_length=50, choices=ESTADO_MECANICO, default='Optimo')
     
     def __str__(self):
         return f"Mecánica - {self.unidad.numero_unidad}"
+
+class ControlLegal(models.Model):
+    """Guarda las fechas de vencimiento para el INTT y la Alcaldía de Caroní"""
+    unidad = models.OneToOneField(Unidad, on_delete=models.CASCADE, related_name='legal')
+    carnet_circulacion = models.BooleanField(default=False)
+    vencimiento_rcv = models.DateField(null=True, blank=True)
+    vencimiento_imttv = models.DateField(null=True, blank=True)
+    pago_alcaldia = models.CharField(max_length=50, default='Sin registrar', choices=[
+        ('Al día', 'Al día'),
+        ('Pendiente T1', 'Pendiente T1'),
+        ('Pendiente T2', 'Pendiente T2'),
+        ('Pendiente T3', 'Pendiente T3'),
+        ('En Mora', 'En Mora')
+    ])
+    
+    def __str__(self):
+        return f"Legal - {self.unidad.numero_unidad}"
 
 class ControlLegal(models.Model):
     """Guarda las fechas de vencimiento para el INTT y la Alcaldía de Caroní"""
