@@ -160,14 +160,23 @@ def panel_chofer(request):
 # TELEMETRÍA Y SERVICIOS API (Recepción desde la App)
 # =========================================================
 
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+import json
+from datetime import datetime
+from django.contrib.auth.models import User
+from .models import Unidad, HistorialTurno
+
 @csrf_exempt
 def actualizar_gps(request):
-    """Recibe la ubicación de la App Móvil o la orden de apagado y gestiona el historial."""
+    """API para la App Android: Recibe ubicación y blinda el historial contra duplicados."""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             
-            # 1. Seguridad
             if data.get('token') != "SENALETICA_SECRETO_2026":
                 return JsonResponse({'error': 'No autorizado'}, status=403)
                 
@@ -176,116 +185,80 @@ def actualizar_gps(request):
             if not unidad:
                 return JsonResponse({'error': 'Unidad no encontrada'}, status=404)
 
-            # Preparar variables de tiempo para el Historial
             hoy = timezone.now().date()
             ahora = timezone.now().time()
             
-            # 2. BUSCAR TURNOS Y AUTO-CORREGIR DUPLICADOS (Causados por lag de red)
-            turnos_abiertos = HistorialTurno.objects.filter(
-                bus=unidad, fecha=hoy, hora_fin__isnull=True
-            ).order_by('id')
+            # Buscar TODOS los turnos que quedaron abiertos (por culpa de los duplicados)
+            turnos_abiertos = HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True)
 
-            if turnos_abiertos.count() > 1:
-                # Si se crearon dobles por error de la app, borramos los fantasmas
-                clones_fantasmas = list(turnos_abiertos)[1:]
-                for clon in clones_fantasmas:
-                    clon.delete()
-            
-            turno_abierto = turnos_abiertos.first()
-
-            # --- DETECTAR SI LA APP SE ESTÁ APAGANDO ---
             estado_texto = str(data.get('estado', '')).lower()
             en_servicio_flag = str(data.get('en_servicio', '')).lower()
             se_esta_apagando = (estado_texto == 'inactivo') or (en_servicio_flag in ['false', '0', 'no'])
 
             # ==========================================================
-            # EL APAGADOR: Forzamos el estado a 'inactiva', cerramos turno y avisamos al mapa
+            # EL APAGADOR: Cierra TODOS los turnos fantasmas o reales
             # ==========================================================
             if se_esta_apagando:
                 unidad.estado = 'inactiva' 
                 unidad.save()
                 
-                # CERRAR EL TURNO EN EL HISTORIAL
-                if turno_abierto:
-                    turno_abierto.hora_fin = ahora
-                    
-                    # Calcular la duración del turno
-                    inicio_dt = datetime.combine(hoy, turno_abierto.hora_inicio)
+                for turno in turnos_abiertos:
+                    turno.hora_fin = ahora
+                    inicio_dt = datetime.combine(hoy, turno.hora_inicio)
                     fin_dt = datetime.combine(hoy, ahora)
                     diferencia = fin_dt - inicio_dt
-                    
-                    segundos = diferencia.seconds
-                    horas = segundos // 3600
-                    minutos = (segundos % 3600) // 60
-                    turno_abierto.duracion = f"{horas}h {minutos}m"
-                    
-                    turno_abierto.save()
+                    horas = diferencia.seconds // 3600
+                    minutos = (diferencia.seconds % 3600) // 60
+                    turno.duracion = f"{horas}h {minutos}m"
+                    turno.save()
                 
-                # DISPARADOR: Avisar al mapa que se borre (App Móvil)
                 try:
                     channel_layer = get_channel_layer()
                     async_to_sync(channel_layer.group_send)(
                         'mapa_envivo',
-                        {
-                            'type': 'enviar_ubicacion',
-                            'datos': {
-                                'bus_id': str(unidad.id), 
-                                'lat': 0, 'lon': 0,
-                                'unidad': unidad.numero_unidad,
-                                'en_servicio': False  # <--- ORDEN DE BORRADO
-                            }
-                        }
+                        {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': 0, 'lon': 0, 'unidad': unidad.numero_unidad, 'en_servicio': False}}
                     )
-                except Exception as ws_error:
-                    print(f"Error WebSocket: {ws_error}")
+                except Exception:
+                    pass
                     
-                return JsonResponse({'status': 'Bus desconectado del mapa y turno cerrado'})
+                return JsonResponse({'status': 'ok', 'msg': 'Turnos cerrados correctamente'})
 
             # ==========================================================
-            # SI ESTÁ TRANSMITIENDO: Actualiza coordenadas y abre turno
+            # ENCENDIDO: Actualiza coordenadas y previene clones
             # ==========================================================
-            lat = data.get('latitud', data.get('lat'))
-            lon = data.get('longitud', data.get('lon'))
-            
-            if lat and lon:
-                unidad.latitud_actual = lat
-                unidad.longitud_actual = lon
-                unidad.estado = 'operativa' 
-                unidad.ultima_actualizacion = timezone.now()
-                unidad.save()
-
-                # ABRIR EL TURNO EN EL HISTORIAL (Si no existe uno abierto)
-                if not turno_abierto:
-                    chofer_default = getattr(unidad, 'propietario_flota', None) or User.objects.first()
-                    HistorialTurno.objects.create(
-                        bus=unidad,
-                        fecha=hoy,
-                        hora_inicio=ahora,
-                        conductor=chofer_default
-                    )
-
-                # DISPARADOR: Avisar al mapa que se mueva (App Móvil)
-                try:
-                    channel_layer = get_channel_layer()
-                    async_to_sync(channel_layer.group_send)(
-                        'mapa_envivo', 
-                        {
-                            'type': 'enviar_ubicacion',
-                            'datos': {
-                                'bus_id': str(unidad.id), 
-                                'lat': lat,
-                                'lon': lon,
-                                'unidad': unidad.numero_unidad,
-                                'en_servicio': True
-                            }
-                        }
-                    )
-                except Exception as ws_error:
-                    print(f"Error en WebSocket (App): {ws_error}")
-
-                return JsonResponse({'status': 'ok', 'msg': 'GPS e Historial actualizados'})
+            else:
+                lat = data.get('latitud', data.get('lat'))
+                lon = data.get('longitud', data.get('lon'))
                 
-            return JsonResponse({'status': 'error', 'msg': 'Faltan coordenadas'})
+                if lat and lon:
+                    unidad.latitud_actual = lat
+                    unidad.longitud_actual = lon
+                    unidad.estado = 'operativa' 
+                    unidad.ultima_actualizacion = timezone.now()
+                    unidad.save()
+
+                    if not turnos_abiertos.exists():
+                        # Si no hay turnos, creamos UNO.
+                        chofer_default = getattr(unidad, 'propietario_flota', None) or User.objects.first()
+                        HistorialTurno.objects.create(bus=unidad, fecha=hoy, hora_inicio=ahora, conductor=chofer_default)
+                    elif turnos_abiertos.count() > 1:
+                        # Si entraron 3 señales juntas por lag, borramos las extra silenciosamente
+                        clones = list(turnos_abiertos)[1:]
+                        for clon in clones:
+                            clon.delete()
+
+                    try:
+                        channel_layer = get_channel_layer()
+                        async_to_sync(channel_layer.group_send)(
+                            'mapa_envivo', 
+                            {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat, 'lon': lon, 'unidad': unidad.numero_unidad, 'en_servicio': True}}
+                        )
+                    except Exception:
+                        pass
+
+                    return JsonResponse({'status': 'ok', 'msg': 'GPS e Historial actualizados'})
+                    
+                return JsonResponse({'status': 'error', 'msg': 'Faltan coordenadas'})
         except Exception as e:
             return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
             
