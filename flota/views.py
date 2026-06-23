@@ -615,22 +615,23 @@ def mantenimiento_flota(request):
     })
 
 @login_required
-def historial_flota(request):
-    """Panel para ver el registro de actividad y horas de los choferes"""
-    # Traemos todo el historial, garantizando que el más reciente salga de PRIMERO
-    historiales = HistorialTurno.objects.all().order_by('-fecha', '-hora_inicio')
-    rutas_disponibles = Ruta.objects.all()
-
-    return render(request, 'flota/historial_flota.html', {
-        'historiales': historiales,
-        'rutas': rutas_disponibles
-    })
+def eliminar_historial(request, historial_id):
+    """Elimina un registro específico del historial"""
+    if request.method == 'POST':
+        try:
+            turno = HistorialTurno.objects.get(id=historial_id)
+            turno.delete()
+            messages.success(request, 'Registro eliminado correctamente del sistema de auditoría.')
+        except HistorialTurno.DoesNotExist:
+            messages.error(request, 'El registro no existe o ya fue eliminado.')
+            
+    return redirect('historial_flota')
 
 @login_required
 def limpiar_todo_historial(request):
     """Elimina absolutamente todo el historial de la base de datos"""
     if request.method == 'POST':
-        from .models import HistorialTurno
         HistorialTurno.objects.all().delete()
         messages.success(request, 'El historial ha sido purgado por completo exitosamente.')
     return redirect('historial_flota')
+
