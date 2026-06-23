@@ -20,10 +20,9 @@ from .models import MensajeFlota, RegistroSesion
 from .models import HistorialTurno
 from django.db.models import Q
 from .models import  ControlMecanico, ControlLegal
-
-# NUEVAS IMPORTACIONES PARA EL DISPARADOR WEBSOCKET
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from datetime import datetime
 
 
 # =========================================================
@@ -193,9 +192,20 @@ def actualizar_gps(request):
                 unidad.estado = 'inactiva' 
                 unidad.save()
                 
-                # CERRAR EL TURNO EN EL HISTORIAL
+                # CERRAR EL TURNO EN EL HISTORIAL Y CALCULAR DURACIÓN
                 if turno_abierto:
                     turno_abierto.hora_fin = ahora
+                    
+                    # Calcular la duración del turno
+                    inicio_dt = datetime.combine(hoy, turno_abierto.hora_inicio)
+                    fin_dt = datetime.combine(hoy, ahora)
+                    diferencia = fin_dt - inicio_dt
+                    
+                    segundos = diferencia.seconds
+                    horas = segundos // 3600
+                    minutos = (segundos % 3600) // 60
+                    turno_abierto.duracion = f"{horas}h {minutos}m"
+                    
                     turno_abierto.save()
                 
                 # DISPARADOR: Avisar al mapa que se borre (App Móvil)

@@ -12,7 +12,7 @@
             </h2>
             <p style="margin: 0; color: #94a3b8; font-size: 14px;">Control detallado de aperturas de jornada, operarios y tiempos en ruta.</p>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
             <form method="POST" action="{% url 'limpiar_todo_historial' %}" onsubmit="return confirm('¿⚠️ ESTÁS SEGURO? Esto borrará TODOS los registros de todos los buses permanentemente.');" style="margin: 0;">
                 {% csrf_token %}
                 <button type="submit" style="background: #ef4444; color: white; border: 1px solid #dc2626; padding: 10px 15px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='#dc2626';" onmouseout="this.style.background='#ef4444';">
@@ -20,7 +20,7 @@
                 </button>
             </form>
             
-            <a href="{% url 'dashboard_router' %}" style="background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 14px; text-decoration: none; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='rgba(255,255,255,0.15)';" onmouseout="this.style.background='rgba(255,255,255,0.1)';">
+            <a href="{% url 'dashboard_router' %}" style="background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 14px; text-decoration: none; display: flex; align-items: center; gap: 8px; transition: 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)';" onmouseout="this.style.background='rgba(255,255,255,0.1)';">
                 <i class="fa-solid fa-arrow-left-long"></i> Volver al Radar
             </a>
         </div>
@@ -50,10 +50,10 @@
             </select>
         </div>
 
-        <div style="display: flex; gap: 8px; flex: 1; min-width: 200px;">
-            <input type="date" id="filtro-fecha" onchange="filtrarHistorial()" style="flex: 1; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; background: #f8fafc; color: #475569; cursor: pointer;">
+        <div style="display: flex; gap: 8px; flex: 1; min-width: 220px; align-items: center;">
+            <input type="date" id="filtro-fecha" onchange="filtrarHistorial()" style="flex: 1; padding: 9px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; background: #f8fafc; color: #475569; cursor: pointer; box-sizing: border-box; height: 38px;">
             
-            <button onclick="limpiarFiltros()" title="Limpiar filtros" style="background: #e2e8f0; color: #475569; border: none; padding: 0 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s;" onmouseover="this.style.background='#cbd5e1';" onmouseout="this.style.background='#e2e8f0';">
+            <button onclick="limpiarFiltros()" title="Limpiar filtros" style="background: #e2e8f0; color: #475569; border: none; padding: 0 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s; height: 38px; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#cbd5e1';" onmouseout="this.style.background='#e2e8f0';">
                 <i class="fa-solid fa-eraser"></i>
             </button>
         </div>
@@ -64,54 +64,56 @@
             <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
                 <thead>
                     <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: bold;">
-                        <th style="padding: 15px 20px;">Unidad</th>
-                        <th style="padding: 15px 20px;">Ruta Asignada</th>
-                        <th style="padding: 15px 20px;">Operador / Chofer</th>
-                        <th style="padding: 15px 20px;">Fecha</th>
-                        <th style="padding: 15px 20px;">Entrada</th>
-                        <th style="padding: 15px 20px;">Salida</th>
-                        <th style="padding: 15px 20px; text-align: center;">Acciones</th>
+                        <th style="padding: 15px 20px; white-space: nowrap;">Unidad</th>
+                        <th style="padding: 15px 20px; white-space: nowrap;">Ruta Asignada</th>
+                        <th style="padding: 15px 20px; white-space: nowrap;">Operador / Chofer</th>
+                        <th style="padding: 15px 20px; white-space: nowrap;">Fecha</th>
+                        <th style="padding: 15px 20px; white-space: nowrap;">Entrada</th>
+                        <th style="padding: 15px 20px; white-space: nowrap;">Salida</th>
+                        <th style="padding: 15px 20px; text-align: center; white-space: nowrap;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="tabla-cuerpo-historial">
                     {% for item in historiales %}
-                    <tr class="fila-historial" data-unidad="{{ item.bus.numero_unidad|lower }}" data-chofer="{{ item.conductor.first_name|lower }} {{ item.conductor.username|lower }}" data-ruta="{{ item.bus.ruta_asignada.nombre|lower }}" data-fecha="{{ item.fecha|date:'Y-m-d' }}" style="border-bottom: 1px solid #f1f5f9; color: #334155; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc';" onmouseout="this.style.background='transparent';">
+                    <tr class="fila-historial" data-unidad="{{ item.bus.numero_unidad|lower }}" data-chofer="{{ item.conductor.first_name|lower }} {{ item.conductor.username|lower }}" data-ruta="{{ item.bus.ruta_assigned.nombre|lower }}" data-fecha="{{ item.fecha|date:'Y-m-d' }}" style="border-bottom: 1px solid #f1f5f9; color: #334155; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc';" onmouseout="this.style.background='transparent';">
                         
-                        <td style="padding: 15px 20px; font-weight: bold; color: #0f172a;">
-                            <span style="background: #eff6ff; color: #2563eb; padding: 4px 8px; border-radius: 6px; border: 1px solid #bfdbfe;">
-                                <i class="fa-solid fa-bus" style="font-size: 12px;"></i> Unidad {{ item.bus.numero_unidad }}
+                        <td style="padding: 15px 20px; font-weight: bold; color: #0f172a; white-space: nowrap;">
+                            <span style="background: #eff6ff; color: #2563eb; padding: 5px 10px; border-radius: 6px; border: 1px solid #bfdbfe; display: inline-block; white-space: nowrap;">
+                                <i class="fa-solid fa-bus" style="font-size: 12px; margin-right: 4px;"></i> Unidad {{ item.bus.numero_unidad }}
                             </span>
                         </td>
                         
-                        <td style="padding: 15px 20px; font-weight: 600; color: #64748b;">
+                        <td style="padding: 15px 20px; font-weight: 600; color: #64748b; white-space: nowrap;">
                             {{ item.bus.ruta_asignada.nombre|default:"Sin ruta" }}
                         </td>
                         
-                        <td style="padding: 15px 20px;">
+                        <td style="padding: 15px 20px; white-space: nowrap;">
                             <i class="fa-solid fa-circle-user" style="color: #94a3b8; margin-right: 5px;"></i>
                             {{ item.conductor.first_name|default:item.conductor.username|default:"Desconectado" }}
                         </td>
                         
-                        <td style="padding: 15px 20px; color: #64748b;">
+                        <td style="padding: 15px 20px; color: #64748b; white-space: nowrap;">
                             {{ item.fecha|date:"d/m/Y" }}
                         </td>
                         
-                        <td style="padding: 15px 20px; color: #10b981; font-weight: 600;">
-                            <i class="fa-regular fa-clock"></i> {{ item.hora_inicio|time:"h:i A" }}
+                        <td style="padding: 15px 20px; color: #10b981; font-weight: 600; white-space: nowrap;">
+                            <i class="fa-regular fa-clock" style="margin-right: 3px;"></i> {{ item.hora_inicio|time:"h:i A" }}
                         </td>
                         
-                        <td style="padding: 15px 20px; font-weight: 600; color: {% if item.hora_fin %}#ef4444{% else %}#64748b{% endif %};">
+                        <td style="padding: 15px 20px; font-weight: 600; color: {% if item.hora_fin %}#ef4444{% else %}#d97706{% endif %}; white-space: nowrap;">
                             {% if item.hora_fin %}
-                                <i class="fa-solid fa-right-from-bracket"></i> {{ item.hora_fin|time:"h:i A" }}
+                                <i class="fa-solid fa-right-from-bracket" style="margin-right: 3px;"></i> {{ item.hora_fin|time:"h:i A" }}
                             {% else %}
-                                <span style="background: #fef3c7; color: #d97706; padding: 3px 6px; border-radius: 4px; font-size: 12px;">Transmisión Activa</span>
+                                <span style="background: #fef3c7; color: #d97706; padding: 4px 8px; border-radius: 4px; font-size: 12px; display: inline-block; font-weight: bold;">
+                                    Transmisión Activa
+                                </span>
                             {% endif %}
                         </td>
                         
-                        <td style="padding: 15px 20px; text-align: center;">
+                        <td style="padding: 15px 20px; text-align: center; white-space: nowrap;">
                             <form method="POST" action="{% url 'eliminar_historial' item.id %}" onsubmit="return confirmarEliminacion(event);" style="margin: 0; display: inline-block;">
                                 {% csrf_token %}
-                                <button type="submit" style="background: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='#fee2e2';" onmouseout="this.style.background='#fef2f2';">
+                                <button type="submit" style="background: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#fee2e2';" onmouseout="this.style.background='#fef2f2';">
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
                             </form>
@@ -147,7 +149,7 @@
         document.getElementById('buscador-historial').value = '';
         document.getElementById('filtro-ruta').value = '';
         document.getElementById('filtro-fecha').value = '';
-        filtrarHistorial(); // Refresca la tabla instantáneamente
+        filtrarHistorial();
     }
 
     function filtrarHistorial() {
@@ -193,7 +195,7 @@
         }
     }
 
-    // EL TRUCO: Asegura que todo esté limpio y se muestre todo al cargar la página
+    // Inicialización del DOM asegurando que comience limpio sin cache del navegador
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('buscador-historial').value = '';
         document.getElementById('filtro-ruta').value = '';
