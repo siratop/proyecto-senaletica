@@ -169,16 +169,16 @@ def actualizar_gps(request):
                 return JsonResponse({'error': 'No autorizado'}, status=403)
                 
             unidad_id = data.get('unidad_id')
-            session_id = data.get('session_id') or data.get('id_sesion') # ID enviado por el cliente
+            session_id = data.get('session_id') or data.get('id_sesion')
 
             lat = data.get('latitud', data.get('lat'))
             lon = data.get('longitud', data.get('lon'))
             estado_texto = str(data.get('estado', '')).lower()
             en_servicio_raw = data.get('en_servicio')
             
+            # AHORA SOLO SE APAGA SI LA APP MANDA LA ORDEN EXPLÍCITA (Ignoramos los ceros del GPS buscando señal)
             se_esta_apagando = (estado_texto in ['inactivo', 'apagado', 'false']) or \
-                               (en_servicio_raw is False or str(en_servicio_raw).lower() in ['false', '0']) or \
-                               ((lat == 0 or lat is None) and (lon == 0 or lon is None))
+                               (en_servicio_raw is False or str(en_servicio_raw).lower() in ['false', '0'])
 
             with transaction.atomic():
                 unidad = Unidad.objects.select_for_update().filter(numero_unidad=unidad_id).first()
@@ -193,11 +193,11 @@ def actualizar_gps(request):
                     unidad.estado = 'inactiva'
                     unidad.save()
                     
-                    # Buscar el registro exacto con el ID de sesión
+                    # Buscar el registro exacto para cerrarlo
                     turno = None
                     if session_id:
                         turno = HistorialTurno.objects.filter(session_id=session_id).first()
-                    if not turno: # Respaldo por si no vino ID
+                    if not turno:
                         turno = HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True).first()
                         
                     if turno:
@@ -214,40 +214,37 @@ def actualizar_gps(request):
                         channel_layer = get_channel_layer()
                         async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': 0, 'lon': 0, 'unidad': unidad.numero_unidad, 'en_servicio': False}})
                     except: pass
-                    
-                    return JsonResponse({'status': 'ok', 'msg': 'Turno cerrado exitosamente por ID'})
+                    return JsonResponse({'status': 'ok', 'msg': 'Turno cerrado'})
 
                 # --- MODO TRANSMISIÓN ---
                 else:
-                    if lat and lon:
+                    # Guardamos lat y lon solo si existen, pero NO bloqueamos el inicio si vienen en 0 temporalmente
+                    if lat is not None and lon is not None:
                         unidad.latitud_actual = lat
                         unidad.longitud_actual = lon
-                        unidad.estado = 'operativa'
-                        unidad.ultima_actualizacion = timezone.now()
-                        unidad.save()
+                    
+                    unidad.estado = 'operativa'
+                    unidad.ultima_actualizacion = timezone.now()
+                    unidad.save()
 
-                        if session_id:
-                            try:
-                                # get_or_create garantiza atomicidad: si ya existe el session_id, no crea otro
-                                HistorialTurno.objects.get_or_create(
-                                    session_id=session_id,
-                                    defaults={'bus': unidad, 'fecha': hoy, 'hora_inicio': ahora, 'conductor': unidad.propietario_flota or User.objects.first()}
-                                )
-                            except IntegrityError:
-                                pass # Si otra petición paralela lo creó un milisegundo antes, la base de datos lo bloquea y lo ignora
-                        else:
-                            # Respaldo tradicional si no envían ID
-                            if not HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True).exists():
-                                chofer_default = getattr(unidad, 'propietario_flota', None) or User.objects.first()
-                                HistorialTurno.objects.create(bus=unidad, fecha=hoy, hora_inicio=ahora, conductor=chofer_default)
-
+                    if session_id:
                         try:
-                            channel_layer = get_channel_layer()
-                            async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat, 'lon': lon, 'unidad': unidad.numero_unidad, 'en_servicio': True}})
-                        except: pass
-                        
-                        return JsonResponse({'status': 'ok', 'msg': 'Transmitiendo'})
-                    return JsonResponse({'error': 'Faltan coordenadas'})
+                            HistorialTurno.objects.get_or_create(
+                                session_id=session_id,
+                                defaults={'bus': unidad, 'fecha': hoy, 'hora_inicio': ahora, 'conductor': unidad.propietario_flota or User.objects.first()}
+                            )
+                        except IntegrityError:
+                            pass
+                    else:
+                        if not HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True).exists():
+                            chofer_default = getattr(unidad, 'propietario_flota', None) or User.objects.first()
+                            HistorialTurno.objects.create(bus=unidad, fecha=hoy, hora_inicio=ahora, conductor=chofer_default)
+
+                    try:
+                        channel_layer = get_channel_layer()
+                        async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat or 0, 'lon': lon or 0, 'unidad': unidad.numero_unidad, 'en_servicio': True}})
+                    except: pass
+                    return JsonResponse({'status': 'ok', 'msg': 'Transmitiendo'})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST requerido'}, status=405)
@@ -480,8 +477,7 @@ def actualizar_ubicacion_chofer(request):
             en_servicio_raw = data.get('en_servicio') 
             session_id = data.get('session_id') or data.get('id_sesion')
 
-            se_esta_apagando = (en_servicio_raw is False or str(en_servicio_raw).lower() in ['false', '0', 'inactivo']) or \
-                               ((lat == 0 or lat is None) and (lon == 0 or lon is None))
+            se_esta_apagando = (en_servicio_raw is False or str(en_servicio_raw).lower() in ['false', '0', 'inactivo'])
 
             with transaction.atomic():
                 unidad = Unidad.objects.select_for_update().filter(conductor=request.user).first()
@@ -491,7 +487,7 @@ def actualizar_ubicacion_chofer(request):
                 hoy = timezone.now().date()
                 ahora = timezone.now().time()
 
-                if lat and lon and lat != 0:
+                if lat is not None and lon is not None:
                     unidad.latitud_actual = lat
                     unidad.longitud_actual = lon
 
@@ -534,7 +530,7 @@ def actualizar_ubicacion_chofer(request):
 
                 try:
                     channel_layer = get_channel_layer()
-                    async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat if lat else 0, 'lon': lon if lon else 0, 'unidad': unidad.numero_unidad, 'en_servicio': not se_esta_apagando}})
+                    async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat or 0, 'lon': lon or 0, 'unidad': unidad.numero_unidad, 'en_servicio': not se_esta_apagando}})
                 except: pass
 
                 return JsonResponse({'status': 'ok'})
