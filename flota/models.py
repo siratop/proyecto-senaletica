@@ -56,7 +56,7 @@ class HistorialTurno(models.Model):
     fecha = models.DateField(auto_now_add=True, verbose_name="Fecha del Turno")
     hora_inicio = models.DateTimeField(auto_now_add=True, verbose_name="Hora de Entrada")
     hora_fin = models.DateTimeField(null=True, blank=True, verbose_name="Hora de Salida")
-    
+    session_id = models.CharField(max_length=100, null=True, blank=True, unique=True)
     class Meta:
         verbose_name = "Historial de Turno"
         verbose_name_plural = "Historiales de Turnos"

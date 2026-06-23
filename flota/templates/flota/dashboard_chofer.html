@@ -94,6 +94,7 @@
     let watchId = null;
     let transmitiendo = false;
     let wakeLock = null;
+    let idSesionActiva = null; // <--- NUEVA VARIABLE PARA EL ID ÚNICO
     const csrfToken = '{{ csrf_token }}';
 
     // 1. UTILIDADES Y WAKELOCK (Mantiene la pantalla encendida)
@@ -139,7 +140,6 @@
 
     // 2. INICIALIZACIÓN DEL MAPA LEAFLET
     document.addEventListener("DOMContentLoaded", function() {
-        // Coordenadas de Ciudad Guayana por defecto
         mapChofer = L.map('mapa-chofer').setView([8.2962, -62.7115], 14); 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapChofer);
         
@@ -163,6 +163,10 @@
             // ENCENDER
             if ("geolocation" in navigator) {
                 transmitiendo = true;
+                
+                // GENERAMOS EL ID ÚNICO DE LA RUTA EN ESTE INSTANTE
+                idSesionActiva = "WEB-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+                
                 btn.innerHTML = '<i class="fa-solid fa-stop"></i> Finalizar Ruta';
                 btn.style.background = '#ef4444';
                 btn.style.boxShadow = '0 4px 6px rgba(239, 68, 68, 0.3)';
@@ -173,9 +177,9 @@
                 dot.style.animation = 'pulse 1.5s infinite';
 
                 solicitarWakeLock();
+                logDebug('ID Generado: ' + idSesionActiva);
                 logDebug('Buscando satélites...');
 
-                // CORRECCIÓN APLICADA: 20 segundos de timeout y 5 segundos de caché máxima
                 watchId = navigator.geolocation.watchPosition(actualizarPosicion, errorGPS, {
                     enableHighAccuracy: true,
                     maximumAge: 5000,
@@ -201,8 +205,12 @@
             document.getElementById('vel-numero').innerText = "0";
             
             logDebug('Transmisión detenida por el chofer.');
-            // Enviar señal al servidor de que se apagó el bus
+            
+            // Enviamos el MISMO ID por última vez junto con la señal de apagado
             enviarBackend(0, 0, false);
+            
+            // Limpiamos el ID para asegurar que la próxima ruta empiece limpia
+            idSesionActiva = null; 
         }
     }
 
@@ -239,7 +247,6 @@
 
   // 4. COMUNICACIÓN CON EL SERVIDOR (Backend y Alertas)
     function enviarBackend(lat, lng, activo) {
-       
          fetch("{% url 'api_actualizar_ubicacion' %}", {
             method: 'POST',
             headers: {
@@ -249,7 +256,8 @@
             body: JSON.stringify({
                 latitud: lat,
                 longitud: lng,
-                en_servicio: activo
+                en_servicio: activo,
+                session_id: idSesionActiva // <--- ENVIAMOS EL ID AL BACKEND SIEMPRE
             })
         }).catch(error => logDebug('Error de conexión con Central.'));
     }
@@ -257,7 +265,6 @@
     function verificarAlertas() {
         if (!transmitiendo) return; 
         
-        // Verifica si la ruta leer_alertas está registrada. Si usaste otro nombre en urls.py, cámbialo aquí.
         fetch('/flota/api/leer-alertas/')
         .then(response => response.json())
         .then(data => {
@@ -269,7 +276,6 @@
         .catch(err => console.error("Error buscando alertas:", err));
     }
 
-    // Escanear alertas cada 15 segundos
     setInterval(verificarAlertas, 15000);
 </script>
 {% endblock %}
