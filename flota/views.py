@@ -23,7 +23,7 @@ from .models import  ControlMecanico, ControlLegal
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from datetime import datetime
-
+from django.db import transaction
 
 # =========================================================
 # MOTOR MATEMÁTICO (Geocerca para el mapa ciudadano)
@@ -160,19 +160,8 @@ def panel_chofer(request):
 # TELEMETRÍA Y SERVICIOS API (Recepción desde la App)
 # =========================================================
 
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.utils import timezone
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
-import json
-from datetime import datetime
-from django.contrib.auth.models import User
-from .models import Unidad, HistorialTurno
-
 @csrf_exempt
 def actualizar_gps(request):
-    """API para la App Android: Recibe ubicación y blinda el historial contra duplicados."""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -181,88 +170,81 @@ def actualizar_gps(request):
                 return JsonResponse({'error': 'No autorizado'}, status=403)
                 
             unidad_id = data.get('unidad_id')
-            unidad = Unidad.objects.filter(numero_unidad=unidad_id).first()
-            if not unidad:
-                return JsonResponse({'error': 'Unidad no encontrada'}, status=404)
-
-            hoy = timezone.now().date()
-            ahora = timezone.now().time()
             
-            # Buscar TODOS los turnos que quedaron abiertos (por culpa de los duplicados)
-            turnos_abiertos = HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True)
+            # BLOQUEO ATÓMICO: Congela la base de datos para esta unidad impidiendo duplicados
+            with transaction.atomic():
+                unidad = Unidad.objects.select_for_update().filter(numero_unidad=unidad_id).first()
+                if not unidad:
+                    return JsonResponse({'error': 'Unidad no encontrada'}, status=404)
 
-            estado_texto = str(data.get('estado', '')).lower()
-            en_servicio_flag = str(data.get('en_servicio', '')).lower()
-            se_esta_apagando = (estado_texto == 'inactivo') or (en_servicio_flag in ['false', '0', 'no'])
+                hoy = timezone.now().date()
+                ahora = timezone.now().time()
+                turnos_abiertos = HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True)
 
-            # ==========================================================
-            # EL APAGADOR: Cierra TODOS los turnos fantasmas o reales
-            # ==========================================================
-            if se_esta_apagando:
-                unidad.estado = 'inactiva' 
-                unidad.save()
-                
-                for turno in turnos_abiertos:
-                    turno.hora_fin = ahora
-                    inicio_dt = datetime.combine(hoy, turno.hora_inicio)
-                    fin_dt = datetime.combine(hoy, ahora)
-                    diferencia = fin_dt - inicio_dt
-                    horas = diferencia.seconds // 3600
-                    minutos = (diferencia.seconds % 3600) // 60
-                    turno.duracion = f"{horas}h {minutos}m"
-                    turno.save()
-                
-                try:
-                    channel_layer = get_channel_layer()
-                    async_to_sync(channel_layer.group_send)(
-                        'mapa_envivo',
-                        {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': 0, 'lon': 0, 'unidad': unidad.numero_unidad, 'en_servicio': False}}
-                    )
-                except Exception:
-                    pass
-                    
-                return JsonResponse({'status': 'ok', 'msg': 'Turnos cerrados correctamente'})
+                estado_texto = str(data.get('estado', '')).lower()
+                en_servicio_flag = str(data.get('en_servicio', '')).lower()
+                se_esta_apagando = (estado_texto == 'inactivo') or (en_servicio_flag in ['false', '0', 'no'])
 
-            # ==========================================================
-            # ENCENDIDO: Actualiza coordenadas y previene clones
-            # ==========================================================
-            else:
-                lat = data.get('latitud', data.get('lat'))
-                lon = data.get('longitud', data.get('lon'))
-                
-                if lat and lon:
-                    unidad.latitud_actual = lat
-                    unidad.longitud_actual = lon
-                    unidad.estado = 'operativa' 
-                    unidad.ultima_actualizacion = timezone.now()
+                # --- LÓGICA DE APAGADO ---
+                if se_esta_apagando:
+                    unidad.estado = 'inactiva' 
                     unidad.save()
-
-                    if not turnos_abiertos.exists():
-                        # Si no hay turnos, creamos UNO.
-                        chofer_default = getattr(unidad, 'propietario_flota', None) or User.objects.first()
-                        HistorialTurno.objects.create(bus=unidad, fecha=hoy, hora_inicio=ahora, conductor=chofer_default)
-                    elif turnos_abiertos.count() > 1:
-                        # Si entraron 3 señales juntas por lag, borramos las extra silenciosamente
-                        clones = list(turnos_abiertos)[1:]
-                        for clon in clones:
-                            clon.delete()
-
+                    
+                    for turno in turnos_abiertos:
+                        turno.hora_fin = ahora
+                        inicio_dt = datetime.combine(hoy, turno.hora_inicio)
+                        fin_dt = datetime.combine(hoy, ahora)
+                        diferencia = fin_dt - inicio_dt
+                        horas = diferencia.seconds // 3600
+                        minutos = (diferencia.seconds % 3600) // 60
+                        turno.duracion = f"{horas}h {minutos}m"
+                        turno.save()
+                    
                     try:
                         channel_layer = get_channel_layer()
                         async_to_sync(channel_layer.group_send)(
-                            'mapa_envivo', 
-                            {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat, 'lon': lon, 'unidad': unidad.numero_unidad, 'en_servicio': True}}
+                            'mapa_envivo',
+                            {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': 0, 'lon': 0, 'unidad': unidad.numero_unidad, 'en_servicio': False}}
                         )
                     except Exception:
                         pass
+                        
+                    return JsonResponse({'status': 'ok', 'msg': 'Turno cerrado y desconectado'})
 
-                    return JsonResponse({'status': 'ok', 'msg': 'GPS e Historial actualizados'})
+                # --- LÓGICA DE TRANSMISIÓN ---
+                else:
+                    lat = data.get('latitud', data.get('lat'))
+                    lon = data.get('longitud', data.get('lon'))
                     
-                return JsonResponse({'status': 'error', 'msg': 'Faltan coordenadas'})
+                    if lat and lon:
+                        unidad.latitud_actual = lat
+                        unidad.longitud_actual = lon
+                        unidad.estado = 'operativa' 
+                        unidad.ultima_actualizacion = timezone.now()
+                        unidad.save()
+
+                        if not turnos_abiertos.exists():
+                            chofer_default = getattr(unidad, 'propietario_flota', None) or User.objects.first()
+                            HistorialTurno.objects.create(bus=unidad, fecha=hoy, hora_inicio=ahora, conductor=chofer_default)
+
+                        try:
+                            channel_layer = get_channel_layer()
+                            async_to_sync(channel_layer.group_send)(
+                                'mapa_envivo', 
+                                {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat, 'lon': lon, 'unidad': unidad.numero_unidad, 'en_servicio': True}}
+                            )
+                        except Exception:
+                            pass
+
+                        return JsonResponse({'status': 'ok', 'msg': 'GPS e Historial sincronizados'})
+                        
+                    return JsonResponse({'status': 'error', 'msg': 'Faltan coordenadas'})
         except Exception as e:
             return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
             
     return JsonResponse({'status': 'error', 'msg': 'Método no permitido'}, status=405)
+
+
 
 # =========================================================
 # API PARA EL MAPA WEB (Respaldo en caso de que WS falle)
@@ -484,7 +466,7 @@ def reportar_averia(request, unidad_id):
 @csrf_exempt
 @login_required
 def actualizar_ubicacion_chofer(request):
-    """Recibe el GPS desde el panel web del chofer y registra el tiempo trabajado"""
+    """Recibe el GPS desde la página web del chofer y sincroniza idéntico a la App"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -492,31 +474,43 @@ def actualizar_ubicacion_chofer(request):
             lon = data.get('longitud')
             en_servicio = data.get('en_servicio') 
 
-            unidad = Unidad.objects.filter(conductor=request.user).first()
-            if unidad:
+            # BLOQUEO ATÓMICO: Igual que en la app
+            with transaction.atomic():
+                unidad = Unidad.objects.select_for_update().filter(conductor=request.user).first()
+                if not unidad:
+                    return JsonResponse({'status': 'error', 'msg': 'Unidad no encontrada'})
+
+                hoy = timezone.now().date()
+                ahora = timezone.now().time()
+                turnos_abiertos = HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True)
+
                 if lat and lon and lat != 0:
                     unidad.latitud_actual = lat
                     unidad.longitud_actual = lon
                 
+                # --- LÓGICA DE TRANSMISIÓN WEB ---
                 if en_servicio:
                     unidad.estado = 'operativa'
-                    sesion_abierta = RegistroSesion.objects.filter(unidad=unidad, hora_fin__isnull=True).first()
-                    if not sesion_abierta:
-                        RegistroSesion.objects.create(unidad=unidad)
+                    if not turnos_abiertos.exists():
+                        HistorialTurno.objects.create(bus=unidad, fecha=hoy, hora_inicio=ahora, conductor=request.user)
+                
+                # --- LÓGICA DE APAGADO WEB ---
                 else:
                     unidad.estado = 'inactiva'
-                    sesion_abierta = RegistroSesion.objects.filter(unidad=unidad, hora_fin__isnull=True).first()
-                    if sesion_abierta:
-                        sesion_abierta.hora_fin = timezone.now()
-                        sesion_abierta.save()
+                    for turno in turnos_abiertos:
+                        turno.hora_fin = ahora
+                        inicio_dt = datetime.combine(hoy, turno.hora_inicio)
+                        fin_dt = datetime.combine(hoy, ahora)
+                        diferencia = fin_dt - inicio_dt
+                        horas = diferencia.seconds // 3600
+                        minutos = (diferencia.seconds % 3600) // 60
+                        turno.duracion = f"{horas}h {minutos}m"
+                        turno.save()
                 
                 unidad.ultima_actualizacion = timezone.now()
                 unidad.save()
 
-                # ----------------------------------------------------
-                # AQUI ESTÁ EL DISPARADOR N°2 (Para el Panel Web del Chofer)
-                # AHORA ENVÍA EL MENSAJE SIN IMPORTAR SI ESTÁ ENCENDIDO O APAGADO
-                # ----------------------------------------------------
+                # Notificar a los mapas en vivo
                 try:
                     channel_layer = get_channel_layer()
                     async_to_sync(channel_layer.group_send)(
@@ -528,18 +522,17 @@ def actualizar_ubicacion_chofer(request):
                                 'lat': lat if lat else 0,
                                 'lon': lon if lon else 0,
                                 'unidad': unidad.numero_unidad,
-                                'en_servicio': en_servicio  # <--- ENVÍA TRUE (DIBUJA) O FALSE (BORRA)
+                                'en_servicio': en_servicio
                             }
                         }
                     )
                 except Exception as ws_error:
-                    print(f"Error en WebSocket (Web): {ws_error}")
-                # ----------------------------------------------------
+                    print(f"Error WebSocket Web: {ws_error}")
 
                 return JsonResponse({'status': 'ok'})
         except Exception as e:
-            print(f"Error en actualización web de chofer: {e}") 
-            pass
+            print(f"Error actualización web: {e}") 
+            return JsonResponse({'status': 'error', 'msg': str(e)})
             
     return JsonResponse({'status': 'error'})
 
@@ -554,19 +547,7 @@ def historial_flota(request):
         'historiales': historiales
     })
 
-@login_required
-def eliminar_historial(request, historial_id):
-    """Elimina un registro específico del historial"""
-    if request.method == 'POST':
-        try:
-            turno = HistorialTurno.objects.get(id=historial_id)
-            # Solo permitimos que se borren turnos, pero podríamos validar si es el dueño
-            turno.delete()
-            messages.success(request, 'Registro eliminado correctamente del sistema de auditoría.')
-        except HistorialTurno.DoesNotExist:
-            messages.error(request, 'El registro no existe o ya fue eliminado.')
-            
-    return redirect('historial_flota')
+
 
 @login_required
 def mantenimiento_flota(request):
