@@ -165,13 +165,27 @@ def actualizar_gps(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            
             if data.get('token') != "SENALETICA_SECRETO_2026":
                 return JsonResponse({'error': 'No autorizado'}, status=403)
                 
             unidad_id = data.get('unidad_id')
             
-            # BLOQUEO ATÓMICO: Congela la base de datos para esta unidad impidiendo duplicados
+            # Capturamos datos crudos
+            lat = data.get('latitud', data.get('lat'))
+            lon = data.get('longitud', data.get('lon'))
+            estado_texto = str(data.get('estado', '')).lower()
+            en_servicio_raw = data.get('en_servicio')
+            
+            # --- SUPER DETECTOR DE APAGADO ---
+            se_esta_apagando = False
+            if estado_texto in ['inactivo', 'apagado', 'detenido', 'stop', 'false']:
+                se_esta_apagando = True
+            if en_servicio_raw is False or str(en_servicio_raw).lower() in ['false', '0', 'no', 'f']:
+                se_esta_apagando = True
+            # Si el GPS del celular se apaga y manda ceros
+            if (not lat and not lon) or (lat == 0 and lon == 0):
+                se_esta_apagando = True
+
             with transaction.atomic():
                 unidad = Unidad.objects.select_for_update().filter(numero_unidad=unidad_id).first()
                 if not unidad:
@@ -179,71 +193,63 @@ def actualizar_gps(request):
 
                 hoy = timezone.now().date()
                 ahora = timezone.now().time()
-                turnos_abiertos = HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True)
+                
+                # Traer todos los turnos abiertos a una lista
+                turnos_abiertos = list(HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True).order_by('id'))
+                
+                # AUTO-SANADOR: Destruir clones fantasmas por lag de internet
+                if len(turnos_abiertos) > 1:
+                    for clon in turnos_abiertos[1:]:
+                        clon.delete()
+                    turno_activo = turnos_abiertos[0]
+                elif len(turnos_abiertos) == 1:
+                    turno_activo = turnos_abiertos[0]
+                else:
+                    turno_activo = None
 
-                estado_texto = str(data.get('estado', '')).lower()
-                en_servicio_flag = str(data.get('en_servicio', '')).lower()
-                se_esta_apagando = (estado_texto == 'inactivo') or (en_servicio_flag in ['false', '0', 'no'])
-
-                # --- LÓGICA DE APAGADO ---
                 if se_esta_apagando:
-                    unidad.estado = 'inactiva' 
+                    unidad.estado = 'inactiva'
                     unidad.save()
                     
-                    for turno in turnos_abiertos:
-                        turno.hora_fin = ahora
-                        inicio_dt = datetime.combine(hoy, turno.hora_inicio)
+                    if turno_activo:
+                        turno_activo.hora_fin = ahora
+                        inicio_dt = datetime.combine(hoy, turno_activo.hora_inicio)
                         fin_dt = datetime.combine(hoy, ahora)
                         diferencia = fin_dt - inicio_dt
                         horas = diferencia.seconds // 3600
                         minutos = (diferencia.seconds % 3600) // 60
-                        turno.duracion = f"{horas}h {minutos}m"
-                        turno.save()
-                    
+                        turno_activo.duracion = f"{horas}h {minutos}m"
+                        turno_activo.save()
+                        
                     try:
                         channel_layer = get_channel_layer()
-                        async_to_sync(channel_layer.group_send)(
-                            'mapa_envivo',
-                            {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': 0, 'lon': 0, 'unidad': unidad.numero_unidad, 'en_servicio': False}}
-                        )
-                    except Exception:
-                        pass
-                        
-                    return JsonResponse({'status': 'ok', 'msg': 'Turno cerrado y desconectado'})
-
-                # --- LÓGICA DE TRANSMISIÓN ---
-                else:
-                    lat = data.get('latitud', data.get('lat'))
-                    lon = data.get('longitud', data.get('lon'))
+                        async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': 0, 'lon': 0, 'unidad': unidad.numero_unidad, 'en_servicio': False}})
+                    except: pass
                     
+                    return JsonResponse({'status': 'ok', 'msg': 'Turno cerrado App'})
+
+                else:
                     if lat and lon:
                         unidad.latitud_actual = lat
                         unidad.longitud_actual = lon
-                        unidad.estado = 'operativa' 
+                        unidad.estado = 'operativa'
                         unidad.ultima_actualizacion = timezone.now()
                         unidad.save()
 
-                        if not turnos_abiertos.exists():
+                        if not turno_activo:
                             chofer_default = getattr(unidad, 'propietario_flota', None) or User.objects.first()
                             HistorialTurno.objects.create(bus=unidad, fecha=hoy, hora_inicio=ahora, conductor=chofer_default)
 
                         try:
                             channel_layer = get_channel_layer()
-                            async_to_sync(channel_layer.group_send)(
-                                'mapa_envivo', 
-                                {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat, 'lon': lon, 'unidad': unidad.numero_unidad, 'en_servicio': True}}
-                            )
-                        except Exception:
-                            pass
-
-                        return JsonResponse({'status': 'ok', 'msg': 'GPS e Historial sincronizados'})
+                            async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat, 'lon': lon, 'unidad': unidad.numero_unidad, 'en_servicio': True}})
+                        except: pass
                         
-                    return JsonResponse({'status': 'error', 'msg': 'Faltan coordenadas'})
+                        return JsonResponse({'status': 'ok', 'msg': 'Transmitiendo App'})
+                    return JsonResponse({'error': 'Coordenadas faltantes'})
         except Exception as e:
-            return JsonResponse({'status': 'error', 'msg': str(e)}, status=500)
-            
-    return JsonResponse({'status': 'error', 'msg': 'Método no permitido'}, status=405)
-
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'POST required'}, status=405)
 
 
 # =========================================================
@@ -466,15 +472,20 @@ def reportar_averia(request, unidad_id):
 @csrf_exempt
 @login_required
 def actualizar_ubicacion_chofer(request):
-    """Recibe el GPS desde la página web del chofer y sincroniza idéntico a la App"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            lat = data.get('latitud')
-            lon = data.get('longitud')
-            en_servicio = data.get('en_servicio') 
+            lat = data.get('latitud', data.get('lat'))
+            lon = data.get('longitud', data.get('lon'))
+            en_servicio_raw = data.get('en_servicio') 
 
-            # BLOQUEO ATÓMICO: Igual que en la app
+            # --- SUPER DETECTOR DE APAGADO WEB ---
+            se_esta_apagando = False
+            if en_servicio_raw is False or str(en_servicio_raw).lower() in ['false', '0', 'no', 'f', 'inactivo']:
+                se_esta_apagando = True
+            if (not lat and not lon) or (lat == 0 and lon == 0):
+                se_esta_apagando = True
+
             with transaction.atomic():
                 unidad = Unidad.objects.select_for_update().filter(conductor=request.user).first()
                 if not unidad:
@@ -482,58 +493,61 @@ def actualizar_ubicacion_chofer(request):
 
                 hoy = timezone.now().date()
                 ahora = timezone.now().time()
-                turnos_abiertos = HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True)
-
-                if lat and lon and lat != 0:
-                    unidad.latitud_actual = lat
-                    unidad.longitud_actual = lon
                 
-                # --- LÓGICA DE TRANSMISIÓN WEB ---
-                if en_servicio:
-                    unidad.estado = 'operativa'
-                    if not turnos_abiertos.exists():
-                        HistorialTurno.objects.create(bus=unidad, fecha=hoy, hora_inicio=ahora, conductor=request.user)
+                # Traer todos los turnos abiertos a una lista
+                turnos_abiertos = list(HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True).order_by('id'))
                 
-                # --- LÓGICA DE APAGADO WEB ---
+                # AUTO-SANADOR WEB: Elimina las 6 señales extra y deja solo 1
+                if len(turnos_abiertos) > 1:
+                    for clon in turnos_abiertos[1:]:
+                        clon.delete()
+                    turno_activo = turnos_abiertos[0]
+                elif len(turnos_abiertos) == 1:
+                    turno_activo = turnos_abiertos[0]
                 else:
+                    turno_activo = None
+
+                if se_esta_apagando:
                     unidad.estado = 'inactiva'
-                    for turno in turnos_abiertos:
-                        turno.hora_fin = ahora
-                        inicio_dt = datetime.combine(hoy, turno.hora_inicio)
+                    unidad.save()
+                    
+                    if turno_activo:
+                        turno_activo.hora_fin = ahora
+                        inicio_dt = datetime.combine(hoy, turno_activo.hora_inicio)
                         fin_dt = datetime.combine(hoy, ahora)
                         diferencia = fin_dt - inicio_dt
                         horas = diferencia.seconds // 3600
                         minutos = (diferencia.seconds % 3600) // 60
-                        turno.duracion = f"{horas}h {minutos}m"
-                        turno.save()
-                
-                unidad.ultima_actualizacion = timezone.now()
-                unidad.save()
+                        turno_activo.duracion = f"{horas}h {minutos}m"
+                        turno_activo.save()
 
-                # Notificar a los mapas en vivo
-                try:
-                    channel_layer = get_channel_layer()
-                    async_to_sync(channel_layer.group_send)(
-                        'mapa_envivo',
-                        {
-                            'type': 'enviar_ubicacion',
-                            'datos': {
-                                'bus_id': str(unidad.id),
-                                'lat': lat if lat else 0,
-                                'lon': lon if lon else 0,
-                                'unidad': unidad.numero_unidad,
-                                'en_servicio': en_servicio
-                            }
-                        }
-                    )
-                except Exception as ws_error:
-                    print(f"Error WebSocket Web: {ws_error}")
+                    try:
+                        channel_layer = get_channel_layer()
+                        async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': 0, 'lon': 0, 'unidad': unidad.numero_unidad, 'en_servicio': False}})
+                    except: pass
+                    
+                    return JsonResponse({'status': 'ok', 'msg': 'Cerrado Web'})
 
-                return JsonResponse({'status': 'ok'})
+                else:
+                    if lat and lon:
+                        unidad.latitud_actual = lat
+                        unidad.longitud_actual = lon
+                        unidad.estado = 'operativa'
+                        unidad.ultima_actualizacion = timezone.now()
+                        unidad.save()
+                        
+                        if not turno_activo:
+                            HistorialTurno.objects.create(bus=unidad, fecha=hoy, hora_inicio=ahora, conductor=request.user)
+                            
+                        try:
+                            channel_layer = get_channel_layer()
+                            async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat, 'lon': lon, 'unidad': unidad.numero_unidad, 'en_servicio': True}})
+                        except: pass
+                        
+                        return JsonResponse({'status': 'ok', 'msg': 'Transmitiendo Web'})
+                    return JsonResponse({'status': 'error', 'msg': 'Sin coordenadas'})
         except Exception as e:
-            print(f"Error actualización web: {e}") 
             return JsonResponse({'status': 'error', 'msg': str(e)})
-            
     return JsonResponse({'status': 'error'})
 
 @login_required
