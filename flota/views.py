@@ -180,19 +180,32 @@ def actualizar_gps(request):
             hoy = timezone.now().date()
             ahora = timezone.now().time()
             
-            # Buscar si este bus ya tiene un turno abierto hoy
-            turno_abierto = HistorialTurno.objects.filter(
+            # 2. BUSCAR TURNOS Y AUTO-CORREGIR DUPLICADOS (Causados por lag de red)
+            turnos_abiertos = HistorialTurno.objects.filter(
                 bus=unidad, fecha=hoy, hora_fin__isnull=True
-            ).first()
+            ).order_by('id')
+
+            if turnos_abiertos.count() > 1:
+                # Si se crearon dobles por error de la app, borramos los fantasmas
+                clones_fantasmas = list(turnos_abiertos)[1:]
+                for clon in clones_fantasmas:
+                    clon.delete()
+            
+            turno_abierto = turnos_abiertos.first()
+
+            # --- DETECTAR SI LA APP SE ESTÁ APAGANDO ---
+            estado_texto = str(data.get('estado', '')).lower()
+            en_servicio_flag = str(data.get('en_servicio', '')).lower()
+            se_esta_apagando = (estado_texto == 'inactivo') or (en_servicio_flag in ['false', '0', 'no'])
 
             # ==========================================================
             # EL APAGADOR: Forzamos el estado a 'inactiva', cerramos turno y avisamos al mapa
             # ==========================================================
-            if data.get('estado') == 'inactivo':
+            if se_esta_apagando:
                 unidad.estado = 'inactiva' 
                 unidad.save()
                 
-                # CERRAR EL TURNO EN EL HISTORIAL Y CALCULAR DURACIÓN
+                # CERRAR EL TURNO EN EL HISTORIAL
                 if turno_abierto:
                     turno_abierto.hora_fin = ahora
                     
