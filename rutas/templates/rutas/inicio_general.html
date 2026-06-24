@@ -220,7 +220,8 @@
             updateCarousel();
         }
 
-        if(totalSlides > 1) { setInterval(nextSlide, 4000); }
+        /* TIEMPO ACTUALIZADO A 8 SEGUNDOS (8000ms) */
+        if(totalSlides > 1) { setInterval(nextSlide, 8000); }
     });
 </script>
 {% endif %}
@@ -370,31 +371,33 @@
                     <input type="text" id="buscar-rutas" onkeyup="filtrarTarjetas('buscar-rutas', 'grid-rutas')" placeholder="Buscar por nombre de línea o sector..." style="width: 100%; box-sizing: border-box; padding: 10px 10px 10px 40px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none;">
                 </div>
                 
-                <button onclick="location.reload()" style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s ease; white-space: nowrap; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.05);" onmouseover="this.style.background='#dbeafe'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#eff6ff'; this.style.transform='translateY(0)';">
+                <button id="btn-refrescar-red" onclick="refrescarRutina()" style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s ease; white-space: nowrap; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.05);" onmouseover="this.style.background='#dbeafe'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#eff6ff'; this.style.transform='translateY(0)';">
                     <i class="fa-solid fa-rotate-right"></i> Refrescar Red
                 </button>
             </div>
-            <div id="grid-rutas" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-                {% for ruta in rutas %}
-                <div class="tarjeta-filtro" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; border-left: 4px solid #3b82f6;">
-                    <h4 class="titulo-filtro" style="margin: 0 0 5px 0; color: #0f172a; font-size: 17px;">{{ ruta.nombre }}</h4>
-                    <p style="margin: 0 0 15px 0; font-size: 13px; color: #64748b;">Conecta las zonas principales del sector asignado.</p>
-                    
-                    <div style="display: flex; gap: 10px; font-size: 12px; color: #475569;">
-                        <div style="font-size: 13px; font-weight: bold; color: {% if ruta.buses_activos_count > 0 %}#10b981{% else %}#94a3b8{% endif %};">
-                            {% if ruta.buses_activos_count > 0 %}
-                                <i class="fa-solid fa-bus"></i> {{ ruta.buses_activos_count }} unidad(es) en recorrido
-                            {% else %}
-                                <i class="fa-solid fa-bus-slash"></i> Sin unidades en servicio
-                            {% endif %}
+            
+            <div id="contenedor-rutas-dinamico">
+                <div id="grid-rutas" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                    {% for ruta in rutas %}
+                    <div class="tarjeta-filtro" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; border-left: 4px solid #3b82f6;">
+                        <h4 class="titulo-filtro" style="margin: 0 0 5px 0; color: #0f172a; font-size: 17px;">{{ ruta.nombre }}</h4>
+                        <p style="margin: 0 0 15px 0; font-size: 13px; color: #64748b;">Conecta las zonas principales del sector asignado.</p>
+                        
+                        <div style="display: flex; gap: 10px; font-size: 12px; color: #475569;">
+                            <div style="font-size: 13px; font-weight: bold; color: {% if ruta.buses_activos_count > 0 %}#10b981{% else %}#94a3b8{% endif %};">
+                                {% if ruta.buses_activos_count > 0 %}
+                                    <i class="fa-solid fa-bus"></i> {{ ruta.buses_activos_count }} unidad(es) en recorrido
+                                {% else %}
+                                    <i class="fa-solid fa-bus-slash"></i> Sin unidades en servicio
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
+                    {% empty %}
+                    <p style="color: #64748b; font-size: 14px; grid-column: 1 / -1; text-align: center; padding: 20px;">No hay rutas registradas actualmente.</p>
+                    {% endfor %}
                 </div>
-                {% empty %}
-                <p style="color: #64748b; font-size: 14px; grid-column: 1 / -1; text-align: center; padding: 20px;">No hay rutas registradas actualmente.</p>
-                {% endfor %}
-            </div>
-        </div>
+            </div> </div>
     </details>
 
 <details style="background: white; border: 1px solid #cbd5e1; border-radius: 10px; margin-bottom: 40px; overflow: hidden;">
@@ -475,6 +478,41 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+
+    // ==========================================
+    // NUEVO: FUNCIÓN PARA REFRESCO ASÍNCRONO
+    // ==========================================
+    function refrescarRutina() {
+        let boton = document.getElementById('btn-refrescar-red');
+        let contenedor = document.getElementById('contenedor-rutas-dinamico');
+        let txtBuscador = document.getElementById('buscar-rutas');
+        
+        let textoOriginal = boton.innerHTML;
+        boton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cargando...';
+        
+        // Petición silenciosa al mismo URL
+        fetch(window.location.href)
+            .then(response => response.text())
+            .then(html => {
+                let parser = new DOMParser();
+                let docVirtual = parser.parseFromString(html, 'text/html');
+                
+                let rutasNuevas = docVirtual.getElementById('contenedor-rutas-dinamico').innerHTML;
+                contenedor.innerHTML = rutasNuevas;
+                
+                boton.innerHTML = textoOriginal;
+                
+                // Reaplica el filtro si el usuario tenía algo escrito
+                if(txtBuscador && txtBuscador.value.trim() !== '') {
+                    filtrarTarjetas('buscar-rutas', 'grid-rutas');
+                }
+            })
+            .catch(error => {
+                console.error('Error al actualizar:', error);
+                boton.innerHTML = textoOriginal;
+            });
+    }
+
     // ==========================================
     // 1. FUNCIONES GLOBALES Y UTILIDADES
     // ==========================================
@@ -580,7 +618,7 @@
     }
 
     // ==========================================
-    // CONTROLADOR DE FLOTA ACTUALIZADO
+    // CONTROLADOR DE FLOTA ACTUALIZADO (Con Auto-Filtro)
     // ==========================================
     async function actualizarFlotaEnMapa() {
         let checkboxFlota = document.getElementById('filtro-flota');
@@ -616,6 +654,21 @@
             let rutaSeleccionada = selectorRuta ? selectorRuta.value : "todas";
 
             let idsActivos = [];
+
+            // --- MAGIA NUEVA: AUTO-LLENAR EL SELECTOR DE BUSES ---
+            if (selectorBus) {
+                // Guardamos los IDs que ya están en la lista para no duplicarlos
+                let opcionesActuales = Array.from(selectorBus.options).map(opt => opt.value);
+                
+                data.buses.forEach(bus => {
+                    // Si el bus activo no está en el selector, lo agregamos en vivo
+                    if (!opcionesActuales.includes(bus.id.toString())) {
+                        let nuevaOpcion = new Option("🚌 Unidad " + bus.unidad, bus.id);
+                        selectorBus.add(nuevaOpcion);
+                    }
+                });
+            }
+            // -----------------------------------------------------
 
             data.buses.forEach(bus => {
                 idsActivos.push(bus.id);
