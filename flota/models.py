@@ -130,7 +130,7 @@ class ControlLegal(models.Model):
 class SuscripcionTelegram(models.Model):
     """Guarda el ID secreto de Telegram vinculado a la cuenta del usuario web"""
     usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='telegram_data')
-    chat_id = models.CharField(max_length=50, unique=True, help_text="ID interno del chat de Telegram")
+    chat_id = models.CharField(max_length=50, unique=True, null=True, blank=True, help_text="ID interno del chat de Telegram")
     # Generamos un código único para que el usuario lo mande al bot y validemos su identidad
     codigo_vinculacion = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     activo = models.BooleanField(default=True)
