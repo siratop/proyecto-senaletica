@@ -32,6 +32,7 @@ except ImportError:
 # 1. REGISTRO Y GESTIÓN DE CUENTAS
 # =========================================================
 TELEGRAM_TOKEN = "8830888723:AAF_iLtjGOpNN2muaE-4v9fxYnUceD0MXkU"
+
 class SignUpView(CreateView):
     """Vista pública para que un ciudadano se registre"""
     model = User
@@ -506,25 +507,20 @@ def telegram_webhook(request):
         try:
             update = json.loads(request.body)
             
-            # Verificamos si hay un mensaje nuevo
             if 'message' in update:
                 chat_id = update['message']['chat']['id']
                 texto = update['message'].get('text', '')
 
-                # Cuando el usuario le da al botón Iniciar desde la web, Telegram manda algo como: "/start 123e4567-e89b-12d3-a456-426614174000"
                 if texto.startswith('/start '):
-                    # Extraemos el código secreto
                     codigo = texto.split(' ')[1]
                     
-                    # Buscamos en la base de datos a quién le pertenece ese código
                     suscripcion = SuscripcionTelegram.objects.filter(codigo_vinculacion=codigo).first()
                     
                     if suscripcion:
-                        # ¡ENCONTRAMOS AL USUARIO! Guardamos su chat_id para poder enviarle mensajes luego
                         suscripcion.chat_id = str(chat_id)
                         suscripcion.save()
                         
-                        # Le mandamos un mensaje de bienvenida de vuelta a su Telegram
+                        # Aquí se utiliza la variable global declarada arriba
                         url_telegram = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
                         mensaje_exito = "✅ ¡Excelente! Tu cuenta de Señalética Plus ha sido vinculada correctamente. A partir de ahora, cuando solicites un aviso en el mapa, te notificaré por aquí cuando tu autobús esté cerca."
                         
@@ -533,7 +529,7 @@ def telegram_webhook(request):
                             'text': mensaje_exito
                         })
         except Exception as e:
+            # Esto te ayudará a ver cualquier otro error interno en los logs de gunicorn
             print(f"Error procesando webhook de Telegram: {e}")
             
-    # Siempre hay que decirle "OK" a Telegram para que sepa que recibimos el mensaje
     return HttpResponse("OK", status=200)
