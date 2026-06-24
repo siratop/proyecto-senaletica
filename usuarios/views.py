@@ -21,6 +21,7 @@ import json
 from .models import Dependiente, PerfilUsuario
 from django.db.models import Q
 from .models import TicketSoporte
+from flota.models import SuscripcionTelegram
 try:
     from rutas.models import AlertaOperativa
 except ImportError:
@@ -257,6 +258,11 @@ def guardar_nfc(request):
 def mi_perfil(request):
     perfil, created = PerfilUsuario.objects.get_or_create(usuario=request.user)
     
+    # --- LÓGICA DE TELEGRAM AÑADIDA ---
+    # Buscamos o creamos el código secreto de vinculación para este usuario
+    from flota.models import SuscripcionTelegram
+    suscripcion, created_sub = SuscripcionTelegram.objects.get_or_create(usuario=request.user)
+    
     puede_editar = True
     dias_restantes = 0
     if perfil.ultima_modificacion:
@@ -321,13 +327,14 @@ def mi_perfil(request):
     # --- NUEVO: Buscamos los tickets de soporte del usuario ---
     tickets_usuario = TicketSoporte.objects.filter(usuario=request.user).order_by('-fecha_creacion')
 
-    # --- ACTUALIZADO: Pasamos la variable 'tickets' al HTML ---
+    # --- ACTUALIZADO: Pasamos las variables al HTML ---
     return render(request, 'usuarios/mi_perfil.html', {
         'perfil': perfil,
         'puede_editar': puede_editar,
         'dias_restantes': dias_restantes,
         'dias_restantes_flota': dias_restantes_flota,
-        'tickets': tickets_usuario 
+        'tickets': tickets_usuario,
+        'suscripcion': suscripcion  # <--- Pasamos la suscripción aquí
     })
 
 # =========================================================

@@ -85,14 +85,49 @@
         </div>
     </div>
     {% endif %}
-<div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 20px; border-radius: 10px; margin-top: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
-    <div>
-        <h4 style="margin: 0 0 5px 0; color: #1e3a8a;"><i class="fa-brands fa-telegram" style="color: #3b82f6; font-size: 20px;"></i> Alertas por Telegram</h4>
-        <p style="margin: 0; font-size: 13px; color: #3b82f6;">Recibe un aviso directo en tu celular cuando tu autobús esté cerca de tu parada.</p>
+
+    <!-- ========================================== -->
+<!-- MODULO DE VINCULACIÓN CON TELEGRAM         -->
+<!-- ========================================== -->
+<div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 25px; border-radius: 12px; margin-top: 25px;">
+    
+    <!-- Encabezado -->
+    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+        <i class="fa-brands fa-telegram" style="color: #2563eb; font-size: 38px;"></i>
+        <div>
+            <h3 style="margin: 0; color: #1e3a8a; font-size: 20px; font-weight: bold;">Alertas de Proximidad por Telegram</h3>
+            <p style="margin: 5px 0 0 0; font-size: 14px; color: #3b82f6;">Recibe un mensaje directo cuando tu autobús esté cerca de tu parada. ¡No esperes bajo el sol!</p>
+        </div>
     </div>
-    <button style="background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">
-        Vincular mi Telegram
-    </button>
+
+    <!-- Instructivo para el Usuario -->
+    <div style="background: white; border-radius: 8px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+        <h4 style="margin: 0 0 15px 0; color: #334155; font-size: 15px;">
+            <i class="fa-solid fa-book-open" style="color: #f59e0b; margin-right: 5px;"></i> ¿Cómo funciona? Sigue estos sencillos pasos:
+        </h4>
+        <ol style="margin: 0; padding-left: 20px; color: #475569; font-size: 14px; line-height: 1.7;">
+            <li style="margin-bottom: 8px;">Asegúrate de tener descargada la aplicación de <b>Telegram</b> en tu celular.</li>
+            <li style="margin-bottom: 8px;">Haz clic en el botón azul de abajo que dice <b>"Vincular mi Telegram ahora"</b>.</li>
+            <li style="margin-bottom: 8px;">Se abrirá la aplicación automáticamente. Toca el botón <b>"Iniciar"</b> (o "Start") dentro del chat de nuestro Asistente Virtual.</li>
+            <li>¡Listo! A partir de ahora, cuando mires el mapa en la web, podrás marcar una parada y nuestro Bot te avisará a tiempo cuando el bus se aproxime.</li>
+        </ol>
+    </div>
+    
+    <!-- Botón Dinámico de Vinculación -->
+    <div style="text-align: right;">
+        {% if suscripcion.chat_id %}
+            <!-- Estado: Vinculado Exitosamente -->
+            <span style="background: #ecfdf5; color: #10b981; padding: 12px 20px; border-radius: 8px; font-weight: bold; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 8px; font-size: 15px;">
+                <i class="fa-solid fa-circle-check"></i> Tu cuenta de Telegram ya está vinculada
+            </span>
+        {% else %}
+            <!-- Estado: Esperando Vinculación -->
+            <a href="https://t.me/SenaleticaPlus_bot?start={{ suscripcion.codigo_vinculacion }}" target="_blank" style="background: #2563eb; color: white; border: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: 0.2s; box-shadow: 0 4px 6px rgba(37,99,235,0.2);" onmouseover="this.style.background='#1d4ed8';" onmouseout="this.style.background='#2563eb';">
+                <i class="fa-solid fa-link"></i> Vincular mi Telegram ahora
+            </a>
+        {% endif %}
+    </div>
+
 </div>
 
     {% if perfil.rol == 'flota' %}
