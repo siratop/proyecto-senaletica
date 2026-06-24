@@ -25,8 +25,8 @@ from .models import ReporteRapido
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from groq import Groq
-
-\
+from flota.models import HistorialTurno
+from usuarios.models import RegistroActividad
 
 # Configura tu llave de Gemini (Puedes obtenerla gratis en Google AI Studio)
 clave_gemini = os.environ.get("GEMINI_API_KEY", "CLAVE_NO_ENCONTRADA")
@@ -960,4 +960,29 @@ def operador_inteligente_api(request):
             })
             
     return JsonResponse({'status': 'error', 'msg': 'Método no permitido'})
+
+@staff_member_required
+def auditoria_usuarios_global(request):
+    """Muestra la actividad de acceso y clics de TODOS los usuarios normales"""
+    if request.method == 'POST' and 'limpiar_usuarios' in request.POST:
+        RegistroActividad.objects.all().delete()
+        messages.success(request, "🗑️ El historial de actividad de usuarios ha sido borrado por completo.")
+        return redirect('auditoria_usuarios_global')
+
+    # Buscamos los últimos 500 registros para no saturar la memoria
+    logs_usuarios = RegistroActividad.objects.all().order_by('-fecha')[:500]
+    return render(request, 'usuarios/auditoria_usuarios.html', {'logs': logs_usuarios})
+
+
+@staff_member_required
+def auditoria_buses_global(request):
+    """Muestra las transmisiones y turnos de TODAS las flotas de la ciudad"""
+    if request.method == 'POST' and 'limpiar_buses' in request.POST:
+        HistorialTurno.objects.all().delete()
+        messages.success(request, "🗑️ El historial global de autobuses ha sido formateado exitosamente.")
+        return redirect('auditoria_buses_global')
+
+    # Buscamos todos los historiales de todas las unidades
+    historiales_globales = HistorialTurno.objects.all().order_by('-fecha', '-hora_inicio')[:500]
+    return render(request, 'flota/auditoria_buses_global.html', {'historiales': historiales_globales})
    

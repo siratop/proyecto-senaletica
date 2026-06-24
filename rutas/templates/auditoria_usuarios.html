@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div style="max-width: 1200px; margin: 40px auto; padding: 20px;">
+    
+    <div style="background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%); padding: 25px; border-radius: 12px; margin-bottom: 25px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div>
+            <span style="background: #3b82f6; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">Acceso Administrador</span>
+            <h2 style="margin: 10px 0 5px 0; font-size: 24px;">
+                <i class="fa-solid fa-users-viewfinder" style="color: #93c5fd;"></i> 
+                Auditoría de Ciudadanos
+            </h2>
+            <p style="margin: 0; color: #bfdbfe; font-size: 14px;">Registro de actividad, inicios de sesión y huella digital.</p>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            
+            <button onclick="location.reload()" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 10px 15px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-arrows-rotate"></i> Refrescar
+            </button>
+
+            <form method="POST" onsubmit="return confirm('¿⚠️ ESTÁS SEGURO? Se borrará el registro de actividad de todos los usuarios.');" style="margin: 0;">
+                {% csrf_token %}
+                <input type="hidden" name="limpiar_usuarios" value="1">
+                <button type="submit" style="background: #ef4444; color: white; border: 1px solid #dc2626; padding: 10px 15px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='#dc2626';" onmouseout="this.style.background='#ef4444';">
+                    <i class="fa-solid fa-eraser"></i> Limpiar Registros
+                </button>
+            </form>
+            
+            <a href="javascript:history.back()" style="background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 14px; text-decoration: none; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-arrow-left-long"></i> Volver al Panel
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div style="padding: 15px; margin-bottom: 20px; border-radius: 8px; font-size: 14px; font-weight: bold; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;">
+                <i class="fa-solid fa-circle-check"></i> {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden;">
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: bold;">
+                        <th style="padding: 15px 20px;">Fecha y Hora</th>
+                        <th style="padding: 15px 20px;">Usuario</th>
+                        <th style="padding: 15px 20px;">Acción Realizada</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr style="border-bottom: 1px solid #f1f5f9; color: #334155; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc';" onmouseout="this.style.background='transparent';">
+                        <td style="padding: 15px 20px; color: #64748b; white-space: nowrap;">
+                            <i class="fa-regular fa-calendar" style="margin-right: 5px;"></i> {{ log.fecha|date:"d/m/Y h:i A" }}
+                        </td>
+                        
+                        <td style="padding: 15px 20px; font-weight: bold; color: #0f172a;">
+                            <i class="fa-solid fa-user-tag" style="color: #3b82f6; margin-right: 5px;"></i>
+                            {{ log.user.username|default:"Usuario Desconocido" }}
+                        </td>
+                        
+                        <td style="padding: 15px 20px;">
+                            <span style="background: #f1f5f9; padding: 5px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px;">
+                                {{ log.accion }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc;">
+                            <i class="fa-solid fa-ghost" style="font-size: 28px; margin-bottom: 10px; display: block; color: #cbd5e1;"></i>
+                            No hay actividad de usuarios registrada.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

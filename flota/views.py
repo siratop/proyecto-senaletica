@@ -546,16 +546,20 @@ def actualizar_ubicacion_chofer(request):
 
 @login_required
 def historial_flota(request):
-    """Renderiza la tabla con todos los registros de la flota"""
-    # Aquí traemos todos los historiales. 
-    # (Si tienes un filtro por empresa, aquí usaríamos .filter(bus__flota=request.user.perfil.flota))
-    historiales = HistorialTurno.objects.all().select_related('bus', 'conductor')
+    """Renderiza la tabla con los registros de la flota (SOLO los del usuario actual)"""
+    
+    # 1. Buscamos cuáles son los autobuses que le pertenecen a este dueño de flota
+    mis_buses = Unidad.objects.filter(propietario_flota=request.user)
+    
+    # 2. Filtramos el historial para que SOLO traiga los registros de "mis_buses".
+    # Además, agregamos order_by para que los turnos más recientes salgan de primeros en la tabla.
+    historiales = HistorialTurno.objects.filter(
+        bus__in=mis_buses
+    ).select_related('bus', 'conductor').order_by('-fecha', '-hora_inicio')
     
     return render(request, 'flota/historial_flota.html', {
         'historiales': historiales
     })
-
-
 
 @login_required
 def mantenimiento_flota(request):

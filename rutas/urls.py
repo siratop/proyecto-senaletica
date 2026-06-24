@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from flota import views as flota_views
-
+from .views import auditoria_usuarios_global, auditoria_buses_global
 urlpatterns = [
     # ==========================================
     # MENÚ Y PANELES PRINCIPALES
@@ -81,5 +81,7 @@ urlpatterns = [
     path('centro-de-control/radar-comunitario/', views.buzon_reportes, name='buzon_reportes'),
     path('centro-de-control/radar-comunitario/eliminar/<int:reporte_id>/', views.eliminar_reporte_waze, name='eliminar_reporte_waze'),
     path('centro-de-control/radar-comunitario/limpiar/', views.limpiar_buzon_waze, name='limpiar_buzon_waze'),
-    path('api/operador-ia/', views.operador_inteligente_api, name='operador_ia')
+    path('api/operador-ia/', views.operador_inteligente_api, name='operador_ia'),
+    path('admin-panel/auditoria/usuarios/', auditoria_usuarios_global, name='auditoria_usuarios_global'),
+    path('admin-panel/auditoria/buses/', auditoria_buses_global, name='auditoria_buses_global'),
 ]
