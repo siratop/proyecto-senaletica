@@ -226,7 +226,7 @@ def actualizar_gps(request):
                     # =========================================================
                     try:
                         # 1. Buscamos todas las alertas que están activas esperando bus
-                        alertas_pendientes = AlertaParada.objects.filter(activa=True)
+                        alertas_pendientes = AlertaParada.objects.filter(activo=True)
                         
                         for alerta in alertas_pendientes:
                             parada_lat = float(str(alerta.parada.latitud).replace(',', '.'))
