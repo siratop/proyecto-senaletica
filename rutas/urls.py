@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from flota import views as flota_views
 from .views import auditoria_usuarios_global, auditoria_buses_global
+
 urlpatterns = [
     # ==========================================
     # MENÚ Y PANELES PRINCIPALES
