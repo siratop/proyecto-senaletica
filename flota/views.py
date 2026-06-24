@@ -222,33 +222,30 @@ def actualizar_gps(request):
                             clon.delete()
 
                     # =========================================================
-                    # 🚀 MAGIA NUEVA: EL RADAR DE TELEGRAM
+                    # 🚀 MAGIA NUEVA: EL RADAR DE TELEGRAM CORREGIDO
                     # =========================================================
                     try:
-                        # 1. Buscamos todas las alertas que están activas esperando bus
-                        alertas_pendientes = AlertaParada.objects.filter(activo=True)
+                        # 1. AlertaParada usa "activa" (femenino)
+                        alertas_pendientes = AlertaParada.objects.filter(activa=True)
                         
                         for alerta in alertas_pendientes:
                             parada_lat = float(str(alerta.parada.latitud).replace(',', '.'))
                             parada_lon = float(str(alerta.parada.longitud).replace(',', '.'))
                             
-                            # 2. Calculamos la distancia usando tu función matemática (debe estar en views.py)
                             distancia = calcular_distancia_metros(lat, lon, parada_lat, parada_lon)
                             
-                            # 3. Si el bus está a menos de 1500 metros (1.5 km) de la parada
                             if distancia <= 1500:
-                                # Buscamos si el usuario tiene Telegram vinculado
-                                suscripcion = SuscripcionTelegram.objects.filter(usuario=alerta.usuario, activa=True).first()
+                                # 2. SuscripcionTelegram usa "activo" (masculino) - AQUÍ ESTABA EL CRASH
+                                suscripcion = SuscripcionTelegram.objects.filter(usuario=alerta.usuario, activo=True).first()
                                 
                                 if suscripcion and suscripcion.chat_id:
                                     ruta_nombre = unidad.ruta_asignada.nombre if unidad.ruta_asignada else "tu ruta"
                                     mensaje = f"🚌 ¡PREPÁRATE! La unidad {unidad.numero_unidad} ({ruta_nombre}) está a menos de 1.5km de tu parada '{alerta.parada.nombre}'. ¡Ve acercándote!"
                                     
-                                    # Disparamos el mensaje a Telegram
                                     url_telegram = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
                                     requests.post(url_telegram, json={'chat_id': suscripcion.chat_id, 'text': mensaje})
                                 
-                                # 4. Apagamos la alerta para no mandarle 50 mensajes por cada metro que avance
+                                # 3. Apagamos la alerta (femenino)
                                 alerta.activa = False
                                 alerta.save()
                     except Exception as e:
