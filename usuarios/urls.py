@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-
+from .views import telegram_webhook
 urlpatterns = [
     # --- ACCESO CIUDADANO ---
     path('registro/', views.SignUpView.as_view(), name='crear_perfil'),
@@ -27,4 +27,5 @@ urlpatterns = [
     path('soporte/enviar/', views.enviar_ticket, name='enviar_ticket'),
     path('soporte/panel-tickets/', views.panel_soporte, name='panel_soporte'),
     path('soporte/ticket/<int:ticket_id>/responder/', views.responder_ticket, name='responder_ticket'), 
+    path('api/telegram-webhook/', telegram_webhook, name='telegram_webhook'),
 ]
