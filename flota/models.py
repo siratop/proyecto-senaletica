@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from rutas.models import Ruta
+import uuid
 class Unidad(models.Model):
     ESTADOS = (
         ('operativa', 'Operativa (En Ruta)'),
@@ -136,3 +137,31 @@ class ControlLegal(models.Model):
     
     def __str__(self):
         return f"Legal - {self.unidad.numero_unidad}"   
+    
+# =========================================================
+# MÓDULO DE ALERTAS TELEGRAM (Señal Ética +)
+# =========================================================
+
+class SuscripcionTelegram(models.Model):
+    """Guarda el ID secreto de Telegram vinculado a la cuenta del usuario web"""
+    usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='telegram_data')
+    chat_id = models.CharField(max_length=50, unique=True, help_text="ID interno del chat de Telegram")
+    # Generamos un código único para que el usuario lo mande al bot y validemos su identidad
+    codigo_vinculacion = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    activo = models.BooleanField(default=True)
+    fecha_vinculacion = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Telegram de {self.usuario.username}"
+
+class AlertaParada(models.Model):
+    """Fila temporal: Un usuario esperando un bus en una parada específica"""
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='alertas_activas')
+    parada = models.ForeignKey('rutas.Parada', on_delete=models.CASCADE)
+    # Opcional: Por si solo quiere que le avise de una ruta en específico y no cualquier bus que pase
+    ruta_esperada = models.ForeignKey('rutas.Ruta', on_delete=models.CASCADE, null=True, blank=True) 
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    activa = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"Alerta de {self.usuario.username} en {self.parada.nombre}"    
