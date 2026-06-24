@@ -175,8 +175,14 @@ def actualizar_gps(request):
                 return JsonResponse({'error': 'No autorizado'}, status=403)
                 
             unidad_id = data.get('unidad_id')
-            lat = float(data.get('latitud', data.get('lat')))
-            lon = float(data.get('longitud', data.get('lon')))
+            
+            # --- PROTECCIÓN ANTICHOQUES ---
+            # Si el bus se apaga y no manda GPS, evitamos que float(None) rompa el servidor
+            lat_raw = data.get('latitud', data.get('lat'))
+            lon_raw = data.get('longitud', data.get('lon'))
+            lat = float(lat_raw) if lat_raw is not None else 0.0
+            lon = float(lon_raw) if lon_raw is not None else 0.0
+            
             estado_texto = str(data.get('estado', '')).lower()
             en_servicio_raw = data.get('en_servicio')
             
@@ -204,12 +210,13 @@ def actualizar_gps(request):
                         channel_layer = get_channel_layer()
                         async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': 0, 'lon': 0, 'unidad': unidad.numero_unidad, 'en_servicio': False}})
                     except: pass
-                    return JsonResponse({'status': 'ok', 'msg': 'Turno cerrado'})
+                    return JsonResponse({'status': 'ok', 'msg': 'Turno cerrado y bus apagado correctamente'})
 
                 # --- MODO TRANSMISIÓN ---
                 else:
-                    unidad.latitud_actual = lat
-                    unidad.longitud_actual = lon
+                    if lat != 0.0 and lon != 0.0:
+                        unidad.latitud_actual = lat
+                        unidad.longitud_actual = lon
                     unidad.estado = 'operativa'
                     unidad.ultima_actualizacion = timezone.now()
                     unidad.save()
@@ -222,12 +229,10 @@ def actualizar_gps(request):
                             clon.delete()
 
                     # =========================================================
-                    # 🚀 MAGIA NUEVA: EL RADAR DE TELEGRAM CORREGIDO
+                    # 🚀 RADAR DE TELEGRAM (APP MÓVIL)
                     # =========================================================
                     try:
-                        # 1. AlertaParada usa "activa" (femenino)
                         alertas_pendientes = AlertaParada.objects.filter(activa=True)
-                        
                         for alerta in alertas_pendientes:
                             parada_lat = float(str(alerta.parada.latitud).replace(',', '.'))
                             parada_lon = float(str(alerta.parada.longitud).replace(',', '.'))
@@ -235,22 +240,17 @@ def actualizar_gps(request):
                             distancia = calcular_distancia_metros(lat, lon, parada_lat, parada_lon)
                             
                             if distancia <= 1500:
-                                # 2. SuscripcionTelegram usa "activo" (masculino) - AQUÍ ESTABA EL CRASH
                                 suscripcion = SuscripcionTelegram.objects.filter(usuario=alerta.usuario, activo=True).first()
-                                
                                 if suscripcion and suscripcion.chat_id:
                                     ruta_nombre = unidad.ruta_asignada.nombre if unidad.ruta_asignada else "tu ruta"
                                     mensaje = f"🚌 ¡PREPÁRATE! La unidad {unidad.numero_unidad} ({ruta_nombre}) está a menos de 1.5km de tu parada '{alerta.parada.nombre}'. ¡Ve acercándote!"
-                                    
                                     url_telegram = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
                                     requests.post(url_telegram, json={'chat_id': suscripcion.chat_id, 'text': mensaje})
                                 
-                                # 3. Apagamos la alerta (femenino)
                                 alerta.activa = False
                                 alerta.save()
                     except Exception as e:
-                        print(f"Error en el radar de Telegram: {e}")
-                    # =========================================================
+                        print(f"Error en el radar de Telegram (App): {e}")
 
                     try:
                         channel_layer = get_channel_layer()
@@ -484,8 +484,13 @@ def actualizar_ubicacion_chofer(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            lat = data.get('latitud', data.get('lat'))
-            lon = data.get('longitud', data.get('lon'))
+            
+            # --- PROTECCIÓN ANTICHOQUES WEB ---
+            lat_raw = data.get('latitud', data.get('lat'))
+            lon_raw = data.get('longitud', data.get('lon'))
+            lat = float(lat_raw) if lat_raw is not None else 0.0
+            lon = float(lon_raw) if lon_raw is not None else 0.0
+            
             en_servicio_raw = data.get('en_servicio') 
 
             se_esta_apagando = (en_servicio_raw is False or str(en_servicio_raw).lower() in ['false', '0', 'inactivo'])
@@ -496,7 +501,7 @@ def actualizar_ubicacion_chofer(request):
                     return JsonResponse({'status': 'error', 'msg': 'Unidad no encontrada'})
 
                 hoy = timezone.now().date()
-                ahora = timezone.now() # CORRECCIÓN VITAL
+                ahora = timezone.now()
 
                 turnos_abiertos = list(HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True).order_by('id'))
 
@@ -518,7 +523,7 @@ def actualizar_ubicacion_chofer(request):
 
                 # --- MODO TRANSMISIÓN WEB ---
                 else:
-                    if lat is not None and lon is not None:
+                    if lat != 0.0 and lon != 0.0:
                         unidad.latitud_actual = lat
                         unidad.longitud_actual = lon
                     unidad.estado = 'operativa'
@@ -531,9 +536,35 @@ def actualizar_ubicacion_chofer(request):
                         for clon in turnos_abiertos[1:]:
                             clon.delete()
 
+                    # =========================================================
+                    # 🚀 RADAR DE TELEGRAM (DASHBOARD WEB)
+                    # =========================================================
+                    try:
+                        alertas_pendientes = AlertaParada.objects.filter(activa=True)
+                        for alerta in alertas_pendientes:
+                            parada_lat = float(str(alerta.parada.latitud).replace(',', '.'))
+                            parada_lon = float(str(alerta.parada.longitud).replace(',', '.'))
+                            
+                            distancia = calcular_distancia_metros(lat, lon, parada_lat, parada_lon)
+                            
+                            if distancia <= 1500:
+                                suscripcion = SuscripcionTelegram.objects.filter(usuario=alerta.usuario, activo=True).first()
+                                if suscripcion and suscripcion.chat_id:
+                                    ruta_nombre = unidad.ruta_asignada.nombre if unidad.ruta_asignada else "tu ruta"
+                                    mensaje = f"🚌 ¡PREPÁRATE! La unidad {unidad.numero_unidad} ({ruta_nombre}) está a menos de 1.5km de tu parada '{alerta.parada.nombre}'. ¡Ve acercándote!"
+                                    
+                                    url_telegram = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+                                    requests.post(url_telegram, json={'chat_id': suscripcion.chat_id, 'text': mensaje})
+                                
+                                alerta.activa = False
+                                alerta.save()
+                    except Exception as e:
+                        print(f"Error en el radar de Telegram (Dashboard): {e}")
+                    # =========================================================
+
                     try:
                         channel_layer = get_channel_layer()
-                        async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat or 0, 'lon': lon or 0, 'unidad': unidad.numero_unidad, 'en_servicio': True}})
+                        async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat, 'lon': lon, 'unidad': unidad.numero_unidad, 'en_servicio': True}})
                     except: pass
                     
                     return JsonResponse({'status': 'ok'})
