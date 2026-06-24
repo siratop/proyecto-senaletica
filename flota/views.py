@@ -24,6 +24,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from datetime import datetime
 from django.db import transaction
+from .models import SuscripcionTelegram
 
 # =========================================================
 # MOTOR MATEMÁTICO (Geocerca para el mapa ciudadano)
@@ -607,3 +608,49 @@ def limpiar_todo_historial(request):
         messages.success(request, 'El historial ha sido purgado por completo exitosamente.')
     return redirect('historial_flota')
 
+# =========================================================
+# WEBHOOK DE TELEGRAM (Vinculación de Usuarios)
+# =========================================================
+
+TELEGRAM_TOKEN = "8830888723:AAF_iLtjGOpNN2muaE-4v9fxYnUceD0MXkU"
+
+@csrf_exempt
+def telegram_webhook(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            
+            # Telegram envía los datos dentro del bloque "message"
+            if 'message' in data and 'text' in data['message']:
+                chat_id = data['message']['chat']['id']
+                texto = data['message']['text'] 
+                
+                # Cuando el usuario toca tu botón en la web, Telegram le manda el comando /start UUID
+                if texto.startswith('/start '):
+                    codigo_secreto = texto.split(' ')[1]
+                    
+                    try:
+                        # Buscamos quién es el usuario dueño de ese código
+                        suscripcion = SuscripcionTelegram.objects.get(codigo_vinculacion=codigo_secreto)
+                        suscripcion.chat_id = chat_id
+                        suscripcion.activo = True
+                        suscripcion.save()
+
+                        # Le enviamos un mensaje de bienvenida de vuelta a Telegram
+                        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+                        payload = {
+                            'chat_id': chat_id,
+                            'text': "✅ ¡Excelente! Tu cuenta de Señal Ética+ ha sido vinculada exitosamente. Te avisaré por aquí cuando tu autobús se acerque a tu parada."
+                        }
+                        requests.post(url, json=payload)
+                        
+                    except SuscripcionTelegram.DoesNotExist:
+                        # Si alguien manda un código inventado, no hacemos nada
+                        pass 
+                        
+        except Exception as e:
+            print(f"Error procesando Webhook de Telegram: {e}")
+            
+        # Siempre debemos responder 200 OK rápido para que Telegram no intente reenviar el mensaje
+        return JsonResponse({'status': 'ok'})
+    return JsonResponse({'error': 'Solo POST'}, status=405)

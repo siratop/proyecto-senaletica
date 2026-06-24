@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from flota import views as flota_views
-
+from .views import telegram_webhook
 urlpatterns = [
     # Panel y CRUD
     path('panel/', views.panel_chofer, name='panel_chofer'),
@@ -40,4 +40,5 @@ urlpatterns = [
     path('historial/', views.historial_flota, name='historial_flota'),
     path('historial/eliminar/<int:historial_id>/', views.eliminar_historial, name='eliminar_historial'),
     path('historial/purgar/', views.limpiar_todo_historial, name='limpiar_todo_historial'),
+    path('telegram-webhook/', telegram_webhook, name='telegram_webhook'),
 ]
