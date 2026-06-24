@@ -26,6 +26,10 @@ from datetime import datetime
 from django.db import transaction
 from .models import SuscripcionTelegram
 from flota.models import AlertaParada
+import requests
+
+
+
 
 # =========================================================
 # MOTOR MATEMÁTICO (Geocerca para el mapa ciudadano)
@@ -161,7 +165,7 @@ def panel_chofer(request):
 # =========================================================
 # TELEMETRÍA Y SERVICIOS API (Recepción desde la App)
 # =========================================================
-
+TELEGRAM_TOKEN = "8830888723:AAF_iLtjGOpNN2muaE-4v9fxYnUceD0MXkU"
 @csrf_exempt
 def actualizar_gps(request):
     if request.method == 'POST':
@@ -171,8 +175,8 @@ def actualizar_gps(request):
                 return JsonResponse({'error': 'No autorizado'}, status=403)
                 
             unidad_id = data.get('unidad_id')
-            lat = data.get('latitud', data.get('lat'))
-            lon = data.get('longitud', data.get('lon'))
+            lat = float(data.get('latitud', data.get('lat')))
+            lon = float(data.get('longitud', data.get('lon')))
             estado_texto = str(data.get('estado', '')).lower()
             en_servicio_raw = data.get('en_servicio')
             
@@ -185,7 +189,7 @@ def actualizar_gps(request):
                     return JsonResponse({'error': 'Unidad no encontrada'}, status=404)
 
                 hoy = timezone.now().date()
-                ahora = timezone.now() # CORRECCIÓN VITAL: DateTime completo para evitar crasheos en la BD
+                ahora = timezone.now()
 
                 turnos_abiertos = list(HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True).order_by('id'))
 
@@ -193,23 +197,19 @@ def actualizar_gps(request):
                 if se_esta_apagando:
                     unidad.estado = 'inactiva'
                     unidad.save()
-                    
                     for turno in turnos_abiertos:
                         turno.hora_fin = ahora
                         turno.save()
-                        
                     try:
                         channel_layer = get_channel_layer()
                         async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': 0, 'lon': 0, 'unidad': unidad.numero_unidad, 'en_servicio': False}})
                     except: pass
-                    
-                    return JsonResponse({'status': 'ok', 'msg': 'Turno cerrado y hora de salida registrada'})
+                    return JsonResponse({'status': 'ok', 'msg': 'Turno cerrado'})
 
                 # --- MODO TRANSMISIÓN ---
                 else:
-                    if lat is not None and lon is not None:
-                        unidad.latitud_actual = lat
-                        unidad.longitud_actual = lon
+                    unidad.latitud_actual = lat
+                    unidad.longitud_actual = lon
                     unidad.estado = 'operativa'
                     unidad.ultima_actualizacion = timezone.now()
                     unidad.save()
@@ -221,12 +221,46 @@ def actualizar_gps(request):
                         for clon in turnos_abiertos[1:]:
                             clon.delete()
 
+                    # =========================================================
+                    # 🚀 MAGIA NUEVA: EL RADAR DE TELEGRAM
+                    # =========================================================
+                    try:
+                        # 1. Buscamos todas las alertas que están activas esperando bus
+                        alertas_pendientes = AlertaParada.objects.filter(activa=True)
+                        
+                        for alerta in alertas_pendientes:
+                            parada_lat = float(str(alerta.parada.latitud).replace(',', '.'))
+                            parada_lon = float(str(alerta.parada.longitud).replace(',', '.'))
+                            
+                            # 2. Calculamos la distancia usando tu función matemática (debe estar en views.py)
+                            distancia = calcular_distancia_metros(lat, lon, parada_lat, parada_lon)
+                            
+                            # 3. Si el bus está a menos de 1500 metros (1.5 km) de la parada
+                            if distancia <= 1500:
+                                # Buscamos si el usuario tiene Telegram vinculado
+                                suscripcion = SuscripcionTelegram.objects.filter(usuario=alerta.usuario, activa=True).first()
+                                
+                                if suscripcion and suscripcion.chat_id:
+                                    ruta_nombre = unidad.ruta_asignada.nombre if unidad.ruta_asignada else "tu ruta"
+                                    mensaje = f"🚌 ¡PREPÁRATE! La unidad {unidad.numero_unidad} ({ruta_nombre}) está a menos de 1.5km de tu parada '{alerta.parada.nombre}'. ¡Ve acercándote!"
+                                    
+                                    # Disparamos el mensaje a Telegram
+                                    url_telegram = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+                                    requests.post(url_telegram, json={'chat_id': suscripcion.chat_id, 'text': mensaje})
+                                
+                                # 4. Apagamos la alerta para no mandarle 50 mensajes por cada metro que avance
+                                alerta.activa = False
+                                alerta.save()
+                    except Exception as e:
+                        print(f"Error en el radar de Telegram: {e}")
+                    # =========================================================
+
                     try:
                         channel_layer = get_channel_layer()
-                        async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat or 0, 'lon': lon or 0, 'unidad': unidad.numero_unidad, 'en_servicio': True}})
+                        async_to_sync(channel_layer.group_send)('mapa_envivo', {'type': 'enviar_ubicacion', 'datos': {'bus_id': str(unidad.id), 'lat': lat, 'lon': lon, 'unidad': unidad.numero_unidad, 'en_servicio': True}})
                     except: pass
                     
-                    return JsonResponse({'status': 'ok', 'msg': 'Transmitiendo 1 sola señal'})
+                    return JsonResponse({'status': 'ok', 'msg': 'Transmitiendo'})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST requerido'}, status=405)
