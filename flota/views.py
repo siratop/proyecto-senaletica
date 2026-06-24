@@ -25,6 +25,7 @@ from asgiref.sync import async_to_sync
 from datetime import datetime
 from django.db import transaction
 from .models import SuscripcionTelegram
+from flota.models import AlertaParada
 
 # =========================================================
 # MOTOR MATEMÁTICO (Geocerca para el mapa ciudadano)
@@ -654,3 +655,37 @@ def telegram_webhook(request):
         # Siempre debemos responder 200 OK rápido para que Telegram no intente reenviar el mensaje
         return JsonResponse({'status': 'ok'})
     return JsonResponse({'error': 'Solo POST'}, status=405)
+
+@csrf_exempt
+@login_required
+def activar_alerta_parada(request):
+    """Recibe la orden del mapa para avisar al usuario en una parada específica"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            parada_id = data.get('parada_id')
+            
+            # 1. Verificamos si el usuario ya vinculó su Telegram
+            suscripcion = SuscripcionTelegram.objects.filter(usuario=request.user, chat_id__isnull=False, activo=True).first()
+            if not suscripcion:
+                return JsonResponse({'status': 'error', 'msg': '⚠️ Para usar esta función, primero debes vincular tu Telegram en la sección "Mi Perfil".'})
+
+            # 2. Buscamos la parada y creamos la alerta
+            parada = Parada.objects.get(id=parada_id)
+            
+            # Usamos update_or_create por si el usuario le da click 2 veces, no se duplique
+            AlertaParada.objects.update_or_create(
+                usuario=request.user,
+                parada=parada,
+                defaults={'activa': True}
+            )
+            
+            return JsonResponse({
+                'status': 'ok', 
+                'msg': f'✅ ¡Listo! Nuestro Bot de Telegram te avisará cuando un bus se acerque a "{parada.nombre}".'
+            })
+            
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'msg': str(e)})
+            
+    return JsonResponse({'status': 'error'}, status=405)
