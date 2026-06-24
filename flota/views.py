@@ -174,20 +174,17 @@ def actualizar_gps(request):
             estado_texto = str(data.get('estado', '')).lower()
             en_servicio_raw = data.get('en_servicio')
             
-            # Detectar orden de apagado explícita
             se_esta_apagando = (estado_texto in ['inactivo', 'apagado', 'false']) or \
                                (en_servicio_raw is False or str(en_servicio_raw).lower() in ['false', '0'])
 
             with transaction.atomic():
-                # select_for_update() hace que si llegan 5 peticiones juntas, se procesen de a 1, evitando clones
                 unidad = Unidad.objects.select_for_update().filter(numero_unidad=unidad_id).first()
                 if not unidad:
                     return JsonResponse({'error': 'Unidad no encontrada'}, status=404)
 
                 hoy = timezone.now().date()
-                ahora = timezone.now().time()
+                ahora = timezone.now() # CORRECCIÓN VITAL: DateTime completo para evitar crasheos en la BD
 
-                # Buscar todos los turnos abiertos de esta unidad en el día de hoy
                 turnos_abiertos = list(HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True).order_by('id'))
 
                 # --- MODO APAGADO ---
@@ -195,7 +192,6 @@ def actualizar_gps(request):
                     unidad.estado = 'inactiva'
                     unidad.save()
                     
-                    # Le ponemos la hora de fin absolutamente a todos los turnos que hayan quedado "colgados"
                     for turno in turnos_abiertos:
                         turno.hora_fin = ahora
                         turno.save()
@@ -217,14 +213,11 @@ def actualizar_gps(request):
                     unidad.save()
 
                     if len(turnos_abiertos) == 0:
-                        # Si no hay turno abierto, lo creamos de forma limpia
                         chofer_default = getattr(unidad, 'propietario_flota', None) or User.objects.first()
                         HistorialTurno.objects.create(bus=unidad, fecha=hoy, hora_inicio=ahora, conductor=chofer_default)
                     elif len(turnos_abiertos) > 1:
-                        # Si hubo un error de internet y se crearon clones fantasma, dejamos 1 y borramos el resto
                         for clon in turnos_abiertos[1:]:
                             clon.delete()
-                    # Si len == 1, significa que todo está perfecto, no hacemos nada extra.
 
                     try:
                         channel_layer = get_channel_layer()
@@ -470,9 +463,8 @@ def actualizar_ubicacion_chofer(request):
                     return JsonResponse({'status': 'error', 'msg': 'Unidad no encontrada'})
 
                 hoy = timezone.now().date()
-                ahora = timezone.now().time()
+                ahora = timezone.now() # CORRECCIÓN VITAL
 
-                # Buscar todos los turnos abiertos del chofer hoy
                 turnos_abiertos = list(HistorialTurno.objects.filter(bus=unidad, fecha=hoy, hora_fin__isnull=True).order_by('id'))
 
                 # --- MODO APAGADO WEB ---
