@@ -25,7 +25,7 @@ from flota.models import SuscripcionTelegram
 import requests
 from django.http import HttpResponse
 try:
-    from rutas.models import AlertaOperativa
+    
 except ImportError:
     AlertaOperativa = None
 

@@ -19,9 +19,12 @@
                 <i class="fa-solid fa-link"></i> Ver Ficha SOS (!precaución! Va Generar Alarta)
             </a>
 
-            <a href="{% url 'eliminar_dependiente' dependiente.id %}" style="background: #fee2e2; color: #ef4444; padding: 7px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='#fecaca';" onmouseout="this.style.background='#fee2e2';" title="Eliminar Familiar">
+     <form action="{% url 'eliminar_dependiente' dependiente.id %}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este familiar? Esta acción no se puede deshacer.');">
+    {% csrf_token %}
+    <button type="submit" style="background: #fee2e2; color: #ef4444; border: none; padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='#fecaca';" onmouseout="this.style.background='#fee2e2';" title="Eliminar Familiar">
         <i class="fa-solid fa-trash"></i>
-    </a>
+    </button>
+</form>
         </div>
         {% empty %}
         <div style="text-align: center; padding: 20px; color: #64748b; border: 2px dashed #e2e8f0; border-radius: 8px;">
