@@ -24,9 +24,12 @@ from .models import TicketSoporte
 from flota.models import SuscripcionTelegram
 import requests
 from django.http import HttpResponse
+
+
 try:
-    
-except ImportError:
+
+     from rutas.models import AlertaOperativa    
+except ImportError:   
     AlertaOperativa = None
 
 # =========================================================
