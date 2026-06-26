@@ -28,6 +28,7 @@ try:
     from rutas.models import AlertaOperativa
 except ImportError:
     AlertaOperativa = None
+
 # =========================================================
 # 1. REGISTRO Y GESTIÓN DE CUENTAS
 # =========================================================
@@ -79,6 +80,7 @@ def dashboard_ciudadano(request):
         'reportes': mis_reportes
     }
     return render(request, 'usuarios/dashboard_ciudadano.html', contexto)
+
 class DependienteCreateView(CreateView):
     """Formulario para añadir un niño o adulto mayor al núcleo familiar"""
     model = Dependiente
@@ -125,6 +127,28 @@ def ficha_sos_publica(request, token_nfc):
         )
         alerta_id = alerta_creada.id 
         print(f"✅ Alerta SOS registrada (ID: {alerta_id}). (Módulo de correo desactivado)", flush=True)
+
+        # =========================================================
+        # 🚀 AVISO TELEGRAM: LECTURA DE TARJETA NFC
+        # =========================================================
+        try:
+            # Buscamos si el tutor de este dependiente tiene Telegram vinculado
+            suscripcion = SuscripcionTelegram.objects.filter(usuario=dependiente.tutor, activo=True).first()
+            
+            if suscripcion and suscripcion.chat_id:
+                mensaje_nfc = (
+                    f"🚨 ¡ALERTA DE SEGURIDAD NFC!\n\n"
+                    f"Se acaba de escanear la pulsera de emergencia de *{dependiente.nombre_completo}*.\n\n"
+                    f"📅 Fecha: {timezone.now().strftime('%d/%m/%Y %I:%M %p')}\n"
+                    f"⚠️ Ingrese a su panel de control para ver los detalles del reporte."
+                )
+                
+                url_telegram = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+                requests.post(url_telegram, json={'chat_id': suscripcion.chat_id, 'text': mensaje_nfc, 'parse_mode': 'Markdown'})
+                print("✅ Notificación NFC enviada por Telegram exitosamente.")
+        except Exception as e:
+            print(f"❌ Error enviando aviso Telegram por NFC: {e}")
+        # =========================================================
 
     except Exception as e:
         print(f"❌ ERROR AL CREAR ALERTA SOS: {e}", flush=True)

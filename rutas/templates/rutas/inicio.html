@@ -55,7 +55,7 @@
             <input type="checkbox" id="chk-buses" checked onchange="toggleCapaBuses()" style="accent-color: #10b981;"> Mostrar Buses
         </label>
     </div>
-
+{% if request.user.is_authenticated %}
     <div style="background: white; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; overflow: hidden;">
         <div onclick="const b=document.getElementById('cuerpo-ia'); const i=document.getElementById('icono-ia'); b.style.display=b.style.display==='none'?'flex':'none'; i.style.transform=b.style.display==='none'?'rotate(0deg)':'rotate(180deg)';" style="padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #f5f3ff; transition: background 0.3s;">
             <div>
@@ -81,7 +81,7 @@
             </div>
         </div>
     </div>
-
+{% endif %}
     <div style="background: white; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; overflow: hidden;">
         <div onclick="const b=document.getElementById('cuerpo-reporte'); const i=document.getElementById('icono-reporte'); b.style.display=b.style.display==='none'?'block':'none'; i.style.transform=b.style.display==='none'?'rotate(0deg)':'rotate(180deg)';" style="padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; transition: background 0.3s;">
             <div>
