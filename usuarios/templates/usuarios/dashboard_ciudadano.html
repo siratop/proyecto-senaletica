@@ -10,21 +10,28 @@
 
     <div style="display: grid; gap: 15px; margin-bottom: 30px;">
         {% for dep in dependientes %}
-        <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="flex-grow: 1;">
                 <strong style="display: block; color: #0f172a; font-size: 16px;">{{ dep.nombre_completo }}</strong>
                 <span style="font-size: 13px; color: #64748b;">Relación: {{ dep.get_relacion_display }}</span>
             </div>
-            <a href="{% url 'ficha_sos_publica' dep.token_nfc %}" style="background: white; border: 1px solid #940d18; color: #940d0d; padding: 8px 15px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold;">
-                <i class="fa-solid fa-link"></i> Ver Ficha SOS (!precaución! Va Generar Alarta)
-            </a>
-
-     <form action="{% url 'eliminar_dependiente' dependiente.id %}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este familiar? Esta acción no se puede deshacer.');">
-    {% csrf_token %}
-    <button type="submit" style="background: #fee2e2; color: #ef4444; border: none; padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='#fecaca';" onmouseout="this.style.background='#fee2e2';" title="Eliminar Familiar">
-        <i class="fa-solid fa-trash"></i>
-    </button>
-</form>
+            
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <a href="{% url 'ficha_sos_publica' dep.token_nfc %}" style="background: white; border: 1px solid #940d18; color: #940d0d; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='#fef2f2';" onmouseout="this.style.background='white';">
+                    <i class="fa-solid fa-link"></i> Ver Ficha
+                </a>
+    
+                <a href="{% url 'editar_dependiente' dep.id %}" style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='#bae6fd';" onmouseout="this.style.background='#e0f2fe';" title="Editar Familiar">
+                    <i class="fa-solid fa-pencil"></i>
+                </a>
+    
+                <form action="{% url 'eliminar_dependiente' dep.id %}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar a {{ dep.nombre_completo }}? Esta acción no se puede deshacer y su pulsera dejará de funcionar.');" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" style="background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='#fecaca';" onmouseout="this.style.background='#fee2e2';" title="Eliminar Familiar">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </form>
+            </div>
         </div>
         {% empty %}
         <div style="text-align: center; padding: 20px; color: #64748b; border: 2px dashed #e2e8f0; border-radius: 8px;">

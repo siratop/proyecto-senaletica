@@ -561,16 +561,19 @@ def telegram_webhook(request):
             
     return HttpResponse("OK", status=200)
 
-class DependienteDeleteView(DeleteView):
-    """Permite al ciudadano eliminar un familiar de su núcleo NFC"""
+class DependienteUpdateView(UpdateView):
+    """Permite al ciudadano editar la información de su familiar NFC"""
     model = Dependiente
-    template_name = 'confirmar_eliminar.html' # Asegúrate de tener este template genérico
+    fields = ['nombre_completo', 'relacion', 'condicion_medica', 'telefono_emergencia']
+    template_name = 'formulario_generico.html'
     success_url = reverse_lazy('dashboard_ciudadano')
 
     def get_queryset(self):
-        # SEGURIDAD: Solo permite borrar si el tutor es el usuario actual
+        # SEGURIDAD: Solo permite editar si el tutor es el usuario actual
         return Dependiente.objects.filter(tutor=self.request.user)
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(self.request, "Familiar y pulsera desvinculados correctamente.")
-        return super().delete(request, *args, **kwargs)
+        
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = '✏️ Editar Familiar'
+        context['subtitulo'] = 'Modifique los datos médicos o el teléfono de emergencia asociado a la pulsera.'
+        return context
