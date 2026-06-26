@@ -577,3 +577,17 @@ class DependienteUpdateView(UpdateView):
         context['titulo'] = '✏️ Editar Familiar'
         context['subtitulo'] = 'Modifique los datos médicos o el teléfono de emergencia asociado a la pulsera.'
         return context
+    
+class DependienteDeleteView(DeleteView):
+    """Permite al ciudadano eliminar un familiar de su núcleo NFC"""
+    model = Dependiente
+    template_name = 'confirmar_eliminar.html' # Asegúrate de tener este template genérico
+    success_url = reverse_lazy('dashboard_ciudadano')
+
+    def get_queryset(self):
+        # SEGURIDAD: Solo permite borrar si el tutor es el usuario actual
+        return Dependiente.objects.filter(tutor=self.request.user)
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(self.request, "Familiar y pulsera desvinculados correctamente.")
+        return super().delete(request, *args, **kwargs)    
