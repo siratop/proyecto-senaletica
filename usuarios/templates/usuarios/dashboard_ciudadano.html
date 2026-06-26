@@ -18,6 +18,10 @@
             <a href="{% url 'ficha_sos_publica' dep.token_nfc %}" style="background: white; border: 1px solid #940d18; color: #940d0d; padding: 8px 15px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold;">
                 <i class="fa-solid fa-link"></i> Ver Ficha SOS (!precaución! Va Generar Alarta)
             </a>
+
+            <a href="{% url 'eliminar_dependiente' dependiente.id %}" style="background: #fee2e2; color: #ef4444; padding: 7px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; transition: 0.2s;" onmouseover="this.style.background='#fecaca';" onmouseout="this.style.background='#fee2e2';" title="Eliminar Familiar">
+        <i class="fa-solid fa-trash"></i>
+    </a>
         </div>
         {% empty %}
         <div style="text-align: center; padding: 20px; color: #64748b; border: 2px dashed #e2e8f0; border-radius: 8px;">

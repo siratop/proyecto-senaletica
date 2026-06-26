@@ -557,3 +557,17 @@ def telegram_webhook(request):
             print(f"Error procesando webhook de Telegram: {e}")
             
     return HttpResponse("OK", status=200)
+
+class DependienteDeleteView(DeleteView):
+    """Permite al ciudadano eliminar un familiar de su núcleo NFC"""
+    model = Dependiente
+    template_name = 'confirmar_eliminar.html' # Asegúrate de tener este template genérico
+    success_url = reverse_lazy('dashboard_ciudadano')
+
+    def get_queryset(self):
+        # SEGURIDAD: Solo permite borrar si el tutor es el usuario actual
+        return Dependiente.objects.filter(tutor=self.request.user)
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(self.request, "Familiar y pulsera desvinculados correctamente.")
+        return super().delete(request, *args, **kwargs)
