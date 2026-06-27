@@ -755,3 +755,70 @@ def activar_alerta_parada(request):
             return JsonResponse({'status': 'error', 'msg': str(e)})
             
     return JsonResponse({'status': 'error'}, status=405)
+
+@staff_member_required
+def listar_unidades(request):
+    # 1. Capturamos lo que el usuario escribe en los filtros
+    query = request.GET.get('q', '')
+    ruta_id = request.GET.get('ruta', '')
+    flota_id = request.GET.get('flota', '')
+
+    # 2. Traemos todas las unidades optimizando la consulta
+    unidades = Unidad.objects.all().select_related('conductor', 'ruta_asignada', 'propietario_flota')
+
+    # 3. Aplicamos el buscador de texto (busca por placa, unidad o nombre del chofer)
+    if query:
+        unidades = unidades.filter(
+            Q(numero_unidad__icontains=query) |
+            Q(conductor__first_name__icontains=query) |
+            Q(conductor__username__icontains=query)
+        )
+    
+    # 4. Aplicamos los filtros desplegables
+    if ruta_id:
+        unidades = unidades.filter(ruta_asignada_id=ruta_id)
+        
+    if flota_id:
+        unidades = unidades.filter(propietario_flota_id=flota_id)
+
+    # 5. Preparamos las listas para los "Select" del filtro
+    rutas_disponibles = Ruta.objects.all()
+    # Las flotas son los usuarios que tienen el rol de 'flota'
+    flotas_disponibles = User.objects.filter(perfil__rol='flota')
+
+    # 6. LA MAGIA: Agrupamos las unidades resultantes por flota para el acordeón
+    flotas_agrupadas = []
+    
+    # Añadimos una "flota virtual" para los buses que no tienen dueño asignado
+    buses_huerfanos = unidades.filter(propietario_flota__isnull=True)
+    if buses_huerfanos.exists():
+        flotas_agrupadas.append({
+            'nombre': "Unidades Independientes / Sin Flota",
+            'total': buses_huerfanos.count(),
+            'buses': buses_huerfanos
+        })
+
+    # Agrupamos por dueños de flota
+    for flota_user in flotas_disponibles:
+        buses_de_esta_flota = unidades.filter(propietario_flota=flota_user)
+        if buses_de_esta_flota.exists(): # Solo mostramos flotas que tengan buses (o que coincidan con el filtro)
+            # Intentamos sacar el nombre comercial, si no, usamos el username
+            nombre_comercial = flota_user.username
+            if hasattr(flota_user, 'perfil') and flota_user.perfil.nombre_flota:
+                nombre_comercial = flota_user.perfil.nombre_flota
+                
+            flotas_agrupadas.append({
+                'nombre': nombre_comercial,
+                'total': buses_de_esta_flota.count(),
+                'buses': buses_de_esta_flota
+            })
+
+    return render(request, 'flota/listar_unidades.html', {
+        'unidades_totales': unidades.count(),
+        'rutas': rutas_disponibles,
+        'flotas': flotas_disponibles,
+        'flotas_agrupadas': flotas_agrupadas,
+        'query': query,
+        'ruta_id': ruta_id,
+        'flota_id': flota_id,
+    })

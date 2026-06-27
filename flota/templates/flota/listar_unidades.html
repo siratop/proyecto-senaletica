@@ -1,82 +1,119 @@
 {% extends 'base.html' %}
-{% block content %}
 
-<div style="max-width: 1000px; margin: 40px auto; padding: 0 20px;">
+{% block content %}
+<div style="max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
     
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
         <div>
-            <h1 style="margin: 0; color: #0f172a; font-family: 'Urbanist', sans-serif;">Gestión de Flota</h1>
-            <p style="color: #64748b; margin: 5px 0 0 0;">Control y monitoreo de unidades de transporte.</p>
+            <h2 style="color: #0f172a; margin: 0;">Gestión de Flota</h2>
+            <p style="color: #64748b; font-size: 15px; margin: 5px 0 0 0;">
+                Control jerárquico de cooperativas y unidades de transporte ({{ unidades_totales }} unidades listadas).
+            </p>
         </div>
-        <a href="{% url 'panel_admin_amigable' %}" style="padding: 10px 20px; background: #475569; color: white; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 13px;">
+        <a href="{% url 'inicio_general' %}" style="background: #475569; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px;">
             <i class="fa-solid fa-arrow-left"></i> Volver al Menú
         </a>
     </div>
 
-    <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); overflow: hidden;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-            <thead>
-                <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                    <th style="padding: 15px 20px; font-size: 13px; color: #475569; text-transform: uppercase;">Nº Control / Unidad</th>
-                    <th style="padding: 15px 20px; font-size: 13px; color: #475569; text-transform: uppercase;">Conductor</th>
-                    <th style="padding: 15px 20px; font-size: 13px; color: #475569; text-transform: uppercase;">Ruta Asignada</th>
-                    <th style="padding: 15px 20px; font-size: 13px; color: #475569; text-transform: uppercase;">Estado</th>
-                    <th style="padding: 15px 20px; font-size: 13px; color: #475569; text-transform: uppercase; text-align: center;">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for unidad in unidades %}
-                <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 15px 20px; font-weight: bold; color: #1e293b;">
-                        {{ unidad.numero_unidad }}
-                    </td>
-                    
-                    <td style="padding: 15px 20px; color: #64748b;">
-                        {% if unidad.conductor %}
-                            <i class="fa-solid fa-user-tie" style="color: #94a3b8; margin-right: 5px;"></i> {{ unidad.conductor.username }}
-                        {% else %}
-                            <span style="color: #ef4444; font-size: 12px; font-weight: bold;">Sin asignar</span>
-                        {% endif %}
-                    </td>
-                    
-                    <td style="padding: 15px 20px; color: #3b82f6; font-weight: 600;">
-                        {{ unidad.ruta_asignada.nombre|default:"Ninguna" }}
-                    </td>
-                    
-                    <td style="padding: 15px 20px;">
-                        {% if unidad.estado == 'ACTIVO' %}
-                            <span style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold;">En Servicio</span>
-                        {% elif unidad.estado == 'MANTENIMIENTO' %}
-                            <span style="background: #fef9c3; color: #854d0e; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold;">En Taller</span>
-                        {% else %}
-                            <span style="background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold;">Inactivo</span>
-                        {% endif %}
-                    </td>
-                    
-                    <td style="padding: 15px 20px; text-align: center; display: flex; justify-content: center; gap: 10px;">
-                        <a href="{% url 'editar_unidad' unidad.id %}" style="color: #3b82f6; text-decoration: none; font-size: 14px;" title="Editar">
-                            <i class="fa-solid fa-pen-to-square"></i>
-                        </a>
-                        
-                        <form action="{% url 'eliminar_unidad' unidad.id %}" method="post" onsubmit="return confirm('¿Seguro que deseas eliminar esta unidad?');" style="margin: 0;" title="Eliminar">
-                            {% csrf_token %}
-                            <button type="submit" style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 14px;">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" style="padding: 40px; text-align: center; color: #94a3b8;">
-                        No hay unidades registradas en la flota.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <form method="GET" style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 30px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+        
+        <div style="flex-grow: 1; min-width: 200px;">
+            <input type="text" name="q" value="{{ query }}" placeholder="Buscar por N° control o chofer..." style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 14px;">
+        </div>
+
+        <select name="flota" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 14px; background: white; min-width: 180px;">
+            <option value="">Todas las Flotas</option>
+            {% for f in flotas %}
+                <option value="{{ f.id }}" {% if flota_id == f.id|stringformat:"s" %}selected{% endif %}>
+                    {% if f.perfil.nombre_flota %}{{ f.perfil.nombre_flota }}{% else %}{{ f.username }}{% endif %}
+                </option>
+            {% endfor %}
+        </select>
+
+        <select name="ruta" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 14px; background: white; min-width: 180px;">
+            <option value="">Todas las Rutas</option>
+            {% for r in rutas %}
+                <option value="{{ r.id }}" {% if ruta_id == r.id|stringformat:"s" %}selected{% endif %}>{{ r.nombre }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" style="background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s;">
+            <i class="fa-solid fa-filter"></i> Filtrar
+        </button>
+        
+        {% if query or ruta_id or flota_id %}
+            <a href="{% url 'listar_unidades' %}" style="color: #ef4444; text-decoration: none; font-size: 13px; font-weight: bold; margin-left: 10px;">Limpiar</a>
+        {% endif %}
+    </form>
+
+    <div style="display: flex; flex-direction: column; gap: 15px;">
+        {% for grupo in flotas_agrupadas %}
+            
+            <details style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" open>
+                <summary style="background: #f1f5f9; padding: 15px; font-weight: bold; color: #1e293b; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0;">
+                    <span style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-building" style="color: #64748b;"></i>
+                        Flota: {{ grupo.nombre|upper }}
+                    </span>
+                    <span style="background: #3b82f6; color: white; padding: 2px 10px; border-radius: 20px; font-size: 12px;">
+                        {{ grupo.total }} unidades
+                    </span>
+                </summary>
+                
+                <div style="padding: 0; overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead style="background: #ffffff; border-bottom: 2px solid #e2e8f0;">
+                            <tr>
+                                <th style="padding: 12px 15px; color: #64748b; font-size: 12px; text-transform: uppercase;">N° Unidad</th>
+                                <th style="padding: 12px 15px; color: #64748b; font-size: 12px; text-transform: uppercase;">Conductor</th>
+                                <th style="padding: 12px 15px; color: #64748b; font-size: 12px; text-transform: uppercase;">Ruta Asignada</th>
+                                <th style="padding: 12px 15px; color: #64748b; font-size: 12px; text-transform: uppercase; text-align: center;">Estado</th>
+                                <th style="padding: 12px 15px; color: #64748b; font-size: 12px; text-transform: uppercase; text-align: center;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for bus in grupo.buses %}
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 12px 15px; font-weight: bold; color: #0f172a;">{{ bus.numero_unidad }}</td>
+                                <td style="padding: 12px 15px; color: #475569;">
+                                    <i class="fa-solid fa-user" style="color: #cbd5e1; margin-right: 5px;"></i>
+                                    {% if bus.conductor %}{{ bus.conductor.username }}{% else %}Sin asignar{% endif %}
+                                </td>
+                                <td style="padding: 12px 15px; color: #3b82f6; font-weight: 500;">
+                                    {% if bus.ruta_asignada %}{{ bus.ruta_asignada.nombre }}{% else %}Ninguna{% endif %}
+                                </td>
+                                <td style="padding: 12px 15px; text-align: center;">
+                                    <span style="font-size: 11px; font-weight: bold; padding: 4px 8px; border-radius: 12px; 
+                                        {% if bus.estado == 'operativa' %} background: #dcfce7; color: #166534;
+                                        {% elif bus.estado == 'inactiva' %} background: #fee2e2; color: #991b1b;
+                                        {% else %} background: #fef3c7; color: #92400e; {% endif %}">
+                                        {{ bus.estado|title }}
+                                    </span>
+                                </td>
+                                <td style="padding: 12px 15px; text-align: center;">
+                                    <a href="{% url 'editar_unidad' bus.id %}" style="color: #3b82f6; margin-right: 10px;" title="Editar">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+
+        {% empty %}
+            <div style="text-align: center; padding: 40px; color: #64748b; border: 2px dashed #cbd5e1; border-radius: 8px;">
+                <i class="fa-solid fa-bus-slash" style="font-size: 32px; color: #94a3b8; margin-bottom: 15px;"></i>
+                <p>No se encontraron unidades con los filtros aplicados.</p>
+            </div>
+        {% endfor %}
     </div>
 
 </div>
 
+<style>
+    details > summary { list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+</style>
 {% endblock %}
