@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
-import os # Importado para rutas de media
+import os 
 from dotenv import load_dotenv
 
 # Carga las variables de entorno desde el archivo .env local
@@ -77,8 +77,7 @@ TEMPLATES = [
     },
 ]
 
-# Comentamos el viejo motor sincrónico (HTTP normal)
-# WSGI_APPLICATION = 'core.wsgi.application'
+
 
 # Activamos el nuevo motor asincrónico (WebSockets + HTTP)
 ASGI_APPLICATION = 'core.asgi.application'

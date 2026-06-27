@@ -72,8 +72,7 @@ def dashboard_ciudadano(request):
     """Panel de Control Nivel 1: El ciudadano gestiona su cuenta y pulseras NFC"""
     mis_dependientes = Dependiente.objects.filter(tutor=request.user)
     
-    # LA MAGIA: Buscamos alertas creadas por el usuario (tráfico, etc) 
-    # O (|) alertas que pertenezcan a los dependientes de este usuario (SOS NFC)
+    )
     mis_reportes = AlertaOperativa.objects.filter(
         Q(usuario_creador=request.user) | Q(dependiente__tutor=request.user)
     ).order_by('-fecha_creacion')
@@ -354,10 +353,10 @@ def mi_perfil(request):
             user.delete()
             return redirect('login') 
 
-    # --- NUEVO: Buscamos los tickets de soporte del usuario ---
+    
     tickets_usuario = TicketSoporte.objects.filter(usuario=request.user).order_by('-fecha_creacion')
 
-    # --- ACTUALIZADO: Pasamos las variables al HTML ---
+    
     return render(request, 'usuarios/mi_perfil.html', {
         'perfil': perfil,
         'puede_editar': puede_editar,
@@ -386,7 +385,7 @@ def panel_servicio_cliente(request):
         alertas_activas = AlertaOperativa.objects.filter(activa=True).order_by('-id')
         alertas_historial = AlertaOperativa.objects.filter(activa=False).order_by('-id')[:50]
     else:
-        # Filtramos por el usuario que creó la alerta
+        
         alertas_activas = AlertaOperativa.objects.filter(activa=True, usuario_creador=request.user).order_by('-id')
         alertas_historial = AlertaOperativa.objects.filter(activa=False, usuario_creador=request.user).order_by('-id')[:20]
 
@@ -410,7 +409,7 @@ def gestionar_alerta_sos(request, alerta_id, accion):
         alerta.activa = False
         alerta.save()
         
-        # MAGIA: Detectamos si la alerta tiene una persona asignada o si viene de una parada
+       
         if alerta.dependiente:
             nombre = alerta.dependiente.nombre_completo
         else:
@@ -468,7 +467,7 @@ def enviar_ticket(request):
         else:
             messages.error(request, '⚠️ Debes completar todos los campos del formulario.')
             
-        return redirect('mi_perfil') # ¡Redirección corregida!
+        return redirect('mi_perfil') 
     
 @login_required
 def panel_soporte(request):
@@ -484,7 +483,7 @@ def panel_soporte(request):
         tickets_abiertos = TicketSoporte.objects.filter(estado='Abierto').order_by('-fecha_creacion')
         tickets_resueltos = TicketSoporte.objects.exclude(estado='Abierto').order_by('-fecha_creacion')[:30]
         
-        # 👉 MAGIA NUEVA: Traemos todas las postulaciones de empleo (las más recientes primero)
+        
         solicitudes_empleo = SolicitudOperador.objects.all().order_by('-id') 
     else:
         tickets_abiertos = TicketSoporte.objects.filter(usuario=request.user, estado='Abierto').order_by('-fecha_creacion')

@@ -821,7 +821,7 @@ def panel_estadistico_inteligente(request):
     }
     return render(request, 'panel_estadistico.html', contexto)
 
-@csrf_exempt # Quitamos el @login_required de aquí arriba
+@csrf_exempt 
 def registrar_reporte_waze(request):
     if request.method == 'POST':
         # Validación elegante para AJAX: Si no ha iniciado sesión, le avisamos

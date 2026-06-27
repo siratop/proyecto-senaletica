@@ -12,10 +12,10 @@ from channels.auth import AuthMiddlewareStack
 import rutas.routing
 
 application = ProtocolTypeRouter({
-    # 1. Peticiones normales de la web (Las que ya tenías)
+    
     "http": django_asgi_app,
     
-    # 2. Peticiones en tiempo real (El nuevo túnel)
+   
     "websocket": AuthMiddlewareStack(
         URLRouter(
             rutas.routing.websocket_urlpatterns
