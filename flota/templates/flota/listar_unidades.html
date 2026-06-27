@@ -91,10 +91,23 @@
                                     </span>
                                 </td>
                                 <td style="padding: 12px 15px; text-align: center;">
-                                    <a href="{% url 'editar_unidad' bus.id %}" style="color: #3b82f6; margin-right: 10px;" title="Editar">
-                                        <i class="fa-solid fa-pen-to-square"></i>
-                                    </a>
-                                </td>
+    <div style="display: flex; justify-content: center; gap: 12px; align-items: center;">
+        
+        <!-- Botón de Editar -->
+        <a href="{% url 'editar_unidad' bus.id %}" style="color: #3b82f6; font-size: 15px; transition: 0.2s;" onmouseover="this.style.color='#1d4ed8';" onmouseout="this.style.color='#3b82f6';" title="Editar">
+            <i class="fa-solid fa-pen-to-square"></i>
+        </a>
+
+        <!-- Botón de Eliminar (Formulario Seguro) -->
+        <form action="{% url 'eliminar_unidad' bus.id %}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar la unidad {{ bus.numero_unidad }} del sistema? Esta acción no se puede deshacer.');" style="margin: 0;">
+            {% csrf_token %}
+            <button type="submit" style="background: none; border: none; color: #ef4444; font-size: 15px; cursor: pointer; padding: 0; transition: 0.2s;" onmouseover="this.style.color='#b91c1c';" onmouseout="this.style.color='#ef4444';" title="Eliminar">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </form>
+
+    </div>
+</td>
                             </tr>
                             {% endfor %}
                         </tbody>
