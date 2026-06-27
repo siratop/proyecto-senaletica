@@ -822,3 +822,14 @@ def listar_unidades(request):
         'ruta_id': ruta_id,
         'flota_id': flota_id,
     })
+
+@login_required
+def eliminar_unidad(request, unidad_id):
+    """Elimina una unidad de transporte mediante método POST seguro"""
+    if request.method == 'POST':
+        from .models import Unidad # Ajusta la importación si tu modelo está en otra app
+        unidad = get_object_or_404(Unidad, id=unidad_id)
+        numero = unidad.numero_unidad
+        unidad.delete()
+        messages.success(request, f"La unidad {numero} ha sido eliminada del sistema.")
+    return redirect('listar_unidades')

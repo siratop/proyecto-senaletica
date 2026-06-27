@@ -30,5 +30,6 @@ urlpatterns = [
     path('api/telegram-webhook/', telegram_webhook, name='telegram_webhook'),
     path('mi-panel/editar-familiar/<int:pk>/', views.DependienteUpdateView.as_view(), name='editar_dependiente'),
     path('mi-panel/eliminar-familiar/<int:pk>/', views.DependienteDeleteView.as_view(), name='eliminar_dependiente'),
+    path('panel-soporte/postulacion/atender/<int:solicitud_id>/', views.eliminar_solicitud, name='eliminar_solicitud'),
 
 ]

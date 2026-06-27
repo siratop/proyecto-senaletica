@@ -472,27 +472,34 @@ def enviar_ticket(request):
     
 @login_required
 def panel_soporte(request):
-    """Panel Exclusivo para la Mesa de Ayuda y Tickets de Soporte"""
-    from usuarios.models import PerfilUsuario, TicketSoporte
+    """Panel Exclusivo para la Mesa de Ayuda, Tickets y RRHH (Postulaciones)"""
+    from usuarios.models import PerfilUsuario, TicketSoporte, SolicitudOperador
     
     perfil, created = PerfilUsuario.objects.get_or_create(usuario=request.user)
     
-    # Validar si es del equipo de soporte
+    # Validar si es del equipo de soporte o admin
     es_agente = request.user.is_staff or request.user.is_superuser or perfil.rol == 'soporte'
 
     if es_agente:
         tickets_abiertos = TicketSoporte.objects.filter(estado='Abierto').order_by('-fecha_creacion')
         tickets_resueltos = TicketSoporte.objects.exclude(estado='Abierto').order_by('-fecha_creacion')[:30]
+        
+        # 👉 MAGIA NUEVA: Traemos todas las postulaciones de empleo (las más recientes primero)
+        solicitudes_empleo = SolicitudOperador.objects.all().order_by('-id') 
     else:
         tickets_abiertos = TicketSoporte.objects.filter(usuario=request.user, estado='Abierto').order_by('-fecha_creacion')
         tickets_resueltos = TicketSoporte.objects.filter(usuario=request.user).exclude(estado='Abierto').order_by('-fecha_creacion')[:20]
+        
+        # Un usuario normal no debe ver las postulaciones de otros
+        solicitudes_empleo = None
 
     contexto = {
         'tickets_abiertos': tickets_abiertos,
         'tickets_resueltos': tickets_resueltos,
         'es_agente': es_agente,
+        'solicitudes': solicitudes_empleo, # 👉 Pasamos la variable al HTML
     }
-    return render(request, 'usuarios/panel_soporte.html', contexto)   
+    return render(request, 'usuarios/panel_soporte.html', contexto)  
 
 @login_required
 def responder_ticket(request, ticket_id):
@@ -590,4 +597,14 @@ class DependienteDeleteView(DeleteView):
 
     def delete(self, request, *args, **kwargs):
         messages.success(self.request, "Familiar y pulsera desvinculados correctamente.")
-        return super().delete(request, *args, **kwargs)    
+        return super().delete(request, *args, **kwargs)  
+
+@login_required
+def eliminar_solicitud(request, solicitud_id):
+    """Permite a los agentes marcar una postulación como atendida (eliminarla)"""
+    if request.method == 'POST' and (request.user.is_staff or request.user.is_superuser):
+        from usuarios.models import SolicitudOperador
+        solicitud = get_object_or_404(SolicitudOperador, id=solicitud_id)
+        solicitud.delete()
+        messages.success(request, "La postulación ha sido marcada como atendida.")
+    return redirect('panel_soporte') 

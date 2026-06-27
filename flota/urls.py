@@ -42,4 +42,5 @@ urlpatterns = [
     path('historial/purgar/', views.limpiar_todo_historial, name='limpiar_todo_historial'),
     path('telegram-webhook/', telegram_webhook, name='telegram_webhook'),
     path('api/activar-alerta/', activar_alerta_parada, name='activar_alerta_parada'),
+    path('panel/unidad/eliminar/<int:unidad_id>/', views.eliminar_unidad, name='eliminar_unidad'),
 ]
