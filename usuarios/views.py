@@ -72,7 +72,7 @@ def dashboard_ciudadano(request):
     """Panel de Control Nivel 1: El ciudadano gestiona su cuenta y pulseras NFC"""
     mis_dependientes = Dependiente.objects.filter(tutor=request.user)
     
-    )
+    
     mis_reportes = AlertaOperativa.objects.filter(
         Q(usuario_creador=request.user) | Q(dependiente__tutor=request.user)
     ).order_by('-fecha_creacion')
